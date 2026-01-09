@@ -1166,6 +1166,12 @@ export function searchAndFilter(
 
 ### 3.3 Automated Skills Management via jfp CLI
 
+> **Note**: This section shows the core CLI implementation. Some functions called in `main()` are
+> defined in later sections of this plan:
+> - `suggestCommand` — See Part 14.6 (Semantic Suggestion System)
+> - `showAbout` — See Part 12.3 (Ecosystem Integration)
+> - Interactive mode helpers — See Part 6.3 (Interactive Mode)
+
 ```typescript
 // jfp.ts — Skills management commands
 // Entry point for the jfp CLI tool
@@ -1474,10 +1480,14 @@ ${prompt.tips?.map((t) => `- ${t}`).join("\n") ?? ""}
 }
 
 // jfp i — Interactive fzf-style browser
+// See Part 6.3 for the full implementation using @inquirer/prompts
 async function interactiveCommand() {
-  // In full implementation, use @inquirer/prompts for interactive selection
-  console.log(chalk.dim("Interactive mode requires @inquirer/prompts."));
-  console.log(chalk.dim("Use 'jfp list' and 'jfp show <id>' for now."));
+  // Full implementation: call interactiveMode() from Part 6.3
+  // This stub is shown here for completeness; the real function uses:
+  // - @inquirer/prompts for fuzzy search
+  // - Fuse.js for client-side filtering
+  // - copyToClipboard, showPrompt, installSkill helpers
+  await interactiveMode();
 }
 
 // jfp help — Full documentation
