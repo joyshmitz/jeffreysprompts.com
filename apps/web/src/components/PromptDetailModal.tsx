@@ -30,7 +30,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogBody,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
@@ -137,7 +136,7 @@ export function PromptDetailModal({
     if (!prompt) return;
 
     const skillContent = generateSkillMd(prompt);
-    const escapedContent = skillContent.replace(/'/g, "'\\''");
+    // Using quoted heredoc (<<'EOF') so content doesn't need escaping
     const command = `mkdir -p ~/.config/claude/skills/${prompt.id} && cat > ~/.config/claude/skills/${prompt.id}/SKILL.md << 'EOF'\n${skillContent}\nEOF`;
 
     try {

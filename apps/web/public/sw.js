@@ -112,10 +112,29 @@ self.addEventListener('fetch', (event) => {
             cache.put(request, networkResponse.clone());
           }
           return networkResponse;
-        }).catch(() => null);
+        }).catch(() => {
+          // Network failed, return null to fall through to cached response
+          return null;
+        });
 
-        // Return cached immediately, or wait for network
-        return cachedResponse || fetchPromise;
+        // Return cached immediately if available
+        if (cachedResponse) {
+          // Trigger background fetch but don't wait for it
+          fetchPromise.catch(() => {});
+          return cachedResponse;
+        }
+
+        // No cache, wait for network (may be null if network failed)
+        const networkResponse = await fetchPromise;
+        if (networkResponse) {
+          return networkResponse;
+        }
+
+        // Both cache and network failed - return 503
+        return new Response(JSON.stringify({ error: 'offline', message: 'Registry unavailable' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
       })
     );
     return;

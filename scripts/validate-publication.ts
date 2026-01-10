@@ -133,16 +133,17 @@ const VALIDATION_RULES: ValidationRule[] = [
 ];
 
 // Allowlist patterns that are OK to appear
+// Note: No /g flag needed here since we only use .test() for matching
 const ALLOWLIST: RegExp[] = [
-  /sk-REDACTED/g,
-  /ghp_REDACTED/g,
-  /\[REDACTED\]/g,
-  /<redacted>/g,
-  /example\.com/g,
-  /test\.com/g,
-  /localhost/g,
-  /127\.0\.0\.1/g,
-  /0\.0\.0\.0/g,
+  /sk-REDACTED/,
+  /ghp_REDACTED/,
+  /\[REDACTED\]/,
+  /<redacted>/,
+  /example\.com/,
+  /test\.com/,
+  /localhost/,
+  /127\.0\.0\.1/,
+  /0\.0\.0\.0/,
 ];
 
 function getLineNumber(content: string, index: number): number {

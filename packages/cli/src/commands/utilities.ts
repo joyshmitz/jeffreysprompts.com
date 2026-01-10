@@ -162,7 +162,9 @@ export async function doctorCommand(options: JsonOptions): Promise<void> {
         : "xclip";
 
   try {
-    const which = spawn("which", [clipboardCmd]);
+    // Use 'where' on Windows, 'which' on Unix
+    const whichCmd = platform() === "win32" ? "where" : "which";
+    const which = spawn(whichCmd, [clipboardCmd]);
     const hasClipboard = await new Promise<boolean>((resolve) => {
       which.on("close", (code) => resolve(code === 0));
       which.on("error", () => resolve(false));

@@ -306,9 +306,10 @@ function exportSessionDirect(sessionPath: string): string {
           tool_use: entry.tool_use || entry.message?.tool_use,
         });
       } else if (entry.message) {
-        // Legacy format
+        // Legacy format - map "user" role to "human" for consistency
+        const role = entry.message.role === "user" ? "human" : (entry.message.role || "assistant");
         messages.push({
-          type: entry.message.role || "assistant",
+          type: role as "human" | "assistant" | "system",
           content: entry.message.content || "",
           timestamp: entry.timestamp,
         });
