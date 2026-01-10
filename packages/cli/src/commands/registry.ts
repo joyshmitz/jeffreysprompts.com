@@ -1,9 +1,9 @@
 // Registry status and refresh commands
 
-import { existsSync, statSync } from "fs";
+import { existsSync, statSync, readFileSync } from "fs";
 import chalk from "chalk";
 import boxen from "boxen";
-import { loadConfig, type JfpConfig } from "../lib/config";
+import { loadConfig } from "../lib/config";
 import { refreshRegistry, type RegistryMeta } from "../lib/registry-loader";
 import { shouldOutputJson } from "../lib/utils";
 
@@ -13,13 +13,12 @@ interface StatusOptions {
 
 interface RefreshOptions {
   json?: boolean;
-  verify?: boolean;
 }
 
 function readMetaFile(metaPath: string): RegistryMeta | null {
   if (!existsSync(metaPath)) return null;
   try {
-    const raw = require("fs").readFileSync(metaPath, "utf-8");
+    const raw = readFileSync(metaPath, "utf-8");
     return JSON.parse(raw) as RegistryMeta;
   } catch {
     return null;

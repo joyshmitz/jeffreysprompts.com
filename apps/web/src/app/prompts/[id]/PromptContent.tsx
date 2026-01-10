@@ -7,7 +7,6 @@
  * - Full prompt content display
  * - Variable inputs with localStorage persistence
  * - Copy, install, download buttons
- * - Syntax highlighting for code blocks
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -19,7 +18,7 @@ import {
   Terminal,
   ArrowLeft,
   Tag,
-  Calendar,
+  Hash,
   User,
   Sparkles,
 } from "lucide-react";
@@ -31,7 +30,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { cn } from "@/lib/utils";
 import {
   renderPrompt,
   extractVariables,
@@ -160,7 +158,7 @@ export function PromptContent({ prompt }: PromptContentProps) {
             {prompt.author}
           </span>
           <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
+            <Hash className="h-4 w-4" />
             v{prompt.version}
           </span>
           {prompt.estimatedTokens && (

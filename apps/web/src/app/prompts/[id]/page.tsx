@@ -2,7 +2,7 @@
  * Prompt Permalink Page
  *
  * Server-rendered page for individual prompts with:
- * - Full prompt content with syntax highlighting
+ * - Full prompt content display
  * - Copy, install, download buttons
  * - Meta tags for social sharing
  * - Static generation via generateStaticParams
@@ -47,14 +47,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: "article",
       url: `https://jeffreysprompts.com/prompts/${prompt.id}`,
       siteName: "JeffreysPrompts",
-      images: [
-        {
-          url: "/og-prompt.png",
-          width: 1200,
-          height: 630,
-          alt: prompt.title,
-        },
-      ],
     },
     twitter: {
       card: "summary_large_image",
