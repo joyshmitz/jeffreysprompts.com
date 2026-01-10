@@ -60,14 +60,17 @@ cli
 
 cli
   .command("render <id>", "Render prompt with variables")
+  .option("--fill", "Prompt interactively for missing variables")
   .option("--context <path>", "Append file context")
   .option("--stdin", "Read context from stdin")
-  .option("--max-context <bytes>", "Max context bytes")
+  .option("--max-context <bytes>", "Max context bytes (default: 200KB)")
   .option("--json", "Output JSON")
   .action(renderCommand);
 
 cli
   .command("copy <id>", "Copy prompt to clipboard")
+  .option("--fill", "Prompt interactively for missing variables")
+  .option("--json", "Output JSON")
   .action(copyCommand);
 
 cli
