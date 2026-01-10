@@ -55,7 +55,7 @@ export async function promptForVariable(
   variable: PromptVariable,
   currentValue?: string
 ): Promise<string> {
-  const defaultVal = currentValue || variable.default;
+  const defaultVal = currentValue ?? variable.default;
 
   switch (variable.type) {
     case "select":

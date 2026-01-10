@@ -94,12 +94,10 @@ export async function copyCommand(id: string, options: CopyOptions) {
     const promptVars = prompt.variables.filter((v) => contentVars.includes(v.name));
 
     for (const varDef of promptVars) {
-      if (!variables[varDef.name]) {
+      if (variables[varDef.name] === undefined || variables[varDef.name] === "") {
         try {
           const value = await promptForVariable(varDef, variables[varDef.name]);
-          if (value) {
-            variables[varDef.name] = value;
-          }
+          variables[varDef.name] = value;
         } catch {
           if (shouldOutputJson(options)) {
             console.log(JSON.stringify({ error: "cancelled", message: "User cancelled input" }));
