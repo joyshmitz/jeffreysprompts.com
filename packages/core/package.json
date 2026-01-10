@@ -34,6 +34,10 @@
       "types": "./src/search/index.ts",
       "import": "./src/search/index.ts"
     },
+    "./search/engine": {
+      "types": "./src/search/engine.ts",
+      "import": "./src/search/engine.ts"
+    },
     "./export": {
       "types": "./src/export/index.ts",
       "import": "./src/export/index.ts"

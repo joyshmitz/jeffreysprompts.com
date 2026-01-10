@@ -5,17 +5,43 @@
 import type { Prompt } from "../prompts/types";
 
 /**
+ * Escape a string for safe YAML scalar value
+ * Quotes strings containing special YAML characters
+ */
+function escapeYamlValue(value: string): string {
+  // Check if value needs quoting (contains special chars, newlines, or starts with special chars)
+  if (
+    value.includes(":") ||
+    value.includes("#") ||
+    value.includes("\n") ||
+    value.includes('"') ||
+    value.includes("'") ||
+    value.startsWith(" ") ||
+    value.endsWith(" ") ||
+    value.startsWith("@") ||
+    value.startsWith("!") ||
+    value.startsWith("&") ||
+    value.startsWith("*") ||
+    /^[\[\]{}>|]/.test(value)
+  ) {
+    // Use double quotes with escaped internal double quotes
+    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
+  }
+  return value;
+}
+
+/**
  * Generate SKILL.md content for a single prompt
  */
 export function generateSkillMd(prompt: Prompt): string {
   const frontmatter = [
     "---",
-    `name: ${prompt.id}`,
-    `description: ${prompt.description}`,
-    `version: ${prompt.version}`,
-    `author: ${prompt.author}`,
-    `category: ${prompt.category}`,
-    `tags: [${prompt.tags.map((t) => `"${t}"`).join(", ")}]`,
+    `name: ${escapeYamlValue(prompt.id)}`,
+    `description: ${escapeYamlValue(prompt.description)}`,
+    `version: ${escapeYamlValue(prompt.version)}`,
+    `author: ${escapeYamlValue(prompt.author)}`,
+    `category: ${escapeYamlValue(prompt.category)}`,
+    `tags: [${prompt.tags.map((t) => `"${t.replace(/"/g, '\\"')}"`).join(", ")}]`,
     `source: https://jeffreysprompts.com/prompts/${prompt.id}`,
     "x_jfp_generated: true",
     "---",

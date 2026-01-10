@@ -1,69 +1,132 @@
-import { prompts } from "@jeffreysprompts/core/prompts";
+"use client";
+
+import { useState, useMemo, useCallback } from "react";
+import { prompts, categories } from "@jeffreysprompts/core/prompts/registry";
+import { searchPrompts } from "@jeffreysprompts/core/search/engine";
+import { Hero } from "@/components/Hero";
+import { PromptGrid } from "@/components/PromptGrid";
+import type { Prompt, PromptCategory } from "@jeffreysprompts/core/prompts/types";
 
 export default function Home() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<PromptCategory | null>(null);
+
+  // Filter prompts based on search and category
+  const filteredPrompts = useMemo(() => {
+    if (searchQuery.trim()) {
+      const results = searchPrompts(searchQuery, {
+        category: selectedCategory ?? undefined,
+        limit: 50,
+      });
+      return results.map((r) => r.prompt);
+    }
+
+    if (selectedCategory) {
+      return prompts.filter((p) => p.category === selectedCategory);
+    }
+
+    return prompts;
+  }, [searchQuery, selectedCategory]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  const handleCategorySelect = useCallback((category: PromptCategory | null) => {
+    setSelectedCategory(category);
+  }, []);
+
+  const handlePromptClick = useCallback((prompt: Prompt) => {
+    // TODO: Open prompt detail modal
+    console.log("Clicked prompt:", prompt.id);
+  }, []);
+
+  const handlePromptCopy = useCallback((prompt: Prompt) => {
+    // TODO: Show toast notification
+    console.log("Copied prompt:", prompt.id);
+  }, []);
+
   return (
-    <div className="min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-bold mb-4">JeffreysPrompts.com</h1>
-        <p className="text-xl text-zinc-600 dark:text-zinc-400">
-          Curated prompts for agentic coding.
-        </p>
-      </header>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      {/* Hero Section */}
+      <Hero
+        promptCount={prompts.length}
+        categoryCount={categories.length}
+        categories={categories}
+        onSearch={handleSearch}
+        onCategorySelect={handleCategorySelect}
+        selectedCategory={selectedCategory}
+      />
 
-      <main className="max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {prompts.map((prompt) => (
-          <div
-            key={prompt.id}
-            className="flex flex-col border rounded-lg p-6 hover:shadow-lg transition-shadow dark:border-zinc-800 bg-white dark:bg-zinc-900/50"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-mono px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 uppercase tracking-wider">
-                {prompt.category}
-              </span>
-              {prompt.featured && (
-                <span className="text-xs font-semibold text-amber-500 bg-amber-500/10 px-2 py-1 rounded">
-                  Featured
-                </span>
+      {/* Main Content */}
+      <main className="container-wide px-4 sm:px-6 lg:px-8 py-12">
+        {/* Results header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">
+              {selectedCategory ? (
+                <span className="capitalize">{selectedCategory}</span>
+              ) : searchQuery ? (
+                "Search Results"
+              ) : (
+                "All Prompts"
               )}
-            </div>
-            <h2 className="text-xl font-semibold mb-2">{prompt.title}</h2>
-            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4 line-clamp-3">
-              {prompt.description}
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? "s" : ""}
+              {searchQuery && ` for "${searchQuery}"`}
             </p>
-            
-            <div className="flex flex-wrap gap-2 mb-4">
-              {prompt.tags.slice(0, 3).map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs text-zinc-500 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 rounded-full"
-                >
-                  #{tag}
-                </span>
-              ))}
-              {prompt.tags.length > 3 && (
-                <span className="text-xs text-zinc-400 px-1 py-1">+{prompt.tags.length - 3}</span>
-              )}
-            </div>
-
-            <div className="mt-auto pt-4 border-t dark:border-zinc-800">
-               <div className="text-xs font-mono bg-zinc-100 dark:bg-black p-3 rounded overflow-hidden h-24 relative group cursor-pointer">
-                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-100 dark:to-black opacity-50 group-hover:opacity-20 transition-opacity" />
-                 <p className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
-                   {prompt.content}
-                 </p>
-               </div>
-               <div className="mt-2 flex justify-end">
-                 <button className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                   View Prompt &rarr;
-                 </button>
-               </div>
-            </div>
           </div>
-        ))}
+        </div>
+
+        {/* Prompt Grid */}
+        <PromptGrid
+          prompts={filteredPrompts}
+          onPromptClick={handlePromptClick}
+          onPromptCopy={handlePromptCopy}
+        />
       </main>
 
-      <footer className="mt-20 text-center text-sm text-zinc-500 pb-8">
-        <p>Use the CLI: <code className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">jfp install {`{prompt-id}`}</code></p>
+      {/* Footer */}
+      <footer className="border-t dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div className="container-wide px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
+                JeffreysPrompts.com
+              </h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Curated prompts for agentic coding
+              </p>
+            </div>
+            <div className="flex items-center gap-6">
+              <a
+                href="https://github.com/Dicklesworthstone/jeffreysprompts.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://x.com/doodlestein"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                Twitter
+              </a>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t dark:border-zinc-800 text-center">
+            <p className="text-sm text-zinc-400">
+              Install via CLI:{" "}
+              <code className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded font-mono text-xs">
+                curl -fsSL jeffreysprompts.com/install.sh | bash
+              </code>
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

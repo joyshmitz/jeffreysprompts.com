@@ -122,6 +122,11 @@ export function CopyButton({
 
       toast.success(successMessage, preview, 3000);
 
+      // Optional haptic feedback on supported devices
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(10);
+      }
+
       // Callback
       onCopy?.();
     } catch (error) {
