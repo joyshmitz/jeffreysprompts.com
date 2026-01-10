@@ -140,8 +140,18 @@ export function detectLanguage(content: string): string {
     return "html";
   }
 
-  // YAML: key-value with colon at start of lines
-  if (/^[\w-]+:\s/.test(trimmed) || trimmed.startsWith("---")) {
+  // Diff: starts with +++ or --- or diff (check before YAML since --- is ambiguous)
+  if (
+    trimmed.startsWith("diff ") ||
+    trimmed.startsWith("+++") ||
+    trimmed.startsWith("---") ||
+    /^@@\s/.test(trimmed)
+  ) {
+    return "diff";
+  }
+
+  // YAML: key-value with colon at start of lines (but not ---)
+  if (/^[\w-]+:\s/.test(trimmed)) {
     return "yaml";
   }
 
@@ -162,16 +172,6 @@ export function detectLanguage(content: string): string {
     )
   ) {
     return "sql";
-  }
-
-  // Diff: starts with +++ or --- or diff
-  if (
-    trimmed.startsWith("diff ") ||
-    trimmed.startsWith("+++") ||
-    trimmed.startsWith("---") ||
-    /^@@\s/.test(trimmed)
-  ) {
-    return "diff";
   }
 
   // Default to plain text
@@ -199,8 +199,8 @@ export function formatFilePath(path: string, maxLength = 60): string {
  * Format a byte count as a human-readable string.
  */
 export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
   if (bytes === 0) return "0 B";
-  if (bytes < 0) return "0 B";
 
   const units = ["B", "KB", "MB", "GB"];
   const k = 1024;

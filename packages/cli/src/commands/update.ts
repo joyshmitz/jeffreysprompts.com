@@ -62,7 +62,6 @@ function generateSimpleDiff(oldContent: string, newContent: string): string {
 
 function updateLocation(
   targetRoot: string,
-  locationName: "personal" | "project",
   options: UpdateOptions
 ): UpdateResult[] {
   const results: UpdateResult[] = [];
@@ -88,7 +87,17 @@ function updateLocation(
       continue;
     }
 
-    const skillDir = resolveSafeChildPath(targetRoot, entry.id);
+    let skillDir: string;
+    try {
+      skillDir = resolveSafeChildPath(targetRoot, entry.id);
+    } catch {
+      results.push({
+        id: entry.id,
+        action: "skipped",
+        reason: "Invalid skill ID in manifest",
+      });
+      continue;
+    }
     const skillPath = join(skillDir, "SKILL.md");
 
     if (!existsSync(skillPath)) {
@@ -205,12 +214,12 @@ export function updateCommand(options: UpdateOptions) {
   const allResults: Array<UpdateResult & { location: "personal" | "project" }> = [];
 
   if (updatePersonal) {
-    const results = updateLocation(personalDir, "personal", options);
+    const results = updateLocation(personalDir, options);
     allResults.push(...results.map((r) => ({ ...r, location: "personal" as const })));
   }
 
   if (updateProject) {
-    const results = updateLocation(projectDir, "project", options);
+    const results = updateLocation(projectDir, options);
     allResults.push(...results.map((r) => ({ ...r, location: "project" as const })));
   }
 
