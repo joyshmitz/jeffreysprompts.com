@@ -12,6 +12,7 @@ export interface BM25Document {
   id: string;
   tokens: string[];
   length: number;
+  termFreq: Map<string, number>; // Precomputed term frequency for efficient search
 }
 
 export interface BM25Index {
@@ -45,10 +46,17 @@ export function buildIndex(prompts: Prompt[]): BM25Index {
     const tokens = tokenize(textParts.join(" "));
     const uniqueTokens = new Set(tokens);
 
+    // Precompute term frequency map for efficient search
+    const termFreq = new Map<string, number>();
+    for (const token of tokens) {
+      termFreq.set(token, (termFreq.get(token) ?? 0) + 1);
+    }
+
     documents.set(prompt.id, {
       id: prompt.id,
       tokens,
       length: tokens.length,
+      termFreq,
     });
 
     totalLength += tokens.length;

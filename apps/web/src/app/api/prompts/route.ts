@@ -5,9 +5,15 @@ import { prompts, categories, tags } from "@jeffreysprompts/core/prompts";
 // Version for ETag generation
 const REGISTRY_VERSION = process.env.JFP_REGISTRY_VERSION ?? "1.0.0";
 
-// Generate ETag from registry version and prompt count
-function generateETag(): string {
-  const content = `${REGISTRY_VERSION}-${prompts.length}`;
+// Generate ETag from registry version, prompt count, and filter parameters
+function generateETag(params: {
+  category?: string | null;
+  tag?: string | null;
+  featured?: string | null;
+  minimal?: string | null;
+}): string {
+  // Include filter params in ETag to ensure different filters get different ETags
+  const content = `${REGISTRY_VERSION}-${prompts.length}-${params.category ?? ""}-${params.tag ?? ""}-${params.featured ?? ""}-${params.minimal ?? ""}`;
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     hash = ((hash << 5) - hash) + content.charCodeAt(i);
@@ -25,8 +31,8 @@ export async function GET(request: NextRequest) {
   const featured = searchParams.get("featured");
   const minimal = searchParams.get("minimal");
 
-  // Check ETag for 304 response
-  const etag = generateETag();
+  // Check ETag for 304 response (include filter params in ETag)
+  const etag = generateETag({ category, tag, featured, minimal });
   const ifNoneMatch = request.headers.get("if-none-match");
   if (ifNoneMatch === etag) {
     return new NextResponse(null, { status: 304 });
