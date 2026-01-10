@@ -19,9 +19,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
 
-// Import the processor from the web app lib
-// Note: This requires building the processor types first
-const PROCESSOR_PATH = "../apps/web/src/lib/transcript/processor";
 
 interface ProcessOptions {
   input?: string;
@@ -175,9 +172,28 @@ function processTranscript(
     const content = (msg.content || msg.message?.content || "") as string;
     totalContent += content;
 
-    // Count tool calls
+    // Count tool calls and extract file editing stats
     if (msg.tool_use && Array.isArray(msg.tool_use)) {
       toolCallCount += msg.tool_use.length;
+
+      // Extract file editing information from tool calls
+      for (const tool of msg.tool_use as Array<{ name?: string; input?: { file_path?: string; content?: string; new_string?: string } }>) {
+        const toolName = tool.name?.toLowerCase();
+
+        // Track files edited via Write or Edit tools
+        if (toolName === "write" || toolName === "edit") {
+          const filePath = tool.input?.file_path;
+          if (filePath) {
+            filesEdited.add(filePath);
+          }
+
+          // Count lines written
+          const contentWritten = tool.input?.content || tool.input?.new_string || "";
+          if (contentWritten) {
+            linesWritten += contentWritten.split("\n").length;
+          }
+        }
+      }
     }
   }
 
