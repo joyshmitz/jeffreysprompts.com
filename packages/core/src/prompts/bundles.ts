@@ -3,7 +3,7 @@
 
 import type { Prompt } from "./types";
 import { getPrompt } from "./registry";
-import { escapeYamlValue } from "../export/yaml";
+import { escapeYamlValue, escapeYamlArrayItem } from "../export/yaml";
 
 /**
  * Lucide icon name for bundle display
@@ -123,7 +123,7 @@ export function generateBundleSkillMd(bundle: Bundle): string {
     `version: ${escapeYamlValue(bundle.version)}`,
     `author: ${escapeYamlValue(bundle.author)}`,
     `type: bundle`,
-    `prompts: [${prompts.map((p) => `"${p.id}"`).join(", ")}]`,
+    `prompts: [${prompts.map((p) => `"${escapeYamlArrayItem(p.id)}"`).join(", ")}]`,
     `source: https://jeffreysprompts.com/bundles/${bundle.id}`,
     "x_jfp_generated: true",
     "---",
