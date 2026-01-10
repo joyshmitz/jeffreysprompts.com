@@ -2,7 +2,7 @@
  * SKILL.md export for Claude Code skills integration
  */
 
-import type { Prompt } from "../prompts/types.js";
+import type { Prompt } from "../prompts/types";
 
 /**
  * Generate SKILL.md content for a single prompt
