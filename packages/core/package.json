@@ -42,6 +42,10 @@
       "types": "./src/export/index.ts",
       "import": "./src/export/index.ts"
     },
+    "./export/markdown": {
+      "types": "./src/export/markdown.ts",
+      "import": "./src/export/markdown.ts"
+    },
     "./export/skills": {
       "types": "./src/export/skills.ts",
       "import": "./src/export/skills.ts"

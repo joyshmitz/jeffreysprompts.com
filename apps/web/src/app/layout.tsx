@@ -29,6 +29,22 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Jeffrey Emanuel", url: "https://twitter.com/doodlestein" }],
   creator: "Jeffrey Emanuel",
+  manifest: "/manifest.json",
+  themeColor: "#8b5cf6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Jeffrey's Prompts",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icons/icon-512x512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+    ],
+  },
   openGraph: {
     title: "JeffreysPrompts.com",
     description: "Curated prompts for agentic coding",
