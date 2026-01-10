@@ -100,6 +100,7 @@ export function SpotlightSearch({
   React.useEffect(() => {
     if (!debouncedQuery.trim()) {
       setResults([])
+      setIsReranking(false)
       return
     }
 
@@ -168,6 +169,7 @@ export function SpotlightSearch({
           if (!cancelled) setIsReranking(false)
         }
       } else {
+        setIsReranking(false)
         const nextResults = searchResults.slice(0, 10)
         if (cancelled) return
         setResults(nextResults)
@@ -186,6 +188,7 @@ export function SpotlightSearch({
 
     return () => {
       cancelled = true
+      setIsReranking(false)
     }
   }, [debouncedQuery, semanticMode])
 
