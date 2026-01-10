@@ -16,3 +16,16 @@ export type { BM25Document, BM25Index } from "./bm25";
 // Composite search engine
 export { searchPrompts, quickSearch, resetIndex } from "./engine";
 export type { SearchResult, SearchOptions } from "./engine";
+
+// Semantic search (optional reranking)
+export {
+  semanticRerank,
+  semanticRerankHash,
+  hashEmbedding,
+  cosineSimilarity,
+  warmupModel,
+  isModelAvailable,
+  getModelError,
+  resetModelState,
+} from "./semantic";
+export type { RankedResult, SemanticOptions } from "./semantic";

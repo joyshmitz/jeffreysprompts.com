@@ -73,6 +73,16 @@ cli
   .option("--json", "Output JSON")
   .action(installedCommand);
 
+cli
+  .command("update", "Update all installed skills to latest versions")
+  .option("--personal", "Only update personal skills (~/.config/claude/skills)")
+  .option("--project", "Only update project skills (.claude/skills)")
+  .option("--dry-run", "Show what would be updated without making changes")
+  .option("--diff", "Show diff of changes (with --dry-run)")
+  .option("--force", "Overwrite even if user modified skills")
+  .option("--json", "Output JSON")
+  .action(updateCommand);
+
 cli.help();
 cli.version(version);
 
