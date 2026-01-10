@@ -166,7 +166,9 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
             <div className="text-xs font-mono bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg overflow-hidden h-20 relative">
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-zinc-50 dark:to-zinc-800/50 pointer-events-none" />
               <p className="whitespace-pre-wrap text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">
-                {prompt.content.slice(0, 200)}...
+                {prompt.content.length > 200
+                  ? `${prompt.content.slice(0, 200)}...`
+                  : prompt.content}
               </p>
             </div>
 

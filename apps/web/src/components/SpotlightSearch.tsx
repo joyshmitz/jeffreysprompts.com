@@ -226,33 +226,6 @@ export function SpotlightSearch({
     }
   }, [selectedIndex, results.length])
 
-  // Handle keyboard navigation
-  const handleKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault()
-          setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1))
-          break
-        case "ArrowUp":
-          e.preventDefault()
-          setSelectedIndex((prev) => Math.max(prev - 1, 0))
-          break
-        case "Enter":
-          e.preventDefault()
-          if (results[selectedIndex]) {
-            handleSelect(results[selectedIndex])
-          }
-          break
-        case "Escape":
-          e.preventDefault()
-          setIsOpen(false)
-          break
-      }
-    },
-    [results, selectedIndex]
-  )
-
   // Handle prompt selection
   const handleSelect = React.useCallback(
     async (result: SearchResult) => {
@@ -277,6 +250,33 @@ export function SpotlightSearch({
       onSelect?.(promptId)
     },
     [copyOnSelect, onSelect, success, error]
+  )
+
+  // Handle keyboard navigation
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault()
+          setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1))
+          break
+        case "ArrowUp":
+          e.preventDefault()
+          setSelectedIndex((prev) => Math.max(prev - 1, 0))
+          break
+        case "Enter":
+          e.preventDefault()
+          if (results[selectedIndex]) {
+            handleSelect(results[selectedIndex])
+          }
+          break
+        case "Escape":
+          e.preventDefault()
+          setIsOpen(false)
+          break
+      }
+    },
+    [results, selectedIndex, handleSelect]
   )
 
   // Don't render on server
