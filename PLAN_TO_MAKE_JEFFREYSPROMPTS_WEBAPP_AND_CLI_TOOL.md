@@ -687,7 +687,7 @@ import { type Prompt } from "./types";
  *
  * To add a new prompt:
  * 1. Add a new entry to the `prompts` array below
- * 2. Run `bun run scripts/build-data.ts` to regenerate derived assets
+ * 2. Run `bun run scripts/build-data.ts` to regenerate derived assets (manifest, indexes)
  * 3. The web app and CLI automatically pick up the new prompt
  *
  * This is the ONLY place prompts are defined.
@@ -887,7 +887,7 @@ Benefits:
 
 Each prompt can include a `version`, `updatedAt`, and `changelog` entry. The web UI can surface
 “What changed” on prompt pages, and the CLI can implement `jfp update --dry-run` to show exactly
-which prompts would be updated and why.
+which prompts would be updated and why (version bump + changelog summaries, or a short diff hash).
 
 ---
 
@@ -1145,7 +1145,32 @@ ${content}
 }
 ```
 
-### 3.2.5 Search Engine
+### 3.2.5 JSON Registry Export (Shared Payload)
+
+Centralize the registry payload shape so both web and CLI stay in sync.
+
+```typescript
+// packages/core/src/export/json.ts
+
+import { prompts, bundles, workflows, categories, tags } from "../prompts/registry";
+
+export function buildRegistryPayload() {
+  return {
+    version: process.env.JFP_REGISTRY_VERSION ?? "dev",
+    updatedAt: new Date().toISOString(),
+    prompts,
+    bundles,
+    workflows,
+    meta: {
+      total: prompts.length,
+      categories,
+      tags,
+    },
+  };
+}
+```
+
+### 3.2.6 Search Engine
 
 The search engine powers both the web app's SpotlightSearch and the CLI's search. **Baseline search is BM25** (fast, tiny, deterministic), with **optional semantic rerank** for tougher queries. This keeps the default experience lightweight while allowing a “better suggestions” mode.
 
@@ -1165,6 +1190,7 @@ export interface SearchResult {
   category: string;
   tags: string[];
   content: string;
+  featured?: boolean;
   score: number;
 }
 
@@ -1183,6 +1209,7 @@ export function searchPrompts(query: string, limit = 20): SearchResult[] {
     category: r.category,
     tags: r.tags,
     content: r.content,
+    featured: r.featured,
     score: r.score,
   }));
 }
@@ -1208,6 +1235,7 @@ export function searchAndFilter(
         category: p.category,
         tags: p.tags,
         content: p.content,
+        featured: p.featured,
         score: 0, // baseline when browsing
       }));
 
@@ -1221,6 +1249,9 @@ export function searchAndFilter(
 
   return results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    if ((b.featured ?? false) !== (a.featured ?? false)) {
+      return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+    }
     return a.title.localeCompare(b.title);
   });
 }
@@ -1273,6 +1304,7 @@ interface Flags {
   context?: string;
   stdin?: boolean;
   maxContext?: number;
+  vars?: Record<string, string>;
   category?: string;
   tag?: string;
   raw: boolean;
@@ -1284,6 +1316,18 @@ interface Flags {
 function printJson(value: unknown, flags: Flags) {
   const pretty = flags.pretty;
   console.log(pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value));
+}
+
+// Allow --VAR=value flags for render/copy (cac rejects unknown flags by default).
+function parseVarFlags(argv: string[]): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const arg of argv) {
+    if (arg.startsWith("--") && arg.includes("=")) {
+      const [key, value] = arg.slice(2).split("=");
+      if (key && value) vars[key] = value;
+    }
+  }
+  return vars;
 }
 
 const cli = cac("jfp");
@@ -1434,8 +1478,13 @@ async function copyCommand(id: string, flags: Flags) {
     process.exit(1);
   }
 
-  const content = flags.fill
-    ? renderPrompt(prompt, await promptForVars(prompt))
+  const baseVars = flags.vars ?? {};
+  const filledVars = flags.fill
+    ? { ...baseVars, ...(await promptForVars(prompt, baseVars)) }
+    : baseVars;
+
+  const content = Object.keys(filledVars).length
+    ? renderPrompt(prompt, filledVars)
     : prompt.content;
 
   // Use platform-specific clipboard command with safe stdin piping
@@ -1474,7 +1523,7 @@ async function renderCommand(id: string, flags: Flags) {
     process.exit(1);
   }
 
-  const vars = collectVarsFromFlags(flags); // parse --VAR=value pairs
+  const vars = flags.vars ?? {};
   let output = renderPrompt(prompt, vars);
 
   if (flags.context) {
@@ -1641,6 +1690,7 @@ COMMANDS:
 
   registry status         Show registry cache status
   registry refresh        Refresh cached registry
+  update-cli              Self-update the CLI (opt-in)
 
   bundles                 List prompt bundles (NEW)
     --json                Output as JSON
@@ -1797,6 +1847,11 @@ async function installedCommand(flags: Flags) {
 }
 
 // jfp update — Update all installed skills
+function extractSkillVersion(content: string): string {
+  const match = content.match(/^version:\\s*(.+)$/m);
+  return match?.[1]?.replace(/\"/g, "") ?? "unknown";
+}
+
 async function updateCommand(flags: Flags) {
   // Re-install all installed skills with --force
   const personalDir = join(homedir(), ".config", "claude", "skills");
@@ -1814,7 +1869,11 @@ async function updateCommand(flags: Flags) {
       if (!isGenerated && !flags.force) {
         console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
       } else if (flags.dryRun) {
-        console.log(chalk.cyan(`• Would update ${prompt.id} (personal)`));
+        const currentVersion = extractSkillVersion(existing);
+        const nextVersion = prompt.version;
+        const note = prompt.changelog?.[0]?.summary;
+        console.log(chalk.cyan(`• Would update ${prompt.id} ${currentVersion} → ${nextVersion} (personal)`));
+        if (note) console.log(chalk.dim(`  - ${note}`));
         updated++;
       } else {
         const tmp = `${personalPath}.tmp`;
@@ -1830,7 +1889,11 @@ async function updateCommand(flags: Flags) {
       if (!isGenerated && !flags.force) {
         console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
       } else if (flags.dryRun) {
-        console.log(chalk.cyan(`• Would update ${prompt.id} (project)`));
+        const currentVersion = extractSkillVersion(existing);
+        const nextVersion = prompt.version;
+        const note = prompt.changelog?.[0]?.summary;
+        console.log(chalk.cyan(`• Would update ${prompt.id} ${currentVersion} → ${nextVersion} (project)`));
+        if (note) console.log(chalk.dim(`  - ${note}`));
         updated++;
       } else {
         const tmp = `${projectPath}.tmp`;
@@ -2004,13 +2067,25 @@ cli.command("show <id>", "show a prompt")
 
 cli.command("copy <id>", "copy prompt to clipboard")
   .option("--fill", "prompt for missing variables")
-  .action((id, opts) => copyCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+  .allowUnknownOptions()
+  .action((id, opts) => copyCommand(id, {
+    ...opts,
+    vars: parseVarFlags(cli.rawArgs),
+    json: cli.options.json,
+    pretty: cli.options.pretty,
+  }));
 
 cli.command("render <id>", "render a prompt with variables")
   .option("--context <path>", "append file contents")
   .option("--stdin", "read context from stdin")
   .option("--max-context <bytes>", "max context size", { default: 200000 })
-  .action((id, opts) => renderCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+  .allowUnknownOptions()
+  .action((id, opts) => renderCommand(id, {
+    ...opts,
+    vars: parseVarFlags(cli.rawArgs),
+    json: cli.options.json,
+    pretty: cli.options.pretty,
+  }));
 
 cli.command("export <id...>", "export prompts")
   .option("--format <format>", "skill|md", { default: "skill" })
@@ -2175,7 +2250,7 @@ export function InstallAllSkillsButton() {
 ```typescript
 // apps/web/src/app/api/prompts/route.ts
 
-import { prompts, categories, tags, bundles, workflows } from "@jfp/core/prompts";
+import { buildRegistryPayload } from "@jfp/core/export/json";
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 
@@ -2185,7 +2260,8 @@ export async function GET(request: Request) {
   const tag = searchParams.get("tag");
   const featured = searchParams.get("featured");
 
-  let filteredPrompts = prompts;
+  const base = buildRegistryPayload();
+  let filteredPrompts = base.prompts;
 
   if (category) {
     filteredPrompts = filteredPrompts.filter((p) => p.category === category);
@@ -2200,15 +2276,11 @@ export async function GET(request: Request) {
   }
 
   const payload = {
-    version: process.env.JFP_REGISTRY_VERSION ?? "dev",
-    updatedAt: new Date().toISOString(),
+    ...base,
     prompts: filteredPrompts,
-    bundles,
-    workflows,
     meta: {
+      ...base.meta,
       total: filteredPrompts.length,
-      categories,
-      tags,
     },
   };
 
@@ -2716,28 +2788,29 @@ jeffreysprompts.com/
 │           └── SKILL.md                   # Meta-skill for creating skills from prompts
 │
 ├── packages/
-│   └── core/
-│       ├── package.json
-│       └── src/
-│           ├── index.ts                   # Package re-exports
-│           ├── prompts/
-│           │   ├── types.ts               # Prompt interfaces
-│           │   ├── registry.ts            # All prompts (single source of truth)
-│           │   ├── bundles.ts             # Prompt bundles
-│           │   ├── workflows.ts           # Curated workflows
-│           │   └── schema.ts              # Runtime schema validation
-│           ├── export/
-│           │   ├── skills.ts              # SKILL.md export
-│           │   └── markdown.ts            # Markdown export
-│           ├── search/
-│           │   ├── bm25.ts                # BM25 engine
-│           │   ├── tokenize.ts            # Tokenizer + stopwords
-│           │   └── semantic.ts            # Optional semantic rerank hooks
-│           └── template/
-│               ├── render.ts              # Variable rendering
-│               └── variables.ts           # Variable helpers
-│
-├── packages/
+│   ├── core/
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts                   # Package re-exports
+│   │       ├── prompts/
+│   │       │   ├── types.ts               # Prompt interfaces
+│   │       │   ├── registry.ts            # All prompts (single source of truth)
+│   │       │   ├── bundles.ts             # Prompt bundles
+│   │       │   ├── workflows.ts           # Curated workflows
+│   │       │   └── schema.ts              # Runtime schema validation
+│   │       ├── export/
+│   │       │   ├── skills.ts              # SKILL.md export
+│   │       │   ├── markdown.ts            # Markdown export
+│   │       │   └── json.ts                # JSON export (registry payload)
+│   │       ├── search/
+│   │       │   ├── bm25.ts                # BM25 engine
+│   │       │   ├── tokenize.ts            # Tokenizer + stopwords
+│   │       │   ├── synonyms.ts            # Synonyms/boosting map
+│   │       │   └── semantic.ts            # Optional semantic rerank hooks
+│   │       └── template/
+│   │           ├── render.ts              # Variable rendering
+│   │           └── variables.ts           # Variable helpers
+│   │
 │   └── cli/
 │       ├── package.json
 │       └── src/
@@ -2847,6 +2920,7 @@ jeffreysprompts.com/
 │       │
 │       └── public/
 │           ├── og-image.png
+│           ├── registry.manifest.json   # Optional registry checksum manifest
 │           ├── manifest.json
 │           ├── icons/
 │           │   ├── icon-192.png
@@ -2856,7 +2930,7 @@ jeffreysprompts.com/
 └── scripts/
     ├── build-cli.sh                      # Build jfp binary (current platform)
     ├── build-releases.sh                 # Build jfp for all platforms
-    ├── build-data.ts                     # Validate + generate derived assets
+    ├── build-data.ts                     # Validate + generate derived assets (manifest, indexes)
     ├── validate-prompts.ts               # Schema-check registry
     ├── extract-transcript.ts             # Extract session via cass
     ├── process-transcript.ts             # Process JSONL → JSON
@@ -3494,6 +3568,19 @@ CLI commands:
 - `jfp registry status` — show cache age/version
 - `jfp registry refresh` — force refresh
 
+### 6.6.1 Registry Integrity Verification (Optional, Recommended)
+
+For extra trust, publish a small manifest alongside the registry payload:
+
+- `public/registry.manifest.json` (or `/api/prompts?manifest=1`)
+- Fields: `{ version, updatedAt, sha256 }`
+
+The CLI verifies the checksum **before** writing cache:
+- If checksum mismatch → skip write + warn once.
+- If checksum matches → write cache + update stored `ETag`.
+
+This adds tamper-resistance without adding heavy signing infrastructure.
+
 ### 6.7 Prompt Rendering + Context Injection
 
 Add a render pipeline that fills `{{VARS}}` and can append context:
@@ -3523,6 +3610,18 @@ Local prompts live in `~/.config/jfp/local/`:
 - tools: `search_prompts`, `render_prompt`
 
 Provide a copy-paste MCP config snippet for Claude Desktop.
+
+### 6.10 CLI Auto-Update (Opt-In)
+
+Add an optional self-update flow (disabled by default):
+- `autoUpdate: false` in config
+- check weekly (or `jfp update-cli` on demand)
+- download from GitHub releases
+- verify checksum (`SHA256SUMS.txt`)
+- atomic replace (download → verify → rename)
+- rollback on failure
+
+This avoids “stale binary” drift for users who want it, without forcing network checks on every run.
 
 ---
 
@@ -3688,7 +3787,32 @@ export function PromptCard({
 }
 ```
 
-### 7.2 SpotlightSearch Component
+### 7.2 Prompt Detail + Variable Inputs (Mobile-First)
+
+Prompts that define `variables` should render a lightweight input form **above** the prompt content.
+Values persist in `localStorage` per prompt id so users don’t need to re-enter them.
+
+Key UX requirements:
+- **Mobile**: prompt detail opens as a bottom sheet (thumb-friendly).
+- **Fixed action bar** on mobile: Copy / Install / Download (large targets).
+- **Swipe-to-copy** on cards (optional, mobile only).
+- **Haptics** on copy (`navigator.vibrate(10)` when supported).
+- **Rendered copy**: copy uses `renderPrompt()` with filled variables.
+- **Context box (optional)**: paste or drop a file snippet (size-capped) to append under `---\nContext:\n`.
+
+```tsx
+// apps/web/src/components/prompt-detail.tsx (excerpt)
+import { renderPrompt } from "@jfp/core/template/render";
+
+const storageKey = `jfp-vars:${prompt.id}`;
+const [values, setValues] = useLocalStorage(storageKey, prompt.variables ?? []);
+
+const rendered = renderPrompt(prompt.content, values);
+
+<CopyButton text={rendered} />
+```
+
+### 7.3 SpotlightSearch Component
 
 Adapted from `/data/projects/brenner_bot/apps/web/src/components/search/SpotlightSearch.tsx`:
 
@@ -3882,24 +4006,26 @@ export function SpotlightSearch() {
 
 ---
 
-### 7.3 Prompt Permalink Pages (SEO + Sharing)
+### 7.4 Prompt Permalink Pages (SEO + Sharing)
 
 Add `/prompts/[id]` pages with:
 - full prompt content
 - copy + install buttons
+- download SKILL.md + markdown buttons
 - related prompts (tag overlap + BM25)
 - metadata (author, version, updated)
+- changelog accordion (“What changed”) when `prompt.changelog` exists
 
 Use `generateStaticParams` for pre-rendered pages.
 
-### 7.4 Bundle Permalink Pages
+### 7.5 Bundle Permalink Pages
 
 Add `/bundles/[id]` with:
 - bundle description
 - included prompts
 - one-click “Download as Skill Bundle”
 
-### 7.5 Workflow Builder (Differentiator)
+### 7.6 Workflow Builder (Differentiator)
 
 Let users assemble multi-step workflows:
 - choose prompts as steps
@@ -3907,28 +4033,30 @@ Let users assemble multi-step workflows:
 - add short “handoff notes”
 - export as markdown or skill bundle
 
-### 7.6 Contribution Page (No DB Required)
+### 7.7 Contribution Page (No DB Required)
 
 Provide a `/contribute` page that:
 - collects prompt metadata
 - renders a TypeScript object entry
 - links to a prefilled GitHub issue/PR
 
-### 7.7 PWA + Offline Support
+### 7.8 PWA + Offline Support
 
 Add a PWA manifest + service worker:
 - cache `/api/prompts` and static assets
 - show an offline banner when using cached data
+- use SWR-style client fetch to revalidate in background
+- keep BM25 search in-browser so offline search still works
 
-### 7.8 Error Boundaries + Privacy Analytics
+### 7.9 Error Boundaries + Privacy Analytics
 
 - Error boundaries around search + prompt grid with fallback UI
 - Optional, privacy-respecting analytics (e.g., Plausible) for:
   - prompt_view, prompt_copy
-  - search (query length + result count)
+  - search (query length + result count; optionally hash query to detect zero-results)
   - export and skill_install
 
-### 7.9 Health Endpoint
+### 7.10 Health Endpoint
 
 Add `GET /api/health` returning:
 - status
@@ -5956,10 +6084,10 @@ async function bundleShowCommand(id: string, flags: Flags) {
   }
 
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       ...bundle,
       prompts: getBundlePrompts(bundle.id),
-    }, null, 2));
+    }, flags);
     return;
   }
 
@@ -6225,6 +6353,7 @@ jfp registry refresh          # Refresh cached registry
 jfp open <id>                 # Open prompt permalink in browser
 jfp serve                     # MCP server mode (agent-native)
 jfp completion --shell zsh    # Shell completions
+jfp update-cli                # Self-update the CLI (opt-in)
 
 # Metadata
 jfp categories                # List categories
