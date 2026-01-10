@@ -97,16 +97,17 @@ export function search(
     let score = 0;
 
     for (const term of queryTokens) {
-      const termFreq = doc.tokens.filter((t) => t === term).length;
-      if (termFreq === 0) continue;
+      // Use precomputed term frequency map - O(1) lookup instead of O(n) filter
+      const tf = doc.termFreq.get(term) ?? 0;
+      if (tf === 0) continue;
 
       const docFreq = index.termDocFreq.get(term) ?? 0;
       const idfScore = idf(docFreq, index.docCount);
 
       // BM25 formula
-      const numerator = termFreq * (K1 + 1);
+      const numerator = tf * (K1 + 1);
       const denominator =
-        termFreq + K1 * (1 - B + B * (doc.length / index.avgDocLength));
+        tf + K1 * (1 - B + B * (doc.length / index.avgDocLength));
 
       score += idfScore * (numerator / denominator);
     }
