@@ -30,16 +30,22 @@ export function CategoryFilter({
   );
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Badge
-        variant={selected === null ? "default" : "outline"}
+    <div
+      role="group"
+      aria-label="Filter by category"
+      className={cn("flex flex-wrap items-center gap-2", className)}
+    >
+      <button
+        type="button"
+        aria-pressed={selected === null}
+        onClick={() => handleSelect(null)}
         className={cn(
-          "cursor-pointer transition-all hover:scale-105",
+          "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+          "transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           selected === null
             ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-            : "hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+            : "border border-input bg-background hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
         )}
-        onClick={() => handleSelect(null)}
       >
         All
         {counts && (
@@ -47,25 +53,27 @@ export function CategoryFilter({
             ({Object.values(counts).reduce((a, b) => a + b, 0)})
           </span>
         )}
-      </Badge>
+      </button>
 
       {categories.map((category) => (
-        <Badge
+        <button
           key={category}
-          variant={selected === category ? "default" : "outline"}
+          type="button"
+          aria-pressed={selected === category}
+          onClick={() => handleSelect(category)}
           className={cn(
-            "cursor-pointer transition-all hover:scale-105 capitalize",
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize",
+            "transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             selected === category
               ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-              : "hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+              : "border border-input bg-background hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
           )}
-          onClick={() => handleSelect(category)}
         >
           {category}
           {counts?.[category] !== undefined && (
             <span className="ml-1 text-xs opacity-70">({counts[category]})</span>
           )}
-        </Badge>
+        </button>
       ))}
 
       {selected && (
@@ -74,8 +82,9 @@ export function CategoryFilter({
           size="sm"
           className="h-6 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
           onClick={() => handleSelect(null)}
+          aria-label="Clear category filter"
         >
-          <X className="w-3 h-3 mr-1" />
+          <X className="w-3 h-3 mr-1" aria-hidden="true" />
           Clear
         </Button>
       )}
