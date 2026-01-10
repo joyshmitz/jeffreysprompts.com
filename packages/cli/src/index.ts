@@ -9,6 +9,7 @@ import { exportCommand } from "./commands/export";
 import { renderCommand } from "./commands/render";
 import { copyCommand } from "./commands/copy";
 import { installedCommand } from "./commands/installed";
+import { updateCommand } from "./commands/update";
 
 export const cli = cac("jfp");
 
