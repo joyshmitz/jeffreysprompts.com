@@ -142,6 +142,14 @@ This design allows skills to bundle unlimited context without bloating the initi
 - **Personal Skills**: `~/.config/claude/skills/` — Available in all projects
 - **Project Skills**: `.claude/skills/` — Shared via git with team members
 
+#### Skill Update Manifest (NEW)
+
+Maintain a `skills/manifest.json` that records:
+`{ promptId, version, updatedAt, hash }`
+
+The CLI uses this to make `jfp update` deterministic and to avoid unnecessary rewrites.
+Only overwrite skills that include `x_jfp_generated: true` (unless `--force` is provided).
+
 #### Why Skills Matter for JeffreysPrompts
 
 By exporting prompts as Claude Code skills, users can:
@@ -193,10 +201,10 @@ Developers who use both the web app and CLI:
 
 #### 1. TypeScript-Native Data
 
-Prompts are defined as TypeScript objects, not markdown files:
+Prompts are defined as TypeScript objects, not markdown files, and live in a shared package used by both the web app and the CLI:
 
 ```typescript
-// apps/web/src/lib/prompts/registry.ts
+// packages/core/src/prompts/registry.ts
 export const prompts: Prompt[] = [
   {
     id: "idea-wizard",
@@ -215,6 +223,13 @@ Benefits:
 - **IDE support**: Autocomplete for categories, tags
 - **No parsing**: No gray-matter, no markdown AST, no regex
 - **Single source of truth**: The data IS the code
+
+#### 1b. Schema Validation (NEW)
+
+Add a lightweight runtime schema (e.g. zod or valibot) and a build-time validator:
+- `packages/core/src/prompts/schema.ts`
+- `scripts/validate-prompts.ts`
+Run validation in CI and before releases to catch malformed prompts early.
 
 #### 2. Agent-First Design
 
@@ -248,6 +263,12 @@ Following brennerbot.org patterns:
 - No horizontal scroll
 - iOS Safari visual viewport fixes
 
+#### 6. Accessibility (NEW)
+
+- Full keyboard navigation for SpotlightSearch and prompt cards
+- ARIA labels for copy buttons, tags, filters, and dialogs
+- Basic contrast checks in CI (lightweight, warn-only)
+
 ### Technical Decisions
 
 #### Bun-Only
@@ -268,6 +289,11 @@ Following brennerbot.org patterns:
 - **CSS Variables**: Native custom properties, no JavaScript theme
 - **OKLCH Colors**: Perceptually uniform color space
 - **Fluid Typography**: `clamp()` for responsive sizing
+
+#### Search Stack
+
+- **Default**: BM25 (core implementation, tiny + deterministic)
+- **Optional**: MiniLM semantic rerank via Transformers.js (lazy-loaded)
 
 #### Vercel Deployment
 
@@ -299,12 +325,17 @@ The AGENTS.md for this project is adapted from brennerbot.org but customized for
 1. **Web App**:
    - Home page with hero, search, category filters, prompt grid
    - PromptCard with title, description, tags, copy button, basket add
-   - SpotlightSearch (Cmd+K) with fuzzy search
+   - SpotlightSearch (Cmd+K) with fast search
+   - Prompt permalink pages: `/prompts/[id]` (shareable + SEO)
+   - Bundle permalink pages: `/bundles/[id]`
    - Export as markdown or Claude Code skills
 
 2. **CLI Tool**:
-   - `jfp list`, `jfp search`, `jfp show`, `jfp copy`
+   - `jfp list`, `jfp search`, `jfp suggest`, `jfp show`, `jfp copy`
+   - `jfp render` for variable prompts
+   - `jfp open` for prompt permalinks
    - `jfp install`, `jfp uninstall`, `jfp installed`
+   - `jfp registry status|refresh` (live registry cache)
    - Interactive mode (`jfp i`)
    - JSON output for all commands
 
@@ -316,6 +347,8 @@ The AGENTS.md for this project is adapted from brennerbot.org but customized for
 #### Quality Bar
 
 - Lighthouse score >90 (all categories)
+- JS bundle size budget (warn > 200KB gz for app shell)
+- CLS < 0.1, INP < 200ms (lab)
 - First Contentful Paint <1s
 - CLI startup <100ms
 - Binary size <50MB
@@ -349,7 +382,7 @@ The AGENTS.md for this project is adapted from brennerbot.org but customized for
 Build a world-class platform for showcasing and distributing Jeffrey Emanuel's curated coding prompts. This platform consists of:
 
 1. **Web App** — Next.js 16 + React 19 + Tailwind 4 deployed on Vercel
-2. **CLI Tool** — `jfp` Bun-compiled binary with fzf-style fuzzy search
+2. **CLI Tool** — `jfp` Bun-compiled binary with fast BM25 search + optional semantic suggestions
 3. **Claude Code Skills Integration** — Automated installation/management of skills
 4. **TypeScript-Native Prompts** — No markdown parsing; pure TypeScript data structures
 
@@ -369,7 +402,7 @@ All patterns, components, and design decisions are derived from the production b
 | **Jargon Component** | `/data/projects/brenner_bot/apps/web/src/components/ui/jargon.tsx` | 498 | Hover tooltip (desktop) + bottom sheet (mobile) |
 | **Copy Button** | `/data/projects/brenner_bot/apps/web/src/components/ui/copy-button.tsx` | 351 | Animated copy with toast feedback |
 | **Quote Bank Parser** | `/data/projects/brenner_bot/apps/web/src/lib/quotebank-parser.ts` | 139 | Tag extraction, filtering, search |
-| **Search Engine** | `/data/projects/brenner_bot/apps/web/src/lib/search/engine.ts` | 200+ | MiniSearch with lazy loading |
+| **Search Engine** | `/data/projects/brenner_bot/apps/web/src/lib/search/engine.ts` | 200+ | MiniSearch with lazy loading (reference only) |
 | **Spotlight Search** | `/data/projects/brenner_bot/apps/web/src/components/search/SpotlightSearch.tsx` | 55KB | Command palette (Cmd+K) |
 | **Design System** | `/data/projects/brenner_bot/apps/web/src/app/globals.css` | 3,531 | 70+ animations, color tokens, typography |
 | **Toast System** | `/data/projects/brenner_bot/apps/web/src/components/ui/toast.tsx` | ~200 | Cross-component notifications |
@@ -503,14 +536,21 @@ Copy these keyframe animations verbatim:
 
 ---
 
-## Part 2: TypeScript-Native Prompt System
+## Part 2: TypeScript-Native Prompt System (Shared Core Package)
 
 **No markdown files. No parsing. Pure TypeScript.**
+
+Create a shared package `@jfp/core` in `packages/core/` with a simple `src/index.ts` that re-exports
+`prompts`, `bundles`, `workflows`, `export`, `search`, and `template` modules. Both the CLI and web app import from this package (no cross-app paths).
+
+Add workspace wiring:
+- Root `package.json` uses workspaces including `packages/*` and `apps/*`
+- `apps/web/package.json` and the CLI package use `@jfp/core` as a workspace dependency
 
 ### 2.1 Prompt Type Definitions
 
 ```typescript
-// apps/web/src/lib/prompts/types.ts
+// packages/core/src/prompts/types.ts
 
 export type PromptCategory =
   | "ideation"        // Brainstorming, creativity
@@ -524,8 +564,27 @@ export type PromptCategory =
 
 export type PromptDifficulty = "beginner" | "intermediate" | "advanced";
 
+export type PromptVariableType = "text" | "multiline" | "select" | "file" | "path";
+
+export interface PromptVariable {
+  name: string; // e.g. "PROJECT_NAME"
+  label: string;
+  description?: string;
+  type: PromptVariableType;
+  required?: boolean;
+  options?: string[]; // for select
+  default?: string;
+}
+
+export interface PromptChange {
+  version: string;
+  date: string; // ISO 8601
+  type: "improvement" | "fix" | "breaking";
+  summary: string;
+}
+
 export interface PromptMeta {
-  /** Unique identifier (kebab-case) */
+  /** Unique identifier (kebab-case, stable, never change once published) */
   id: string;
 
   /** Human-readable title */
@@ -562,12 +621,15 @@ export interface PromptMeta {
   created: string;
 
   /** Last update date (ISO 8601) */
-  updated?: string;
+  updatedAt?: string;
 }
 
 export interface Prompt extends PromptMeta {
   /** The actual prompt content (plain text with optional markdown) */
   content: string;
+
+  /** Variables for templated prompts ({{VARS}}) */
+  variables?: PromptVariable[];
 
   /** When to use this prompt (for skills export) */
   whenToUse?: string[];
@@ -577,6 +639,9 @@ export interface Prompt extends PromptMeta {
 
   /** Example scenarios */
   examples?: string[];
+
+  /** Optional changelog entries for updates */
+  changelog?: PromptChange[];
 }
 
 export interface PromptWithHtml extends Prompt {
@@ -585,10 +650,35 @@ export interface PromptWithHtml extends Prompt {
 }
 ```
 
-### 2.2 Prompt Registry (TypeScript Data)
+**Prompt ID Rules (NEW)**
+- lowercase kebab-case only
+- globally unique across all prompts
+- stable forever once published (used in URLs, CLI, exports)
+- enforced by `scripts/validate-prompts.ts`
+
+### 2.2 Prompt Templating (Variables)
+
+Prompts can include variables like `{{PROJECT_NAME}}` or `{{FILE_PATH}}`. The core package exposes a
+simple renderer that performs safe string substitution (no logic, no eval).
 
 ```typescript
-// apps/web/src/lib/prompts/registry.ts
+// packages/core/src/template/render.ts
+
+import { type Prompt } from "../prompts/types";
+
+export function renderPrompt(prompt: Prompt, vars: Record<string, string>): string {
+  return prompt.content.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => {
+    return vars[key] ?? "";
+  });
+}
+```
+
+The web UI and CLI both use this for “prompt compilation” (see Part 6.6).
+
+### 2.3 Prompt Registry (TypeScript Data)
+
+```typescript
+// packages/core/src/prompts/registry.ts
 
 import { type Prompt } from "./types";
 
@@ -597,7 +687,7 @@ import { type Prompt } from "./types";
  *
  * To add a new prompt:
  * 1. Add a new entry to the `prompts` array below
- * 2. Run `bun run build` to regenerate indexes
+ * 2. Run `bun run scripts/build-data.ts` to regenerate derived assets
  * 3. The web app and CLI automatically pick up the new prompt
  *
  * This is the ONLY place prompts are defined.
@@ -753,7 +843,7 @@ export function getPrompt(id: string): Prompt | undefined {
 }
 
 /** Get prompts by category */
-export function getPromptsByCategory(category: string): Prompt[] {
+export function getPromptsByCategory(category: PromptCategory): Prompt[] {
   return prompts.filter((p) => p.category === category);
 }
 
@@ -768,7 +858,7 @@ export const totalCount = prompts.length;
 
 ### 2.3 Adding New Prompts (Developer Workflow)
 
-Jeffrey adds new prompts by editing `apps/web/src/lib/prompts/registry.ts`:
+Jeffrey adds new prompts by editing `packages/core/src/prompts/registry.ts`:
 
 ```typescript
 // Just add a new entry to the prompts array:
@@ -792,6 +882,12 @@ Benefits:
 - **No parsing**: No gray-matter, no markdown AST, no regex
 - **Instant**: No build step to convert markdown to JSON
 - **Native**: The data IS the code
+
+### 2.4 Prompt Changelog & Update Diffs
+
+Each prompt can include a `version`, `updatedAt`, and `changelog` entry. The web UI can surface
+“What changed” on prompt pages, and the CLI can implement `jfp update --dry-run` to show exactly
+which prompts would be updated and why.
 
 ---
 
@@ -842,15 +938,17 @@ description: Clear description of what this skill does and when to use it
 ### 3.2 Skills Export System
 
 ```typescript
-// apps/web/src/lib/export/skills.ts
+// packages/core/src/export/skills.ts
 
-import { type Prompt } from "../prompts/types";
+import { type Prompt } from "@jfp/core/prompts";
 import JSZip from "jszip";
 
 /**
  * Generate SKILL.md content for a single prompt.
  */
 export function generateSkillMd(prompt: Prompt): string {
+  const q = (value: unknown) => JSON.stringify(value); // YAML accepts JSON scalars/lists
+
   const whenToUse = prompt.whenToUse?.length
     ? `\n## When to Use\n\n${prompt.whenToUse.map((w) => `- ${w}`).join("\n")}`
     : "";
@@ -864,8 +962,14 @@ export function generateSkillMd(prompt: Prompt): string {
     : "";
 
   return `---
-name: ${prompt.id}
-description: ${prompt.description}
+name: ${q(prompt.id)}
+description: ${q(prompt.description)}
+version: ${q(prompt.version)}
+author: ${q(prompt.author)}
+category: ${q(prompt.category)}
+tags: ${q(prompt.tags)}
+source: ${q(`https://jeffreysprompts.com/prompts/${prompt.id}`)}
+x_jfp_generated: true
 ---
 
 # ${prompt.title}
@@ -936,15 +1040,15 @@ ${prompts.map((p) => `- **${p.title}** (\`${p.id}\`): ${p.description}`).join("\
 /**
  * Generate installation shell script.
  */
-export function generateInstallScript(prompts: Prompt[], targetDir: string): string {
+export function generateInstallScript(prompts: Prompt[]): string {
   const skillDirs = prompts.map((p) => {
     // Using a quoted HEREDOC delimiter ('SKILL_EOF') prevents variable expansion,
     // so single quotes in the content don't need escaping
     const skillContent = generateSkillMd(p);
     return `
 # ${p.title}
-mkdir -p "${targetDir}/${p.id}"
-cat > "${targetDir}/${p.id}/SKILL.md" << 'SKILL_EOF'
+mkdir -p "$TARGET_DIR/${p.id}"
+cat > "$TARGET_DIR/${p.id}/SKILL.md" << 'SKILL_EOF'
 ${skillContent}
 SKILL_EOF
 `;
@@ -954,9 +1058,14 @@ SKILL_EOF
 # Jeffrey's Prompts Skills Installer
 # Generated from https://jeffreysprompts.com
 
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
-TARGET_DIR="${targetDir}"
+# Override location if desired:
+#   JFP_TARGET_DIR="$HOME/.config/claude/skills" bash install.sh
+TARGET_DIR="${JFP_TARGET_DIR:-"$HOME/.config/claude/skills"}"
+
+mkdir -p "$TARGET_DIR"
 
 echo "Installing ${prompts.length} skills to $TARGET_DIR..."
 
@@ -973,9 +1082,9 @@ echo "Restart Claude Code to load the new skills."
 For users who want plain markdown without the Claude Code skill structure:
 
 ```typescript
-// apps/web/src/lib/export/markdown.ts
+// packages/core/src/export/markdown.ts
 
-import { type Prompt } from "@/lib/prompts/types";
+import { type Prompt } from "@jfp/core/prompts";
 
 /**
  * Generate markdown for a single prompt.
@@ -1038,18 +1147,16 @@ ${content}
 
 ### 3.2.5 Search Engine
 
-The search engine powers both the web app's SpotlightSearch and the CLI's fuzzy search. It uses MiniSearch for fast, typo-tolerant full-text search.
+The search engine powers both the web app's SpotlightSearch and the CLI's search. **Baseline search is BM25** (fast, tiny, deterministic), with **optional semantic rerank** for tougher queries. This keeps the default experience lightweight while allowing a “better suggestions” mode.
+
+Include a small synonyms map (fix/repair, docs/readme, perf/speed) to improve lexical recall without heavy ML.
 
 ```typescript
-// apps/web/src/lib/search/engine.ts
+// packages/core/src/search/engine.ts
 
-import MiniSearch from "minisearch";
-import { prompts } from "@/lib/prompts/registry";
-import { type Prompt } from "@/lib/prompts/types";
-
-// ============================================================================
-// Types
-// ============================================================================
+import { prompts } from "../prompts/registry";
+import { type Prompt, type PromptCategory } from "../prompts/types";
+import { bm25Search } from "./bm25";
 
 export interface SearchResult {
   id: string;
@@ -1061,108 +1168,68 @@ export interface SearchResult {
   score: number;
 }
 
-// ============================================================================
-// Search Index (lazy initialization)
-// ============================================================================
-
-let searchIndex: MiniSearch<Prompt> | null = null;
-
-function getSearchIndex(): MiniSearch<Prompt> {
-  if (!searchIndex) {
-    searchIndex = new MiniSearch<Prompt>({
-      fields: ["title", "description", "content", "tags"],
-      storeFields: ["id", "title", "description", "category", "tags", "content"],
-      searchOptions: {
-        boost: { title: 3, description: 2, tags: 1.5, content: 1 },
-        fuzzy: 0.2,
-        prefix: true,
-      },
-    });
-
-    searchIndex.addAll(prompts);
-  }
-
-  return searchIndex;
-}
-
-// ============================================================================
-// Search Functions
-// ============================================================================
-
-/**
- * Search prompts with fuzzy matching.
- * Returns results sorted by relevance score.
- */
 export function searchPrompts(query: string, limit = 20): SearchResult[] {
-  if (!query.trim()) {
-    return [];
-  }
+  if (!query.trim()) return [];
 
-  const index = getSearchIndex();
-  const results = index.search(query, { limit });
+  const results = bm25Search(prompts, query, {
+    limit,
+    boost: { title: 3, description: 2, tags: 1.5, content: 1 },
+  });
 
-  return results.map((result) => ({
-    id: result.id,
-    title: result.title,
-    description: result.description,
-    category: result.category,
-    tags: result.tags,
-    content: result.content,
-    score: result.score,
+  return results.map((r) => ({
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    tags: r.tags,
+    content: r.content,
+    score: r.score,
   }));
 }
 
-/**
- * Get search suggestions (autocomplete).
- */
-export function getSuggestions(query: string, limit = 5): string[] {
-  if (!query.trim()) {
-    return [];
-  }
-
-  const index = getSearchIndex();
-  return index.autoSuggest(query, { limit }).map((s) => s.suggestion);
-}
-
-/**
- * Filter prompts by category.
- */
-export function filterByCategory(category: string): Prompt[] {
+export function filterByCategory(category: PromptCategory): Prompt[] {
   return prompts.filter((p) => p.category === category);
 }
 
-/**
- * Filter prompts by tag.
- */
 export function filterByTag(tag: string): Prompt[] {
   return prompts.filter((p) => p.tags.includes(tag));
 }
 
-/**
- * Combined search + filter.
- */
 export function searchAndFilter(
   query: string,
-  options: { category?: string; tags?: string[] } = {}
+  options: { category?: PromptCategory; tags?: string[] } = {}
 ): SearchResult[] {
-  let results = query.trim() ? searchPrompts(query) : prompts.map((p) => ({
-    ...p,
-    score: 1,
-  }));
+  let results: SearchResult[] = query.trim()
+    ? searchPrompts(query)
+    : prompts.map((p) => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        category: p.category,
+        tags: p.tags,
+        content: p.content,
+        score: 0, // baseline when browsing
+      }));
 
   if (options.category) {
     results = results.filter((r) => r.category === options.category);
   }
 
   if (options.tags?.length) {
-    results = results.filter((r) =>
-      options.tags!.some((tag) => r.tags.includes(tag))
-    );
+    results = results.filter((r) => options.tags!.every((tag) => r.tags.includes(tag)));
   }
 
-  return results;
+  return results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.title.localeCompare(b.title);
+  });
 }
 ```
+
+**Optional semantic rerank (later phase):**
+- BM25 returns top N results.
+- If semantic mode is enabled, embed query + candidates and rerank by cosine similarity.
+- Keep BM25 as the default to avoid heavy dependencies for typical usage.
 
 ### 3.3 Automated Skills Management via jfp CLI
 
@@ -1176,91 +1243,66 @@ export function searchAndFilter(
 // jfp.ts — Skills management commands
 // Entry point for the jfp CLI tool
 
-import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
 import chalk from "chalk";
-import { prompts, getPrompt, type Prompt } from "./apps/web/src/lib/prompts/registry";
-import { generateSkillMd } from "./apps/web/src/lib/export/skills";
+import { prompts, getPrompt, type Prompt } from "@jfp/core/prompts";
+import { searchPrompts } from "@jfp/core/search/engine";
+import { generateSkillMd } from "@jfp/core/export/skills";
+import { renderPrompt } from "@jfp/core/template/render";
+import { cac } from "cac";
+
+// In production, commands should operate on registry prompts loaded via SWR cache
+// (see Part 6.6), not the static bundled `prompts` array.
 
 // Read version from package.json at compile time (Bun inlines this)
 import packageJson from "./package.json";
 const VERSION = packageJson.version;
 
-// Parse command-line arguments
+// Parse command-line arguments (robust)
 interface Flags {
   json: boolean;
+  pretty: boolean;
   all: boolean;
   project: boolean;
   force: boolean;
+  dryRun?: boolean;
+  semantic?: boolean;
+  fill?: boolean;
+  context?: string;
+  stdin?: boolean;
+  maxContext?: number;
   category?: string;
   tag?: string;
   raw: boolean;
   limit?: number;
   bundle?: string;
-  format?: string;  // "skill" | "md"
+  format?: string; // "skill" | "md"
 }
 
-function parseFlags(args: string[]): { command: string; positional: string[]; flags: Flags } {
-  const flags: Flags = {
-    json: args.includes("--json") || !process.stdout.isTTY,
-    all: args.includes("--all"),
-    project: args.includes("--project"),
-    force: args.includes("--force"),
-    raw: args.includes("--raw"),
-  };
-
-  // Extract --category and --tag values
-  const categoryIdx = args.indexOf("--category");
-  if (categoryIdx !== -1 && args[categoryIdx + 1]) {
-    flags.category = args[categoryIdx + 1];
-  }
-  const tagIdx = args.indexOf("--tag");
-  if (tagIdx !== -1 && args[tagIdx + 1]) {
-    flags.tag = args[tagIdx + 1];
-  }
-
-  // Extract --limit value
-  const limitIdx = args.indexOf("--limit");
-  if (limitIdx !== -1 && args[limitIdx + 1]) {
-    flags.limit = parseInt(args[limitIdx + 1], 10);
-  }
-
-  // Extract --bundle value
-  const bundleIdx = args.indexOf("--bundle");
-  if (bundleIdx !== -1 && args[bundleIdx + 1]) {
-    flags.bundle = args[bundleIdx + 1];
-  }
-
-  // Extract --format value
-  const formatIdx = args.indexOf("--format");
-  if (formatIdx !== -1 && args[formatIdx + 1]) {
-    flags.format = args[formatIdx + 1];
-  }
-
-  // Remove flags from args to get positional arguments
-  const positional = args.filter((a) =>
-    !a.startsWith("--") &&
-    a !== flags.category &&
-    a !== flags.tag &&
-    a !== flags.limit?.toString() &&
-    a !== flags.bundle &&
-    a !== flags.format
-  );
-
-  return {
-    command: positional[0] ?? "",
-    positional: positional.slice(1),
-    flags,
-  };
+function printJson(value: unknown, flags: Flags) {
+  const pretty = flags.pretty;
+  console.log(pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value));
 }
+
+const cli = cac("jfp");
+cli
+  .option("--json", "machine-readable output (auto when piped)", { default: !process.stdout.isTTY })
+  .option("--pretty", "pretty-print JSON (larger output)", { default: false })
+  .option("--no-color", "disable ANSI colors", { default: false });
 
 // ~/.config/jfp/config.json
 interface JfpConfig {
   skillsDir: string;           // Default: ~/.config/claude/skills
   projectSkillsDir: string;    // Default: .claude/skills
-  autoUpdate: boolean;         // Check for updates on startup
+  registryUrl: string;         // Default: https://jeffreysprompts.com/api/prompts
+  registryCachePath: string;   // Default: ~/.config/jfp/registry.json
+  autoRefreshRegistry: boolean;
+  autoUpdate: boolean;         // Check for CLI updates on startup (opt-in)
   lastUpdateCheck: string;     // ISO timestamp
+  localPromptsDir: string;     // Default: ~/.config/jfp/local
+  analyticsEnabled: boolean;   // Default: false (privacy-first)
 }
 
 // jfp list — List all prompts
@@ -1276,13 +1318,13 @@ async function listCommand(flags: Flags) {
   }
 
   if (flags.json) {
-    console.log(JSON.stringify(result.map((p) => ({
+    printJson(result.map((p) => ({
       id: p.id,
       title: p.title,
       category: p.category,
       tags: p.tags,
       description: p.description,
-    })), null, 2));
+    })), flags);
     return;
   }
 
@@ -1306,19 +1348,10 @@ async function searchCommand(query: string, flags: Flags) {
     process.exit(2);
   }
 
-  // Simple fuzzy search (in full implementation, use MiniSearch or Fuse.js)
-  const queryLower = query.toLowerCase();
-  const results = prompts
-    .map((p) => {
-      const text = `${p.title} ${p.description} ${p.tags.join(" ")} ${p.content}`.toLowerCase();
-      const score = text.includes(queryLower) ? 1 : 0;
-      return { ...p, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score);
+  const results = searchPrompts(query, flags.limit ?? 20);
 
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       query,
       count: results.length,
       results: results.map((r) => ({
@@ -1327,7 +1360,7 @@ async function searchCommand(query: string, flags: Flags) {
         title: r.title,
         description: r.description,
       })),
-    }, null, 2));
+    }, flags);
     return;
   }
 
@@ -1364,7 +1397,7 @@ async function showCommand(id: string, flags: Flags) {
   }
 
   if (flags.json) {
-    console.log(JSON.stringify(prompt, null, 2));
+    printJson(prompt, flags);
     return;
   }
 
@@ -1401,25 +1434,88 @@ async function copyCommand(id: string, flags: Flags) {
     process.exit(1);
   }
 
+  const content = flags.fill
+    ? renderPrompt(prompt, await promptForVars(prompt))
+    : prompt.content;
+
   // Use platform-specific clipboard command with safe stdin piping
   // Note: Using Bun.spawn instead of shell echo to handle special characters safely
-  const clipboardCmd =
-    process.platform === "darwin" ? ["pbcopy"] :
-    process.platform === "win32" ? ["clip"] :
-    ["xclip", "-selection", "clipboard"];
+  const clipboardCmds =
+    process.platform === "darwin" ? [["pbcopy"]] :
+    process.platform === "win32" ? [["clip"]] :
+    [["wl-copy"], ["xclip", "-selection", "clipboard"]];
 
   try {
-    const proc = Bun.spawn(clipboardCmd, { stdin: "pipe" });
-    proc.stdin.write(prompt.content);
-    proc.stdin.end();
-    const exitCode = await proc.exited;
-    if (exitCode !== 0) throw new Error(`Exit code: ${exitCode}`);
+    let success = false;
+    for (const cmd of clipboardCmds) {
+      const proc = Bun.spawn(cmd, { stdin: "pipe" });
+      proc.stdin.write(content);
+      proc.stdin.end();
+      const exitCode = await proc.exited;
+      if (exitCode === 0) {
+        success = true;
+        break;
+      }
+    }
+    if (!success) throw new Error("No clipboard backend succeeded");
   } catch {
-    console.error(chalk.red("Could not copy to clipboard. Install xclip (Linux) or pbcopy (macOS)."));
+    console.error(chalk.red("Could not copy to clipboard. Install wl-copy or xclip (Linux), or pbcopy (macOS)."));
     process.exit(3);
   }
 
   console.log(chalk.green(`✓ Copied "${prompt.title}" to clipboard`));
+}
+
+// jfp render — Render a prompt with variables + optional context
+async function renderCommand(id: string, flags: Flags) {
+  const prompt = getPrompt(id);
+  if (!prompt) {
+    console.error(chalk.red(`Prompt not found: ${id}`));
+    process.exit(1);
+  }
+
+  const vars = collectVarsFromFlags(flags); // parse --VAR=value pairs
+  let output = renderPrompt(prompt, vars);
+
+  if (flags.context) {
+    output += `\n\n---\n\nContext:\n` + readContextFile(flags.context, flags.maxContext);
+  } else if (flags.stdin) {
+    output += `\n\n---\n\nContext:\n` + await readStdin(flags.maxContext);
+  }
+
+  if (flags.json) {
+    printJson({ id: prompt.id, rendered: output }, flags);
+    return;
+  }
+
+  console.log(output);
+}
+
+// jfp open — Open prompt permalink in browser
+async function openCommand(id: string) {
+  const url = `https://jeffreysprompts.com/prompts/${id}`;
+  const cmd =
+    process.platform === "darwin" ? ["open", url] :
+    process.platform === "win32" ? ["cmd", "/c", "start", url] :
+    ["xdg-open", url];
+  const proc = Bun.spawn(cmd);
+  await proc.exited;
+}
+
+// jfp registry status/refresh — Registry cache management
+async function registryStatusCommand(flags: Flags) {
+  const status = await getRegistryStatus();
+  flags.json ? printJson(status, flags) : console.log(formatRegistryStatus(status));
+}
+
+async function registryRefreshCommand(flags: Flags) {
+  const result = await refreshRegistry();
+  flags.json ? printJson(result, flags) : console.log(formatRegistryRefresh(result));
+}
+
+// jfp serve — MCP server mode
+async function serveCommand() {
+  await startMcpServer();
 }
 
 // jfp export — Export prompt as SKILL.md or markdown
@@ -1484,8 +1580,8 @@ ${prompt.tips?.map((t) => `- ${t}`).join("\n") ?? ""}
 async function interactiveCommand() {
   // Full implementation: call interactiveMode() from Part 6.3
   // This stub is shown here for completeness; the real function uses:
-  // - @inquirer/prompts for fuzzy search
-  // - Fuse.js for client-side filtering
+  // - @inquirer/prompts for search UI
+  // - BM25 search engine for ranking
   // - copyToClipboard, showPrompt, installSkill helpers
   await interactiveMode();
 }
@@ -1502,12 +1598,14 @@ COMMANDS:
     --category <cat>      Filter by category
     --tag <tag>           Filter by tag
     --json                Output as JSON
+    --pretty              Pretty-print JSON
 
-  search <query>          Fuzzy search prompts
+  search <query>          BM25 search prompts
     --json                Output as JSON
 
-  suggest <task>          Semantic suggestion (NEW)
+  suggest <task>          Suggest prompts for a task
     --limit <n>           Number of suggestions (default: 3)
+    --semantic            Enable semantic rerank (optional)
     --json                Output as JSON
 
   show <id>               Show full prompt details
@@ -1515,6 +1613,12 @@ COMMANDS:
     --json                Output as JSON
 
   copy <id>               Copy prompt to clipboard
+    --fill                Prompt for missing variables
+
+  render <id>             Render prompt with variables
+    --VAR=value           Provide variables
+    --context <path>      Append file contents
+    --stdin               Read context from stdin
 
   export <id>...          Export prompts to files (NEW)
     --format <fmt>        "skill" (default) or "md"
@@ -1533,6 +1637,10 @@ COMMANDS:
     --json                Output as JSON
 
   update                  Update all installed skills
+    --dry-run             Show changes without writing
+
+  registry status         Show registry cache status
+  registry refresh        Refresh cached registry
 
   bundles                 List prompt bundles (NEW)
     --json                Output as JSON
@@ -1546,6 +1654,13 @@ COMMANDS:
   tags                    List all tags with counts (NEW)
     --json                Output as JSON
 
+  open <id>               Open prompt permalink in browser
+
+  serve                   Start MCP server over stdio
+
+  completion              Print shell completion script
+    --shell <name>        bash|zsh|fish
+
   about                   About + ecosystem info (NEW)
 
   i, interactive          Interactive browser (fzf-style)
@@ -1554,12 +1669,15 @@ COMMANDS:
 
 GLOBAL OPTIONS:
   --json                  Output as JSON (auto-enabled when piped)
+  --pretty                Pretty-print JSON (human-friendly)
   --version, -v           Show version
 
 EXAMPLES:
   jfp list --category ideation
   jfp search "brainstorm"
   jfp suggest "update docs after changes"
+  jfp render idea-wizard --PROJECT_NAME=Acme
+  jfp open idea-wizard
   jfp show idea-wizard --raw | pbcopy
   jfp export idea-wizard --format md
   jfp install --all
@@ -1654,7 +1772,7 @@ async function installedCommand(flags: Flags) {
   }
 
   if (flags.json) {
-    console.log(JSON.stringify({ installed }, null, 2));
+    printJson({ installed }, flags);
     return;
   }
 
@@ -1691,14 +1809,36 @@ async function updateCommand(flags: Flags) {
     const projectPath = join(projectDir, prompt.id, "SKILL.md");
 
     if (existsSync(personalPath)) {
-      writeFileSync(personalPath, generateSkillMd(prompt));
-      console.log(chalk.green(`✓  Updated ${prompt.id} (personal)`));
-      updated++;
+      const existing = readFileSync(personalPath, "utf-8");
+      const isGenerated = existing.includes("x_jfp_generated: true");
+      if (!isGenerated && !flags.force) {
+        console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
+      } else if (flags.dryRun) {
+        console.log(chalk.cyan(`• Would update ${prompt.id} (personal)`));
+        updated++;
+      } else {
+        const tmp = `${personalPath}.tmp`;
+        writeFileSync(tmp, generateSkillMd(prompt));
+        renameSync(tmp, personalPath);
+        console.log(chalk.green(`✓  Updated ${prompt.id} (personal)`));
+        updated++;
+      }
     }
     if (existsSync(projectPath)) {
-      writeFileSync(projectPath, generateSkillMd(prompt));
-      console.log(chalk.green(`✓  Updated ${prompt.id} (project)`));
-      updated++;
+      const existing = readFileSync(projectPath, "utf-8");
+      const isGenerated = existing.includes("x_jfp_generated: true");
+      if (!isGenerated && !flags.force) {
+        console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
+      } else if (flags.dryRun) {
+        console.log(chalk.cyan(`• Would update ${prompt.id} (project)`));
+        updated++;
+      } else {
+        const tmp = `${projectPath}.tmp`;
+        writeFileSync(tmp, generateSkillMd(prompt));
+        renameSync(tmp, projectPath);
+        console.log(chalk.green(`✓  Updated ${prompt.id} (project)`));
+        updated++;
+      }
     }
   }
 
@@ -1715,13 +1855,13 @@ async function categoriesCommand(flags: Flags) {
   const categories = [...new Set(prompts.map((p) => p.category))].sort();
 
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       count: categories.length,
       categories: categories.map((c) => ({
         name: c,
         count: prompts.filter((p) => p.category === c).length,
       })),
-    }, null, 2));
+    }, flags);
     return;
   }
 
@@ -1744,10 +1884,10 @@ async function tagsCommand(flags: Flags) {
   const sortedTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]);
 
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       count: sortedTags.length,
       tags: sortedTags.map(([tag, count]) => ({ tag, count })),
-    }, null, 2));
+    }, flags);
     return;
   }
 
@@ -1760,10 +1900,10 @@ async function tagsCommand(flags: Flags) {
 // jfp bundles — List all bundles
 async function bundlesCommand(flags: Flags) {
   // Import bundles from the bundles module
-  const { bundles } = await import("./apps/web/src/lib/prompts/bundles");
+  const { bundles } = await import("@jfp/core/prompts");
 
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       count: bundles.length,
       bundles: bundles.map((b) => ({
         id: b.id,
@@ -1771,7 +1911,7 @@ async function bundlesCommand(flags: Flags) {
         description: b.description,
         promptCount: b.promptIds.length,
       })),
-    }, null, 2));
+    }, flags);
     return;
   }
 
@@ -1791,7 +1931,7 @@ async function bundleShowCommand(id: string, flags: Flags) {
     process.exit(2);
   }
 
-  const { getBundle, bundles } = await import("./apps/web/src/lib/prompts/bundles");
+  const { getBundle, bundles } = await import("@jfp/core/prompts");
   const bundle = getBundle(id);
 
   if (!bundle) {
@@ -1801,7 +1941,7 @@ async function bundleShowCommand(id: string, flags: Flags) {
   }
 
   if (flags.json) {
-    console.log(JSON.stringify(bundle, null, 2));
+    printJson(bundle, flags);
     return;
   }
 
@@ -1841,88 +1981,98 @@ EXPLORE:
 MORE: jfp help | Docs: jeffreysprompts.com`);
 }
 
-// Main entry point
-async function main() {
-  const args = process.argv.slice(2);
-  const { command, positional, flags } = parseFlags(args);
+// Command registration (cac)
+cli.command("", "quick start").action(showQuickStart);
 
-  switch (command) {
-    case "":
-      showQuickStart();
-      break;
-    case "list":
-      await listCommand(flags);
-      break;
-    case "search":
-      await searchCommand(positional[0] ?? "", flags);
-      break;
-    case "suggest":
-      await suggestCommand(positional[0] ?? "", flags);
-      break;
-    case "show":
-      await showCommand(positional[0] ?? "", flags);
-      break;
-    case "copy":
-      await copyCommand(positional[0] ?? "", flags);
-      break;
-    case "export":
-      await exportCommand(positional, flags);
-      break;
-    case "install":
-      await installCommand(positional, flags);
-      break;
-    case "uninstall":
-      await uninstallCommand(positional, flags);
-      break;
-    case "installed":
-      await installedCommand(flags);
-      break;
-    case "update":
-      await updateCommand(flags);
-      break;
-    case "bundles":
-      await bundlesCommand(flags);
-      break;
-    case "bundle":
-      // jfp bundle show <id>
-      if (positional[0] === "show") {
-        await bundleShowCommand(positional[1] ?? "", flags);
-      } else {
-        await bundlesCommand(flags);
-      }
-      break;
-    case "categories":
-      await categoriesCommand(flags);
-      break;
-    case "tags":
-      await tagsCommand(flags);
-      break;
-    case "about":
-      showAbout();
-      break;
-    case "i":
-    case "interactive":
-      await interactiveCommand();
-      break;
-    case "help":
-      showHelp();
-      break;
-    case "--version":
-    case "-v":
-      console.log(`jfp v${VERSION}`);
-      break;
-    default:
-      console.error(chalk.red(`Unknown command: ${command}`));
-      console.error(chalk.dim(`Run 'jfp help' for available commands.`));
-      process.exit(2);
-  }
-}
+cli.command("list", "list all prompts")
+  .option("--category <cat>", "filter by category")
+  .option("--tag <tag>", "filter by tag")
+  .action((opts) => listCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
 
-// Run the CLI
-main().catch((err) => {
-  console.error(chalk.red(`Error: ${err.message}`));
-  process.exit(1);
-});
+cli.command("search <query>", "search prompts")
+  .option("--limit <n>", "limit results", { default: 20 })
+  .action((query, opts) => searchCommand(query, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("suggest <task>", "suggest prompts for a task")
+  .option("--limit <n>", "limit results", { default: 3 })
+  .option("--semantic", "enable semantic rerank", { default: false })
+  .action((task, opts) => suggestCommand(task, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("show <id>", "show a prompt")
+  .option("--raw", "print raw prompt text")
+  .action((id, opts) => showCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("copy <id>", "copy prompt to clipboard")
+  .option("--fill", "prompt for missing variables")
+  .action((id, opts) => copyCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("render <id>", "render a prompt with variables")
+  .option("--context <path>", "append file contents")
+  .option("--stdin", "read context from stdin")
+  .option("--max-context <bytes>", "max context size", { default: 200000 })
+  .action((id, opts) => renderCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("export <id...>", "export prompts")
+  .option("--format <format>", "skill|md", { default: "skill" })
+  .option("--all", "export all prompts")
+  .action((ids, opts) => exportCommand(ids, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("install <id...>", "install skills")
+  .option("--all", "install all prompts")
+  .option("--project", "install to .claude/skills")
+  .option("--force", "overwrite existing")
+  .action((ids, opts) => installCommand(ids, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("uninstall <id...>", "remove installed skills")
+  .option("--all", "remove all skills")
+  .option("--project", "remove from .claude/skills")
+  .action((ids, opts) => uninstallCommand(ids, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("installed", "list installed skills")
+  .action((opts) => installedCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("update", "update installed skills")
+  .option("--force", "overwrite modified skills")
+  .option("--dry-run", "show updates without writing")
+  .action((opts) => updateCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("categories", "list categories")
+  .action((opts) => categoriesCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("tags", "list tags")
+  .action((opts) => tagsCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("bundles", "list bundles")
+  .action((opts) => bundlesCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("bundle show <id>", "show bundle details")
+  .action((id, opts) => bundleShowCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("registry status", "show registry cache status")
+  .action((opts) => registryStatusCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("registry refresh", "refresh registry cache")
+  .action((opts) => registryRefreshCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("open <id>", "open prompt permalink in browser")
+  .action((id, opts) => openCommand(id, { ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("serve", "start MCP server over stdio")
+  .action((opts) => serveCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
+cli.command("about", "about the ecosystem").action(showAbout);
+
+cli.command("i", "interactive mode").action(interactiveCommand);
+cli.command("interactive", "interactive mode").action(interactiveCommand);
+
+cli.command("completion", "print shell completions")
+  .option("--shell <name>", "bash|zsh|fish", { default: "bash" })
+  .action((opts) => printCompletion(opts.shell));
+
+cli.command("help", "show help").action(showHelp);
+cli.version(VERSION);
+
+cli.parse();
 ```
 
 ### 3.4 Web App Skills Integration
@@ -1938,8 +2088,8 @@ import { useState } from "react";
 import { Check, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { type Prompt } from "@/lib/prompts/types";
-import { generateSkillMd } from "@/lib/export/skills";
+import { type Prompt } from "@jfp/core/prompts";
+import { generateSkillMd } from "@jfp/core/export/skills";
 
 interface InstallSkillButtonProps {
   prompt: Prompt;
@@ -2025,8 +2175,9 @@ export function InstallAllSkillsButton() {
 ```typescript
 // apps/web/src/app/api/prompts/route.ts
 
-import { prompts, categories, tags } from "@/lib/prompts/registry";
+import { prompts, categories, tags, bundles, workflows } from "@jfp/core/prompts";
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -2048,12 +2199,28 @@ export async function GET(request: Request) {
     filteredPrompts = filteredPrompts.filter((p) => p.featured);
   }
 
-  return NextResponse.json({
+  const payload = {
+    version: process.env.JFP_REGISTRY_VERSION ?? "dev",
+    updatedAt: new Date().toISOString(),
     prompts: filteredPrompts,
+    bundles,
+    workflows,
     meta: {
       total: filteredPrompts.length,
       categories,
       tags,
+    },
+  };
+
+  const etag = `"${createHash("sha256").update(JSON.stringify(payload)).digest("hex")}"`;
+  if (request.headers.get("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers: { ETag: etag } });
+  }
+
+  return NextResponse.json(payload, {
+    headers: {
+      ETag: etag,
+      "Cache-Control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
     },
   });
 }
@@ -2064,15 +2231,15 @@ export async function GET(request: Request) {
 ```typescript
 // apps/web/src/app/api/skills/[id]/route.ts
 
-import { getPrompt } from "@/lib/prompts/registry";
-import { generateSkillMd } from "@/lib/export/skills";
+import { getPrompt } from "@jfp/core/prompts";
+import { generateSkillMd } from "@jfp/core/export/skills";
 import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
+  const { id } = params;
   const prompt = getPrompt(id);
 
   if (!prompt) {
@@ -2088,41 +2255,26 @@ export async function GET(
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       "Content-Disposition": `attachment; filename="${id}-SKILL.md"`,
-    },
-  });
-}
-```
-
-**API endpoint for embeddings (semantic search):**
-
-```typescript
-// apps/web/src/app/api/embeddings/route.ts
-
-import { NextResponse } from "next/server";
-import embeddingsData from "@/../public/embeddings.json";
-
-export async function GET() {
-  // Return pre-computed embeddings for semantic search
-  // The embeddings.json file is generated at build time by scripts/generate-embeddings.ts
-  return NextResponse.json(embeddingsData, {
-    headers: {
-      // Cache for 1 hour (embeddings change only on new builds)
       "Cache-Control": "public, max-age=3600",
     },
   });
 }
 ```
 
+**Embeddings (semantic search):**
+- Prefer serving a static asset at `/embeddings.json` (generated at build time).
+- Avoid an `/api/embeddings` route to keep caching simple and fast.
+
 **API endpoint for install script:**
 
 ```typescript
 // apps/web/src/app/install.sh/route.ts
 
-import { prompts } from "@/lib/prompts/registry";
-import { generateInstallScript } from "@/lib/export/skills";
+import { prompts } from "@jfp/core/prompts";
+import { generateInstallScript } from "@jfp/core/export/skills";
 
 export async function GET() {
-  const script = generateInstallScript(prompts, "~/.config/claude/skills");
+  const script = generateInstallScript(prompts);
 
   return new Response(script, {
     headers: {
@@ -2147,7 +2299,8 @@ export async function GET() {
 # JeffreysPrompts CLI Installer
 # Usage: curl -fsSL https://jeffreysprompts.com/install-cli.sh | bash
 
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
 echo "Installing jfp CLI..."
 
@@ -2170,8 +2323,8 @@ esac
 
 BINARY="jfp-\$PLATFORM-\$ARCH"
 URL="${RELEASES_BASE}/\$BINARY"
+SHA_URL="${RELEASES_BASE}/\$BINARY.sha256"
 
-# Determine install location
 if [ -d "\$HOME/.local/bin" ]; then
   INSTALL_DIR="\$HOME/.local/bin"
 elif [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
@@ -2181,12 +2334,35 @@ else
   mkdir -p "\$INSTALL_DIR"
 fi
 
-echo "Downloading \$BINARY..."
-curl -fsSL "\$URL" -o "\$INSTALL_DIR/jfp"
-chmod +x "\$INSTALL_DIR/jfp"
+INSTALL_PATH="\${INSTALL_DIR}/jfp"
+
+if [ -x "\$INSTALL_PATH" ]; then
+  echo "jfp already installed at \$INSTALL_PATH"
+  echo "Refusing to overwrite. Remove it manually if you want to reinstall."
+  exit 1
+fi
+
+TMP_DIR="\$(mktemp -d)"
+# Note: cleanup can be done manually if desired (avoid destructive commands in docs).
+
+curl -L "\$URL" -o "\$TMP_DIR/\$BINARY"
+curl -L "\$SHA_URL" -o "\$TMP_DIR/\$BINARY.sha256"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "\$TMP_DIR" && sha256sum -c "\$BINARY.sha256")
+elif command -v shasum >/dev/null 2>&1; then
+  (cd "\$TMP_DIR" && shasum -a 256 -c "\$BINARY.sha256")
+else
+  echo "No SHA256 tool found (sha256sum or shasum)."
+  echo "Please install one or verify checksums manually."
+  exit 1
+fi
+
+chmod +x "\$TMP_DIR/\$BINARY"
+mv "\$TMP_DIR/\$BINARY" "\$INSTALL_PATH"
 
 echo ""
-echo "✓ jfp installed to \$INSTALL_DIR/jfp"
+echo "✓ jfp installed to \$INSTALL_PATH"
 echo ""
 echo "Quick start:"
 echo "  jfp list              # List all prompts"
@@ -2384,7 +2560,7 @@ You are creating Claude Code skills from prompts in the JeffreysPrompts.com regi
 
 When given a single prompt ID like `idea-wizard`:
 
-1. Look up the prompt in the registry (`apps/web/src/lib/prompts/registry.ts`)
+1. Look up the prompt in the registry (`packages/core/src/prompts/registry.ts`)
 2. Generate a SKILL.md with:
    - Proper YAML frontmatter (name, description)
    - The prompt content as the main body
@@ -2529,7 +2705,7 @@ jeffreysprompts.com/
 ├── bun.lock
 ├── vercel.json
 │
-├── jfp.ts                                 # CLI entrypoint
+├── jfp.ts                                 # CLI entrypoint (thin wrapper around packages/cli)
 ├── jfp.test.ts                            # CLI tests
 │
 ├── .claude/
@@ -2538,6 +2714,36 @@ jeffreysprompts.com/
 │       │   └── SKILL.md                   # Skill for formatting new prompts
 │       └── skill-maker/
 │           └── SKILL.md                   # Meta-skill for creating skills from prompts
+│
+├── packages/
+│   └── core/
+│       ├── package.json
+│       └── src/
+│           ├── index.ts                   # Package re-exports
+│           ├── prompts/
+│           │   ├── types.ts               # Prompt interfaces
+│           │   ├── registry.ts            # All prompts (single source of truth)
+│           │   ├── bundles.ts             # Prompt bundles
+│           │   ├── workflows.ts           # Curated workflows
+│           │   └── schema.ts              # Runtime schema validation
+│           ├── export/
+│           │   ├── skills.ts              # SKILL.md export
+│           │   └── markdown.ts            # Markdown export
+│           ├── search/
+│           │   ├── bm25.ts                # BM25 engine
+│           │   ├── tokenize.ts            # Tokenizer + stopwords
+│           │   └── semantic.ts            # Optional semantic rerank hooks
+│           └── template/
+│               ├── render.ts              # Variable rendering
+│               └── variables.ts           # Variable helpers
+│
+├── packages/
+│   └── cli/
+│       ├── package.json
+│       └── src/
+│           ├── index.ts                   # CLI entry (imports core)
+│           ├── commands/                  # list/show/search/suggest/etc
+│           └── lib/                       # registry loader, config, mcp
 │
 ├── apps/
 │   └── web/
@@ -2553,6 +2759,16 @@ jeffreysprompts.com/
 │       │   │   ├── layout.tsx            # Root layout (copied from brennerbot)
 │       │   │   ├── page.tsx              # Main page (hero + search + grid)
 │       │   │   ├── globals.css           # Design system (copied from brennerbot)
+│       │   │   ├── prompts/
+│       │   │   │   └── [id]/
+│       │   │   │       └── page.tsx      # Prompt permalink page (SEO/shareable)
+│       │   │   ├── bundles/
+│       │   │   │   └── [id]/
+│       │   │   │       └── page.tsx      # Bundle permalink page
+│       │   │   ├── workflows/
+│       │   │   │   └── page.tsx          # Workflow builder UI
+│       │   │   ├── contribute/
+│       │   │   │   └── page.tsx          # Contribution helper
 │       │   │   ├── install.sh/
 │       │   │   │   └── route.ts          # Shell script for skills bulk install
 │       │   │   ├── install-cli.sh/
@@ -2562,6 +2778,8 @@ jeffreysprompts.com/
 │       │   │   └── api/
 │       │   │       ├── prompts/
 │       │   │       │   └── route.ts      # GET /api/prompts → JSON
+│       │   │       ├── health/
+│       │   │       │   └── route.ts      # GET /api/health → status
 │       │   │       └── skills/
 │       │   │           └── [id]/
 │       │   │               └── route.ts  # GET /api/skills/[id] → SKILL.md
@@ -2601,17 +2819,13 @@ jeffreysprompts.com/
 │       │   │       └── stats-dashboard.tsx # Session statistics
 │       │   │
 │       │   ├── lib/
-│       │   │   ├── prompts/
-│       │   │   │   ├── types.ts          # Prompt interfaces
-│       │   │   │   └── registry.ts       # THE canonical prompt data
-│       │   │   │
 │       │   │   ├── search/
-│       │   │   │   ├── engine.ts         # MiniSearch wrapper
+│       │   │   │   ├── engine.ts         # Thin wrapper / worker bridge to core BM25
 │       │   │   │   └── types.ts          # Search types
 │       │   │   │
 │       │   │   ├── export/
-│       │   │   │   ├── markdown.ts       # Markdown bundle export
-│       │   │   │   └── skills.ts         # Claude Code skills export
+│       │   │   │   ├── markdown.ts       # Thin wrapper to core export
+│       │   │   │   └── skills.ts         # Thin wrapper to core export
 │       │   │   │
 │       │   │   ├── transcript/           # Session transcript processing
 │       │   │   │   ├── types.ts          # TranscriptMessage, ToolCall, etc.
@@ -2633,14 +2847,21 @@ jeffreysprompts.com/
 │       │
 │       └── public/
 │           ├── og-image.png
+│           ├── manifest.json
+│           ├── icons/
+│           │   ├── icon-192.png
+│           │   └── icon-512.png
 │           └── favicon.ico
 │
 └── scripts/
     ├── build-cli.sh                      # Build jfp binary (current platform)
     ├── build-releases.sh                 # Build jfp for all platforms
-    ├── validate-prompts.ts               # Type-check registry
+    ├── build-data.ts                     # Validate + generate derived assets
+    ├── validate-prompts.ts               # Schema-check registry
     ├── extract-transcript.ts             # Extract session via cass
-    └── process-transcript.ts             # Process JSONL → JSON
+    ├── process-transcript.ts             # Process JSONL → JSON
+    ├── redact-transcript.ts              # Redact secrets before publish
+    └── validate-publication.ts           # CI guard against leaks
 ```
 
 ---
@@ -2716,6 +2937,10 @@ As an agent with context limits, every token matters. Output should be:
 - No chatty explanations
 - No decorative elements in JSON mode
 
+**Rule 4: JSON is compact by default.**
+- `--json` prints compact JSON for token efficiency
+- `--pretty` enables indented JSON for humans
+
 #### Quick-Start Mode: What I (Claude) Would Want
 
 When I run `jfp` with no arguments, I need to instantly understand:
@@ -2784,12 +3009,12 @@ Error: prompt not found
 // Error handling pattern
 function handleError(error: JfpError, flags: Flags) {
   if (flags.json) {
-    console.log(JSON.stringify({
+    printJson({
       error: error.code,
       message: error.message,
       suggestions: error.suggestions ?? [],
       exitCode: error.exitCode,
-    }));
+    }, flags);
   } else {
     console.error(chalk.red(`Error: ${error.message}`));
     if (error.suggestions?.length) {
@@ -2897,10 +3122,10 @@ jfp list --limit 5                              # First 5 only
 jfp list --sort score                           # By relevance (if search)
 ```
 
-**2. `jfp search` should be fuzzy and forgiving:**
+**2. `jfp search` should be forgiving and fast:**
 ```bash
 jfp search "brain"           # Matches "brainstorm", "idea-wizard"
-jfp search "doc readme"      # Multi-word fuzzy
+jfp search "doc readme"      # Multi-word query
 jfp search "ultrathin"       # Typo-tolerant (matches "ultrathink")
 ```
 
@@ -2960,11 +3185,17 @@ jfp list --json               # JSON output for agents
 jfp search <query>            # Fuzzy search
 jfp search "robot" --json     # JSON output
 
+jfp suggest <task>            # Suggest prompts for a task
+jfp suggest <task> --semantic # Optional semantic rerank (if enabled)
+
 jfp show <id>                 # Show full prompt
 jfp show idea-wizard --json   # JSON output
-jfp show idea-wizard --md     # Markdown output
+jfp show idea-wizard --raw    # Just the prompt text
 
 jfp copy <id>                 # Copy to clipboard
+
+jfp render <id>               # Render a prompt with variables
+jfp render <id> --VAR=...      # Fill variables via flags
 
 jfp export <id>               # Export as SKILL.md
 jfp export <id> --format md   # Export as markdown
@@ -2981,12 +3212,22 @@ jfp installed                 # List installed skills
 jfp installed --json
 
 jfp update                    # Update all installed skills
+jfp update --dry-run          # Show what would change
 
 jfp interactive               # fzf-style picker
 jfp i                         # Alias
 
 jfp categories                # List categories
 jfp tags                      # List tags with counts
+
+jfp registry status           # Show registry cache status
+jfp registry refresh          # Refresh cached registry
+
+jfp open <id>                 # Open prompt permalink in browser
+
+jfp serve                     # MCP server mode (agent-native)
+
+jfp completion --shell zsh    # Shell completions
 
 jfp --version
 jfp --help
@@ -3005,8 +3246,10 @@ ${chalk.dim("Curated prompts for agentic coding")}
 ${chalk.bold("QUICK START")}
 
   ${chalk.cyan("jfp list")}              List all ${prompts.length} prompts
-  ${chalk.cyan("jfp search")} ${chalk.dim("<query>")}    Fuzzy search
+  ${chalk.cyan("jfp search")} ${chalk.dim("<query>")}    Search prompts
   ${chalk.cyan("jfp show")} ${chalk.dim("<id>")}        View full prompt
+  ${chalk.cyan("jfp suggest")} ${chalk.dim("<task>")}   Suggest prompts for a task
+  ${chalk.cyan("jfp render")} ${chalk.dim("<id>")}      Render prompt with variables
   ${chalk.cyan("jfp copy")} ${chalk.dim("<id>")}        Copy to clipboard
   ${chalk.cyan("jfp i")}                 Interactive picker
 
@@ -3040,23 +3283,23 @@ ${chalk.dim("https://jeffreysprompts.com")}
 
 ```typescript
 import { search, select, confirm } from "@inquirer/prompts";
-import Fuse from "fuse.js";
 
 // Helper: Copy text to clipboard (cross-platform, using Bun.spawn)
 async function copyToClipboard(text: string): Promise<void> {
-  const clipboardCmd =
-    process.platform === "darwin" ? ["pbcopy"] :
-    process.platform === "win32" ? ["clip"] :
-    ["xclip", "-selection", "clipboard"];
+  const clipboardCmds =
+    process.platform === "darwin" ? [["pbcopy"]] :
+    process.platform === "win32" ? [["clip"]] :
+    [["wl-copy"], ["xclip", "-selection", "clipboard"]];
 
-  const proc = Bun.spawn(clipboardCmd, { stdin: "pipe" });
-  proc.stdin.write(text);
-  proc.stdin.end();
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0) {
-    throw new Error(`Clipboard command failed with exit code ${exitCode}`);
+  for (const cmd of clipboardCmds) {
+    const proc = Bun.spawn(cmd, { stdin: "pipe" });
+    proc.stdin.write(text);
+    proc.stdin.end();
+    const exitCode = await proc.exited;
+    if (exitCode === 0) return;
   }
+
+  throw new Error("No clipboard backend succeeded");
 }
 
 // Helper: Show prompt details (reuses showCommand logic)
@@ -3125,17 +3368,6 @@ ${prompt.tips?.map((t) => `- ${t}`).join("\n") ?? ""}
 }
 
 async function interactiveMode() {
-  const fuse = new Fuse(prompts, {
-    keys: [
-      { name: "title", weight: 3 },
-      { name: "description", weight: 2 },
-      { name: "tags", weight: 1 },
-    ],
-    threshold: 0.4,
-    includeScore: true,
-  });
-
-  // Fuzzy search
   const selected = await search({
     message: "Search prompts...",
     source: async (input) => {
@@ -3147,7 +3379,7 @@ async function interactiveMode() {
         }));
       }
 
-      return fuse.search(input).map(({ item }) => ({
+      return searchPrompts(input, 20).map((item) => ({
         name: `${item.title} ${chalk.dim(`(${item.category})`)}`,
         value: item,
         description: item.description,
@@ -3198,9 +3430,9 @@ set -e
 
 echo "Building jfp CLI..."
 
-# Ensure prompts are valid
-echo "Validating prompts..."
-bun run scripts/validate-prompts.ts
+# Build data assets (validate + indexes)
+echo "Building prompt data..."
+bun run scripts/build-data.ts
 
 # Build for current platform
 echo "Building for current platform..."
@@ -3221,6 +3453,77 @@ echo ""
 echo "Done!"
 ```
 
+### 6.5 CLI Output Contracts & Golden Tests (NEW)
+
+Because agents depend on stable JSON output, add golden tests for:
+- `jfp list --json`
+- `jfp search "query" --json`
+- `jfp show idea-wizard --json`
+- error payloads (not found, invalid args)
+
+This prevents accidental schema drift and keeps agent integrations stable.
+
+### 6.6 Registry Cache (Stale-While-Revalidate)
+
+Prompts are content, and content changes faster than binaries. The CLI should load fast and update quietly:
+
+- Ship with an embedded snapshot (offline-first).
+- Read cache from `~/.config/jfp/registry.json` if present.
+- In the background, fetch `/api/prompts` with `If-None-Match` and update cache for next run.
+- Store the latest `ETag` alongside the cache to avoid unnecessary downloads.
+
+```typescript
+// packages/cli/src/lib/registry-loader.ts
+
+export async function loadRegistry(): Promise<Prompt[]> {
+  const embedded = prompts; // bundled snapshot
+  const cachePath = join(homedir(), ".config", "jfp", "registry.json");
+
+  const cached = existsSync(cachePath)
+    ? JSON.parse(readFileSync(cachePath, "utf-8"))
+    : null;
+
+  // Fire-and-forget refresh (2s timeout)
+  refreshRegistry(cachePath).catch(() => {});
+
+  return cached?.prompts ?? embedded;
+}
+```
+
+CLI commands:
+- `jfp registry status` — show cache age/version
+- `jfp registry refresh` — force refresh
+
+### 6.7 Prompt Rendering + Context Injection
+
+Add a render pipeline that fills `{{VARS}}` and can append context:
+
+```
+jfp render idea-wizard --PROJECT_NAME="Acme" --GOAL="speed"
+jfp copy idea-wizard --fill          # prompts for missing vars
+jfp render idea-wizard --context ./README.md
+jfp render idea-wizard --stdin       # read context from stdin
+```
+
+Guardrails:
+- default max context size (e.g., 200KB)
+- show truncation note if clipped
+
+### 6.8 Local Prompt Scratchpad (Stickiness)
+
+Local prompts live in `~/.config/jfp/local/`:
+- `*.md` with optional YAML frontmatter (id/title/tags)
+- merged into registry at runtime
+- enables personal prompts without forking the repo
+
+### 6.9 MCP Server Mode (Agent-Native)
+
+`jfp serve` exposes prompts via MCP over stdio:
+- resource: `prompt://<id>` → prompt content
+- tools: `search_prompts`, `render_prompt`
+
+Provide a copy-paste MCP config snippet for Claude Desktop.
+
 ---
 
 ## Part 7: Web App Components (Detailed)
@@ -3236,7 +3539,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Prompt } from "@/lib/prompts/types";
+import { type Prompt } from "@jfp/core/prompts";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -3399,7 +3702,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { searchPrompts, type SearchResult } from "@/lib/search/engine";
+type SearchResult = import("@/lib/search/engine").SearchResult;
 
 export function SpotlightSearch() {
   const [open, setOpen] = useState(false);
@@ -3440,16 +3743,23 @@ export function SpotlightSearch() {
 
   // Search on query change (debounced)
   useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(() => {
       if (query.trim()) {
-        setResults(searchPrompts(query));
-        setSelectedIndex(0);
+        import("@/lib/search/engine").then(({ searchPrompts }) => {
+          if (cancelled) return;
+          setResults(searchPrompts(query));
+          setSelectedIndex(0);
+        });
       } else {
         setResults([]);
       }
     }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   // Keyboard navigation
@@ -3572,6 +3882,64 @@ export function SpotlightSearch() {
 
 ---
 
+### 7.3 Prompt Permalink Pages (SEO + Sharing)
+
+Add `/prompts/[id]` pages with:
+- full prompt content
+- copy + install buttons
+- related prompts (tag overlap + BM25)
+- metadata (author, version, updated)
+
+Use `generateStaticParams` for pre-rendered pages.
+
+### 7.4 Bundle Permalink Pages
+
+Add `/bundles/[id]` with:
+- bundle description
+- included prompts
+- one-click “Download as Skill Bundle”
+
+### 7.5 Workflow Builder (Differentiator)
+
+Let users assemble multi-step workflows:
+- choose prompts as steps
+- reorder steps
+- add short “handoff notes”
+- export as markdown or skill bundle
+
+### 7.6 Contribution Page (No DB Required)
+
+Provide a `/contribute` page that:
+- collects prompt metadata
+- renders a TypeScript object entry
+- links to a prefilled GitHub issue/PR
+
+### 7.7 PWA + Offline Support
+
+Add a PWA manifest + service worker:
+- cache `/api/prompts` and static assets
+- show an offline banner when using cached data
+
+### 7.8 Error Boundaries + Privacy Analytics
+
+- Error boundaries around search + prompt grid with fallback UI
+- Optional, privacy-respecting analytics (e.g., Plausible) for:
+  - prompt_view, prompt_copy
+  - search (query length + result count)
+  - export and skill_install
+
+### 7.9 Health Endpoint
+
+Add `GET /api/health` returning:
+- status
+- prompt count
+- build/version
+- timestamp
+
+Used for uptime checks and deployment verification.
+
+---
+
 ## Part 8: Implementation Phases
 
 ### Phase 1: Foundation (Day 1)
@@ -3587,7 +3955,7 @@ export function SpotlightSearch() {
    cd apps/web
    bun create next-app . --typescript --tailwind --eslint --app --src-dir
    bun add framer-motion lucide-react clsx tailwind-merge class-variance-authority
-   bun add minisearch fuse.js zod jszip
+   bun add zod jszip
    bun add -d vitest happy-dom @testing-library/react
    ```
 
@@ -3596,9 +3964,18 @@ export function SpotlightSearch() {
    - Copy base UI components (button, card, badge, dialog, toast, copy-button)
    - Set up Geist fonts
 
-4. **Create prompt types and registry**
-   - `apps/web/src/lib/prompts/types.ts`
-   - `apps/web/src/lib/prompts/registry.ts` with first 3 prompts
+4. **Create shared prompt package**
+   - `packages/core/package.json`
+   - `packages/core/src/index.ts` (re-exports)
+   - `packages/core/src/prompts/types.ts`
+   - `packages/core/src/prompts/registry.ts` with first 3 prompts
+   - `packages/core/src/prompts/schema.ts`
+   - `packages/core/src/search/bm25.ts`
+   - `packages/core/src/template/render.ts`
+
+5. **Add data pipeline scripts**
+   - `scripts/validate-prompts.ts`
+   - `scripts/build-data.ts`
 
 ### Phase 2: Core UI (Day 2)
 
@@ -3617,13 +3994,13 @@ export function SpotlightSearch() {
 3. **Build SpotlightSearch**
    - Command palette UI
    - Keyboard navigation
-   - Fuzzy search
+   - BM25 search (lazy-loaded)
 
 ### Phase 3: Export System (Day 3)
 
 1. **Implement export functions**
-   - `apps/web/src/lib/export/markdown.ts`
-   - `apps/web/src/lib/export/skills.ts`
+   - `packages/core/src/export/markdown.ts`
+   - `packages/core/src/export/skills.ts`
 
 2. **Build Basket component**
    - Selected prompts list
@@ -3633,19 +4010,21 @@ export function SpotlightSearch() {
 3. **Create API routes**
    - `GET /api/prompts` → JSON
    - `GET /api/skills/[id]` → SKILL.md
+   - `GET /api/health` → status
    - `GET /install.sh` → Shell script
 
 ### Phase 4: CLI Tool (Day 4)
 
 1. **Create jfp.ts structure**
-   - Arg parsing
+   - Arg parsing (cac)
    - Command routing
    - Help system
 
 2. **Implement commands**
-   - `list`, `search`, `show`, `copy`
+   - `list`, `search`, `suggest`, `show`, `copy`
+   - `render`, `open`, `registry status/refresh`
    - `install`, `uninstall`, `installed`, `update`
-   - `interactive`
+   - `interactive`, `completion`
 
 3. **Build and test**
    - `bun build --compile`
@@ -3676,10 +4055,38 @@ export function SpotlightSearch() {
    - CNAME records
    - SSL verification
 
-3. **Final polish**
+3. **Add PWA + offline support**
+   - manifest + service worker
+   - offline banner
+
+4. **Add privacy analytics + error boundaries**
+   - capture copy/search/export events
+   - graceful fallbacks
+
+5. **Add registry SWR + local prompts**
+   - CLI cache refresh
+   - merge local prompts
+
+6. **Final polish**
    - Accessibility audit
    - Mobile testing
    - Performance optimization
+
+### Phase 7: Differentiators (Week 2)
+
+1. **Workflow builder UI**
+2. **Contribution flow page**
+3. **Prompt changelog display**
+
+### Phase 8: Agent-Native (Week 3)
+
+1. **MCP server mode (`jfp serve`)**
+2. **Publish MCP config snippet**
+
+### Phase 9: Optional Semantic Rerank (Week 4)
+
+1. Add transformers dependency
+2. Implement semantic rerank toggle (web + CLI)
 
 ---
 
@@ -3689,9 +4096,12 @@ export function SpotlightSearch() {
 - [ ] Lighthouse score >90 (all categories)
 - [ ] First Contentful Paint <1s
 - [ ] Time to Interactive <2s
+- [ ] CLS < 0.1, INP < 200ms (lab)
 - [ ] Mobile: Works on iPhone SE through iPad Pro
 - [ ] Copy-to-clipboard works in Safari, Chrome, Firefox
 - [ ] Dark mode works correctly
+- [ ] Prompt permalink pages indexable
+- [ ] Offline/PWA mode usable
 
 ### CLI
 - [ ] Binary size <50MB
@@ -3699,16 +4109,24 @@ export function SpotlightSearch() {
 - [ ] `jfp` no-args shows help in <50ms
 - [ ] Interactive mode feels instant
 - [ ] Works on Linux, macOS, Windows
+- [ ] Registry SWR refresh succeeds silently
+- [ ] `jfp render` handles variables + context safely
 
 ### Skills
 - [ ] `jfp install --all` completes in <5s
 - [ ] Installed skills appear in Claude Code
 - [ ] Skills work correctly when invoked
+- [ ] `jfp update --dry-run` shows diffs without writing
 
 ### Content
 - [ ] All prompts have complete metadata
 - [ ] All prompts validate against TypeScript types
 - [ ] Search returns relevant results
+- [ ] Zero-result searches < 10%
+
+### Analytics (Privacy-Respecting)
+- [ ] Copy rate ≥ 25%
+- [ ] Install conversion tracked (no PII)
 
 ---
 
@@ -3854,6 +4272,16 @@ When using `cass` in robot mode (piped output or `--json`), it returns:
 ### 10.4 Data Processing Pipeline
 
 The raw transcript needs processing before display:
+
+### 10.4.5 Redaction + Publication Safety (NEW, REQUIRED)
+
+Before committing or deploying transcript data:
+1. Run a redaction pass to remove secrets (API keys, tokens), usernames, and absolute home paths.
+2. Run a publication validator that fails CI if suspicious patterns remain.
+
+Scripts:
+- `scripts/redact-transcript.ts` → produces `transcript.redacted.json`
+- `scripts/validate-publication.ts` → exits non-zero on leaks
 
 ```typescript
 // apps/web/src/lib/transcript/types.ts
@@ -4803,6 +5231,10 @@ await Bun.write(
 );
 ```
 
+After processing, run:
+- `bun run scripts/redact-transcript.ts`
+- `bun run scripts/validate-publication.ts`
+
 **Option C: API route for dynamic loading**
 ```typescript
 // apps/web/src/app/api/transcript/route.ts
@@ -4918,8 +5350,6 @@ Add to Phase 6 (or create Phase 7):
     "clsx": "^2.x",
     "tailwind-merge": "^3.x",
     "class-variance-authority": "^0.x",
-    "minisearch": "^7.x",
-    "fuse.js": "^7.x",
     "zod": "^3.x",
     "jszip": "^3.x",
     "@radix-ui/react-dialog": "^1.x",
@@ -4940,6 +5370,12 @@ Add to Phase 6 (or create Phase 7):
 }
 ```
 
+**Optional (semantic rerank):**
+- `@xenova/transformers` (lazy-loaded; only if semantic mode is enabled)
+
+**Optional (PWA):**
+- `next-pwa` or a small custom service worker
+
 ### CLI (root devDependencies for jfp.ts)
 
 ```json
@@ -4949,12 +5385,12 @@ Add to Phase 6 (or create Phase 7):
     "boxen": "^8.x",
     "cli-table3": "^0.x",
     "@inquirer/prompts": "^7.x",
-    "fuse.js": "^7.x"
+    "cac": "^6.x"
   }
 }
 ```
 
-**Note:** The CLI imports prompt types and registry from `apps/web/src/lib/prompts/`. Bun's `--compile` bundles everything into a single binary, so no runtime dependency resolution is needed.
+**Note:** The CLI imports prompt types and registry from `packages/core/`. Bun's `--compile` bundles everything into a single binary, so no runtime dependency resolution is needed.
 
 ---
 
@@ -4967,119 +5403,6 @@ Add to Phase 6 (or create Phase 7):
 A production-grade CI/CD pipeline ensures code quality, automated releases, and secure binary distribution.
 
 ### 11.1 CI Workflow (Every Push/PR)
-
-```yaml
-# .github/workflows/ci.yml
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  # Build WASM first (web app depends on it)
-  build-wasm:
-    name: Build WASM Module
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            crates/jfp-search-wasm/target/
-          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked || true
-
-      - name: Build WASM
-        run: |
-          cd crates/jfp-search-wasm
-          wasm-pack build --target web --release
-
-      - name: Test WASM crate
-        run: |
-          cd crates/jfp-search-wasm
-          cargo test
-
-      - name: Upload WASM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wasm-module
-          path: crates/jfp-search-wasm/pkg/
-
-  lint-and-test:
-    name: Lint & Test
-    needs: build-wasm  # Wait for WASM to be built
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Download WASM artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wasm-module
-          path: apps/web/public/wasm/
-
-      - name: Generate embeddings
-        run: bun run scripts/generate-embeddings.ts
-
-      - name: Lint (ESLint + Oxlint)
-        run: |
-          cd apps/web
-          bun run lint:all
-
-      - name: Type check
-        run: |
-          cd apps/web
-          bun run typecheck
-
-      - name: Unit tests
-        run: |
-          cd apps/web
-          bun run test
-
-      - name: Build web app
-        run: |
-          cd apps/web
-          bun run build
-
-      - name: Build CLI (smoke test)
-        run: bun build --compile ./jfp.ts --outfile /tmp/jfp
-
-      - name: CLI smoke test
-        run: |
-          /tmp/jfp --version
-          /tmp/jfp list --json | jq '.length'
-          /tmp/jfp suggest "update documentation" --json | jq '.count'
-```
-
-### 11.2 Release Workflow (Version Tags)
 
 ```yaml
 # .github/workflows/release.yml
@@ -5127,118 +5450,41 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build binary
-        shell: bash
-        run: |
-          if [ "${{ matrix.target }}" == "windows-x64" ]; then
-            bun build --compile --target=${{ matrix.bun-target }} ./jfp.ts --outfile dist/jfp-${{ matrix.target }}.exe
-          else
-            bun build --compile --target=${{ matrix.bun-target }} ./jfp.ts --outfile dist/jfp-${{ matrix.target }}
-          fi
+      - name: Build data assets
+        run: bun run scripts/build-data.ts
 
-      - name: Upload artifact
+      - name: Build CLI
+        run: bun build --compile ./jfp.ts --target ${{ matrix.bun-target }} --outfile dist/jfp-${{ matrix.target }}
+
+      - name: Upload CLI artifacts
         uses: actions/upload-artifact@v4
         with:
           name: jfp-${{ matrix.target }}
-          path: dist/jfp-*
+          path: dist/jfp-${{ matrix.target }}*
 
-  build-wasm:
-    name: Build WASM Module
+  release:
+    name: GitHub Release
+    needs: build-cli-binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked || true
-
-      - name: Build WASM
-        run: |
-          cd crates/jfp-search-wasm
-          wasm-pack build --target web --release
-
-      - name: Package WASM
-        run: |
-          cd crates/jfp-search-wasm/pkg
-          tar -czvf ../../../jfp-search-wasm.tar.gz .
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wasm-module
-          path: jfp-search-wasm.tar.gz
-
-  create-release:
-    name: Create Release
-    needs: [build-cli-binaries, build-wasm]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
+      - name: Download CLI artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: release/
 
-      - name: Collect binaries
-        run: |
-          mkdir -p release
-          find artifacts -name 'jfp-*' -type f -exec cp {} release/ \;
-          cp artifacts/wasm-module/jfp-search-wasm.tar.gz release/
-
-      - name: Generate checksums
+      - name: Create checksums
         run: |
           cd release
-          sha256sum * > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get commits since last tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            echo "## Changes since $PREV_TAG" > CHANGELOG.md
-            git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> CHANGELOG.md
-          else
-            echo "## Initial Release" > CHANGELOG.md
-          fi
+          find . -type f -maxdepth 2 -print0 | xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: JeffreysPrompts CLI ${{ steps.version.outputs.version }}
-          body_path: CHANGELOG.md
-          files: |
-            release/*
-          draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: release/**
 ```
-
-### 11.3 Dependabot Configuration
-
-```yaml
+yaml
 # .github/dependabot.yml
 version: 2
 updates:
@@ -5262,13 +5508,6 @@ updates:
       interval: weekly
     commit-message:
       prefix: "deps(web)"
-
-  - package-ecosystem: cargo
-    directory: /crates/jfp-search-wasm
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: "deps(rust)"
 
   - package-ecosystem: github-actions
     directory: /
@@ -5355,7 +5594,7 @@ The flywheel includes:
 - **Session search**: [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) for searching Claude Code transcripts
 - **All of Jeffrey's prompts**: Pre-installed as Claude Code skills
 
-> **Note**: `cass` (coding-agent-session-search) is the semantic search tool that jfp's hash embedder algorithm is derived from. It provides full-text and semantic search over your Claude Code session transcripts.
+> **Note**: `cass` (coding-agent-session-search) provides full-text and semantic search over Claude Code session transcripts and is a useful reference for agent-centric retrieval UX.
 ```
 
 ### 12.2 Web App Footer Integration
@@ -5457,6 +5696,16 @@ function showAbout() {
 }
 ```
 
+### 12.4 MCP Server Mode (NEW)
+
+Expose prompts to agents via MCP:
+
+- `jfp serve` starts an MCP server over stdio
+- Resource: `prompt://<id>` returns prompt content
+- Tools: `search_prompts`, `render_prompt`
+
+Provide a copy-paste snippet for Claude Desktop configuration.
+
 ---
 
 ## Part 13: Prompt Bundles & Collections
@@ -5464,7 +5713,7 @@ function showAbout() {
 ### 13.1 Bundle Type Definitions
 
 ```typescript
-// apps/web/src/lib/prompts/bundles.ts
+// packages/core/src/prompts/bundles.ts
 
 import { type Prompt } from "./types";
 import { prompts, getPrompt } from "./registry";
@@ -5599,6 +5848,7 @@ export function getBundlePrompts(bundleId: string): Prompt[] {
 
 /** Generate combined SKILL.md for a bundle */
 export function generateBundleSkillMd(bundle: Bundle): string {
+  const q = (value: unknown) => JSON.stringify(value);
   const prompts = getBundlePrompts(bundle.id);
 
   const promptSections = prompts.map((p, i) => `
@@ -5608,8 +5858,9 @@ ${p.content}
 `).join("\n---\n");
 
   return `---
-name: ${bundle.id}
-description: ${bundle.description}
+name: ${q(bundle.id)}
+description: ${q(bundle.description)}
+x_jfp_generated: true
 ---
 
 # ${bundle.title}
@@ -5641,6 +5892,28 @@ ${bundle.whenToUse.map((w) => `- ${w}`).join("\n")}
 }
 ```
 
+### 13.1.5 Workflow Definitions (NEW)
+
+Workflows are curated multi-step sequences that teach chaining:
+
+```typescript
+// packages/core/src/prompts/workflows.ts
+
+export interface WorkflowStep {
+  id: string;
+  promptId: string;
+  note?: string; // handoff instructions
+}
+
+export interface Workflow {
+  id: string;
+  title: string;
+  description: string;
+  steps: WorkflowStep[];
+  whenToUse: string[];
+}
+```
+
 ### 13.2 CLI Bundle Commands
 
 > **Note**: The canonical CLI implementation is in **Part 6**. The code below shows the simplified
@@ -5653,13 +5926,13 @@ ${bundle.whenToUse.map((w) => `- ${w}`).join("\n")}
 // jfp bundles — List available bundles
 async function bundlesCommand(flags: Flags) {
   if (flags.json) {
-    console.log(JSON.stringify(bundles.map((b) => ({
+    printJson(bundles.map((b) => ({
       id: b.id,
       title: b.title,
       description: b.description,
       promptCount: b.promptIds.length,
       prompts: b.promptIds,
-    })), null, 2));
+    })), flags);
     return;
   }
 
@@ -5755,7 +6028,7 @@ async function installBundleCommand(bundleId: string, flags: Flags) {
 import { motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Bundle } from "@/lib/prompts/bundles";
+import { type Bundle } from "@jfp/core/prompts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -5823,850 +6096,78 @@ export function BundleCard({ bundle, index }: BundleCardProps) {
 
 ---
 
-## Part 14: Semantic Suggestion System (Rust-WASM)
+## Part 14: Semantic Suggestion System (BM25 + Optional Semantic Rerank)
 
-### 14.1 Architecture Overview
+This phase upgrades “suggest a prompt” beyond pure lexical matching without sacrificing speed.
 
-The `jfp suggest` command enables task-based prompt discovery using semantic similarity. This system uses **Rust compiled to WebAssembly** for maximum performance across CLI (native) and web (browser) environments.
+### 14.1 Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    SEMANTIC SUGGESTION ARCHITECTURE                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  User Query: "I need to update my docs after adding a new feature"          │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐         │
-│  │              TEXT CANONICALIZATION                             │         │
-│  │  • Unicode NFC normalization                                  │         │
-│  │  • Lowercase, tokenize                                        │         │
-│  │  • Remove stop words                                          │         │
-│  └───────────────────────────────────────────────────────────────┘         │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐         │
-│  │              FNV-1a HASH EMBEDDER                              │         │
-│  │  • 384-dimension vector (matches MiniLM)                      │         │
-│  │  • Deterministic: same input → same output                    │         │
-│  │  • Fast: <1ms per embedding                                   │         │
-│  │  • Zero network: no model download needed                     │         │
-│  └───────────────────────────────────────────────────────────────┘         │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐         │
-│  │              COSINE SIMILARITY                                 │         │
-│  │  Compare query embedding against pre-computed prompt embeddings│         │
-│  │  • Prompt embeddings computed at build time                   │         │
-│  │  • Stored in prompt_embeddings.json (~50KB for 100 prompts)   │         │
-│  └───────────────────────────────────────────────────────────────┘         │
-│       │                                                                     │
-│       ▼                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐         │
-│  │              RANKED RESULTS                                    │         │
-│  │  • Top K prompts by similarity score                          │         │
-│  │  • Include reasoning for why each prompt matched              │         │
-│  │  • Boost whenToUse field matches                              │         │
-│  └───────────────────────────────────────────────────────────────┘         │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+- **Default**: BM25 (fast, tiny, deterministic).
+- **Optional**: semantic rerank with MiniLM via Transformers.js.
+- **Two-stage pipeline**: BM25 → optional semantic rerank on top N.
 
-### 14.2 Why Hash Embeddings (Not ML)
-
-For jfp's scale (~50-100 prompts), the hash embedding approach offers significant advantages:
-
-| Aspect | ML Embeddings (MiniLM) | Hash Embeddings (FNV-1a) |
-|--------|------------------------|--------------------------|
-| **Model size** | 23 MB | 0 bytes |
-| **Embedding time** | ~15ms | <1ms |
-| **Initialization** | ~500ms | Instant |
-| **WASM compatible** | No (ONNX runtime) | Yes |
-| **Network required** | Yes (download model) | No |
-| **Semantic quality** | Excellent | Good (lexical) |
-| **Determinism** | Yes | Yes |
-
-For a small corpus with well-written `whenToUse` and `description` fields, hash embeddings capture enough lexical overlap to provide useful suggestions. The key insight: **users describe tasks using the same vocabulary as the prompts**.
-
-### 14.3 Rust Implementation (WASM-Compatible)
-
-```rust
-// crates/jfp-search-wasm/src/lib.rs
-
-use wasm_bindgen::prelude::*;
-use serde::{Deserialize, Serialize};
-
-/// FNV-1a constants (64-bit)
-const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
-const FNV_PRIME: u64 = 0x100000001b3;
-
-/// Embedding dimension (matches MiniLM for future compatibility)
-const DIMENSION: usize = 384;
-
-/// Minimum token length
-const MIN_TOKEN_LEN: usize = 2;
-
-/// A prompt with pre-computed embedding
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmbeddedPrompt {
-    pub id: String,
-    pub title: String,
-    pub description: String,
-    pub category: String,
-    pub tags: Vec<String>,
-    pub when_to_use: Vec<String>,
-    pub embedding: Vec<f32>,
-}
-
-/// Search result with score and reasoning
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SuggestionResult {
-    pub id: String,
-    pub title: String,
-    pub description: String,
-    pub score: f32,
-    pub reason: String,
-}
-
-/// The semantic search engine (WASM-exported)
-#[wasm_bindgen]
-pub struct JfpSearch {
-    prompts: Vec<EmbeddedPrompt>,
-}
-
-#[wasm_bindgen]
-impl JfpSearch {
-    /// Create a new search engine from JSON prompt data
-    #[wasm_bindgen(constructor)]
-    pub fn new(prompts_json: &str) -> Result<JfpSearch, JsValue> {
-        let prompts: Vec<EmbeddedPrompt> = serde_json::from_str(prompts_json)
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse prompts: {}", e)))?;
-
-        Ok(JfpSearch { prompts })
-    }
-
-    /// Suggest prompts for a task description
-    #[wasm_bindgen]
-    pub fn suggest(&self, task: &str, limit: usize) -> String {
-        let query_embedding = Self::embed(task);
-
-        let mut results: Vec<SuggestionResult> = self.prompts
-            .iter()
-            .map(|prompt| {
-                let score = Self::cosine_similarity(&query_embedding, &prompt.embedding);
-
-                // Boost score based on whenToUse keyword matches
-                let boost = Self::when_to_use_boost(task, &prompt.when_to_use);
-                let final_score = score + boost * 0.3;
-
-                let reason = Self::generate_reason(task, prompt, score, boost);
-
-                SuggestionResult {
-                    id: prompt.id.clone(),
-                    title: prompt.title.clone(),
-                    description: prompt.description.clone(),
-                    score: final_score,
-                    reason,
-                }
-            })
-            .collect();
-
-        // Sort by score descending
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-
-        // Take top N
-        results.truncate(limit);
-
-        serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string())
-    }
-
-    /// Embed text using FNV-1a hash projection
-    pub fn embed(text: &str) -> Vec<f32> {
-        let tokens = Self::tokenize(text);
-
-        if tokens.is_empty() {
-            // Return uniform vector for empty input
-            let val = 1.0 / (DIMENSION as f32).sqrt();
-            return vec![val; DIMENSION];
-        }
-
-        let mut embedding = vec![0.0f32; DIMENSION];
-
-        for token in &tokens {
-            let hash = Self::fnv1a_hash(token.as_bytes());
-            let idx = (hash as usize) % DIMENSION;
-            let sign = if (hash >> 63) == 0 { 1.0 } else { -1.0 };
-            embedding[idx] += sign;
-        }
-
-        Self::l2_normalize(&mut embedding);
-        embedding
-    }
-
-    /// Tokenize text (lowercase, split on non-alphanumeric, filter short tokens)
-    fn tokenize(text: &str) -> Vec<String> {
-        text.to_lowercase()
-            .split(|c: char| !c.is_alphanumeric())
-            .filter(|s| s.len() >= MIN_TOKEN_LEN)
-            .map(String::from)
-            .collect()
-    }
-
-    /// FNV-1a hash
-    fn fnv1a_hash(bytes: &[u8]) -> u64 {
-        let mut hash = FNV_OFFSET_BASIS;
-        for byte in bytes {
-            hash ^= u64::from(*byte);
-            hash = hash.wrapping_mul(FNV_PRIME);
-        }
-        hash
-    }
-
-    /// L2 normalize a vector
-    fn l2_normalize(vec: &mut [f32]) {
-        let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm > f32::EPSILON {
-            for x in vec.iter_mut() {
-                *x /= norm;
-            }
-        }
-    }
-
-    /// Cosine similarity (dot product of normalized vectors)
-    fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-    }
-
-    /// Calculate boost based on whenToUse keyword matches
-    fn when_to_use_boost(task: &str, when_to_use: &[String]) -> f32 {
-        let task_lower = task.to_lowercase();
-        let task_tokens: std::collections::HashSet<_> = Self::tokenize(&task_lower).into_iter().collect();
-
-        let mut matches = 0;
-        for when in when_to_use {
-            let when_tokens: std::collections::HashSet<_> = Self::tokenize(&when.to_lowercase()).into_iter().collect();
-            if task_tokens.intersection(&when_tokens).count() > 0 {
-                matches += 1;
-            }
-        }
-
-        (matches as f32) / (when_to_use.len().max(1) as f32)
-    }
-
-    /// Generate reasoning for why this prompt matched
-    fn generate_reason(task: &str, prompt: &EmbeddedPrompt, score: f32, boost: f32) -> String {
-        let task_tokens: std::collections::HashSet<_> = Self::tokenize(&task.to_lowercase()).into_iter().collect();
-
-        // Find matching tags
-        let matching_tags: Vec<_> = prompt.tags
-            .iter()
-            .filter(|tag| task_tokens.contains(&tag.to_lowercase()))
-            .cloned()
-            .collect();
-
-        // Find matching whenToUse
-        let matching_when: Vec<_> = prompt.when_to_use
-            .iter()
-            .filter(|when| {
-                let when_tokens: std::collections::HashSet<_> = Self::tokenize(&when.to_lowercase()).into_iter().collect();
-                task_tokens.intersection(&when_tokens).count() > 0
-            })
-            .cloned()
-            .collect();
-
-        if !matching_when.is_empty() {
-            format!("Matches use case: \"{}\"", matching_when[0])
-        } else if !matching_tags.is_empty() {
-            format!("Matches tags: {}", matching_tags.join(", "))
-        } else if score > 0.5 {
-            "Strong semantic match".to_string()
-        } else if boost > 0.0 {
-            "Partial keyword match".to_string()
-        } else {
-            "General relevance".to_string()
-        }
-    }
-}
-
-/// Generate embeddings for all prompts (used at build time)
-#[wasm_bindgen]
-pub fn generate_prompt_embeddings(prompts_json: &str) -> String {
-    #[derive(Deserialize)]
-    struct RawPrompt {
-        id: String,
-        title: String,
-        description: String,
-        category: String,
-        tags: Vec<String>,
-        #[serde(default)]
-        when_to_use: Vec<String>,
-        content: String,
-    }
-
-    let prompts: Vec<RawPrompt> = match serde_json::from_str(prompts_json) {
-        Ok(p) => p,
-        Err(e) => return format!("{{\"error\": \"{}\"}}", e),
-    };
-
-    let embedded: Vec<EmbeddedPrompt> = prompts
-        .into_iter()
-        .map(|p| {
-            // Combine relevant fields for embedding
-            let text_for_embedding = format!(
-                "{} {} {} {}",
-                p.title,
-                p.description,
-                p.tags.join(" "),
-                p.when_to_use.join(" ")
-            );
-
-            let embedding = JfpSearch::embed(&text_for_embedding);
-
-            EmbeddedPrompt {
-                id: p.id,
-                title: p.title,
-                description: p.description,
-                category: p.category,
-                tags: p.tags,
-                when_to_use: p.when_to_use,
-                embedding,
-            }
-        })
-        .collect();
-
-    serde_json::to_string(&embedded).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
-}
-```
-
-### 14.4 Cargo.toml for WASM Crate
-
-```toml
-# crates/jfp-search-wasm/Cargo.toml
-
-[package]
-name = "jfp-search-wasm"
-version = "0.1.0"
-edition = "2021"
-authors = ["Jeffrey Emanuel <jeffrey@jeffreyemanuel.com>"]
-description = "Semantic search for JeffreysPrompts.com (WASM module)"
-license = "MIT"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
-wasm-bindgen = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3"
-
-[profile.release]
-opt-level = "s"  # Optimize for size
-lto = true
-```
-
-### 14.5 Build Script for WASM
-
-```bash
-#!/bin/bash
-# scripts/build-wasm.sh
-#
-# Builds the jfp-search WASM module for browser use.
-#
-# We use --target web (not bundler) because:
-# - The WASM is loaded dynamically from public/wasm/
-# - No bundler integration needed (avoids Next.js complexity)
-# - Works with dynamic import() in the browser
-
-set -e
-
-cd "$(dirname "$0")/.."  # Navigate to project root
-cd crates/jfp-search-wasm
-
-echo "Building jfp-search WASM module..."
-
-# Build for web target (browser dynamic loading)
-wasm-pack build --target web --release
-
-# Show built files and sizes
-echo ""
-echo "Built WASM files:"
-ls -lh pkg/*.wasm pkg/*.js
-
-# Optimize WASM size with wasm-opt if available
-if command -v wasm-opt &> /dev/null; then
-  echo ""
-  echo "Optimizing WASM with wasm-opt..."
-  wasm-opt -Os pkg/jfp_search_wasm_bg.wasm -o pkg/jfp_search_wasm_bg.wasm
-  echo "Optimized size:"
-  ls -lh pkg/*.wasm
-fi
-
-# Copy to web app public directory
-echo ""
-echo "Copying to apps/web/public/wasm/..."
-mkdir -p ../../apps/web/public/wasm
-cp pkg/jfp_search_wasm_bg.wasm ../../apps/web/public/wasm/
-cp pkg/jfp_search_wasm.js ../../apps/web/public/wasm/
-
-echo ""
-echo "Done! WASM module available at /wasm/jfp_search_wasm.js"
-```
-
-### 14.5.5 Shared TypeScript Hash Embedder Module
-
-To avoid duplicating the hash embedder logic across CLI and build scripts, we extract it to a shared module:
+### 14.2 CLI Integration
 
 ```typescript
-// apps/web/src/lib/search/hash-embedder.ts
+// packages/cli/src/commands/suggest.ts
 
-/**
- * FNV-1a Hash Embedder
- *
- * This module implements the same algorithm as the Rust WASM version,
- * but in pure TypeScript for use in:
- * - CLI (jfp suggest command)
- * - Build scripts (generate-embeddings.ts)
- *
- * The algorithm:
- * 1. Tokenize text (lowercase, split on non-alphanumeric)
- * 2. Hash each token with FNV-1a
- * 3. Project hash to embedding dimension with sign flip
- * 4. L2 normalize the resulting vector
- */
+import { prompts } from "@jfp/core/prompts";
+import { searchPrompts } from "@jfp/core/search/engine";
+import { semanticRerank } from "@jfp/core/search/semantic";
 
-// FNV-1a constants (64-bit)
-const FNV_OFFSET_BASIS = 0xcbf29ce484222325n;
-const FNV_PRIME = 0x100000001b3n;
-
-// Embedding dimension (matches MiniLM for future compatibility)
-export const DIMENSION = 384;
-
-// Minimum token length
-const MIN_TOKEN_LEN = 2;
-
-/**
- * Tokenize text for embedding.
- */
-export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((s) => s.length >= MIN_TOKEN_LEN);
-}
-
-// TextEncoder for UTF-8 byte conversion (matches Rust's str.as_bytes())
-const encoder = new TextEncoder();
-
-/**
- * Compute FNV-1a hash of a string.
- *
- * IMPORTANT: Uses UTF-8 bytes, not UTF-16 code units.
- * This matches Rust's `str.as_bytes()` behavior exactly.
- */
-function fnv1aHash(str: string): bigint {
-  const bytes = encoder.encode(str); // UTF-8 bytes
-  let hash = FNV_OFFSET_BASIS;
-  for (const byte of bytes) {
-    hash ^= BigInt(byte);
-    hash = (hash * FNV_PRIME) & 0xFFFFFFFFFFFFFFFFn;
-  }
-  return hash;
-}
-
-/**
- * L2 normalize a vector in place.
- */
-function l2Normalize(vec: number[]): void {
-  const norm = Math.sqrt(vec.reduce((sum, x) => sum + x * x, 0));
-  if (norm > 1e-10) {
-    for (let i = 0; i < vec.length; i++) {
-      vec[i] /= norm;
-    }
-  }
-}
-
-/**
- * Generate a hash embedding for text.
- *
- * @param text - The text to embed
- * @returns A 384-dimensional L2-normalized vector
- */
-export function hashEmbed(text: string): number[] {
-  const tokens = tokenize(text);
-
-  if (tokens.length === 0) {
-    // Return uniform vector for empty input
-    const val = 1.0 / Math.sqrt(DIMENSION);
-    return Array(DIMENSION).fill(val);
-  }
-
-  const embedding = Array(DIMENSION).fill(0);
-
-  for (const token of tokens) {
-    const hash = fnv1aHash(token);
-    const idx = Number(hash % BigInt(DIMENSION));
-    const sign = (hash >> 63n) === 0n ? 1 : -1;
-    embedding[idx] += sign;
-  }
-
-  l2Normalize(embedding);
-  return embedding;
-}
-
-/**
- * Compute cosine similarity between two L2-normalized vectors.
- */
-export function cosineSimilarity(a: number[], b: number[]): number {
-  return a.reduce((sum, x, i) => sum + x * b[i], 0);
-}
-```
-
-### 14.6 CLI Integration
-
-```typescript
-// Add to jfp.ts
-
-// The CLI uses a pure TypeScript implementation of the hash embedder.
-// This is the same algorithm as the Rust WASM version, but runs natively in Bun.
-// (WASM is for the browser; the CLI doesn't need it)
-
-/**
- * Embedded prompt with pre-computed embedding vector.
- * Note: Uses snake_case for JSON compatibility with Rust-generated embeddings.
- */
-interface EmbeddedPrompt {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  tags: string[];
-  when_to_use: string[];  // snake_case to match JSON from generate-embeddings
-  embedding: number[];
-}
-
-interface SuggestionResult {
-  id: string;
-  title: string;
-  description: string;
-  score: number;
-  reason: string;
-}
-
-// jfp suggest — Suggest prompts for a task
 async function suggestCommand(task: string, flags: Flags) {
   if (!task?.trim()) {
-    console.error(chalk.red("Usage: jfp suggest <task description>"));
-    console.error(chalk.dim('Example: jfp suggest "update docs after adding a feature"'));
+    console.error("Usage: jfp suggest <task description>");
     process.exit(2);
   }
 
-  const limit = flags.limit ?? 3;
+  const baseline = searchPrompts(task, flags.limit ?? 10);
 
-  // Load pre-computed embeddings
-  // Use import.meta.dir for Bun compatibility (not __dirname)
-  const embeddingsPath = join(import.meta.dir, "prompt_embeddings.json");
-  let embeddings: EmbeddedPrompt[];
-
-  try {
-    const data = readFileSync(embeddingsPath, "utf-8");
-    embeddings = JSON.parse(data);
-  } catch {
-    // Fallback: use MiniSearch fuzzy matching if embeddings not available
-    console.error(chalk.yellow("Warning: Semantic embeddings not found, falling back to fuzzy search"));
-    return searchCommand(task, flags);
-  }
-
-  // Run semantic search
-  const results = semanticSuggest(task, embeddings, limit);
+  const results = flags.semantic
+    ? await semanticRerank(task, baseline)
+    : baseline;
 
   if (flags.json) {
-    console.log(JSON.stringify({
-      task,
-      count: results.length,
-      suggestions: results,
-    }, null, 2));
+    printJson({ task, count: results.length, suggestions: results }, flags);
     return;
   }
 
-  if (results.length === 0) {
-    console.log(chalk.dim(`No suggestions for "${task}"`));
-    console.log(chalk.dim("Try rephrasing your task description."));
-    return;
-  }
-
-  console.log(chalk.bold(`Suggestions for: "${task}"\n`));
-
-  for (const [i, result] of results.entries()) {
-    const scoreStr = (result.score * 100).toFixed(0);
-    console.log(`${chalk.cyan(`${i + 1}.`)} ${chalk.bold(result.title)} ${chalk.dim(`(${scoreStr}% match)`)}`);
-    console.log(`   ${result.description}`);
-    console.log(`   ${chalk.dim(`→ ${result.reason}`)}`);
-    console.log();
-  }
-
-  console.log(chalk.dim(`Install: jfp install ${results[0].id}`));
-}
-
-// Import shared hash embedder (see section 14.5.5)
-import { hashEmbed, cosineSimilarity, tokenize } from "./apps/web/src/lib/search/hash-embedder";
-
-// Pure TypeScript implementation of semantic suggestion
-// (Uses pre-computed embeddings, computes query embedding at runtime)
-function semanticSuggest(task: string, embeddings: EmbeddedPrompt[], limit: number): SuggestionResult[] {
-  const queryEmbedding = hashEmbed(task);
-
-  const results = embeddings.map((prompt) => {
-    const score = cosineSimilarity(queryEmbedding, prompt.embedding);
-    const boost = whenToUseBoost(task, prompt.when_to_use);
-    const finalScore = score + boost * 0.3;
-
-    return {
-      id: prompt.id,
-      title: prompt.title,
-      description: prompt.description,
-      score: finalScore,
-      reason: generateReason(task, prompt, score, boost),
-    };
-  });
-
-  return results
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-}
-
-function whenToUseBoost(task: string, whenToUse: string[]): number {
-  const taskTokens = new Set(tokenize(task));
-  let matches = 0;
-
-  for (const when of whenToUse) {
-    const whenTokens = new Set(tokenize(when));
-    if ([...taskTokens].some((t) => whenTokens.has(t))) {
-      matches++;
-    }
-  }
-
-  return matches / Math.max(whenToUse.length, 1);
-}
-
-function generateReason(task: string, prompt: EmbeddedPrompt, score: number, boost: number): string {
-  const taskTokens = new Set(tokenize(task));
-
-  // Check tag matches
-  const matchingTags = prompt.tags.filter((t) => taskTokens.has(t.toLowerCase()));
-  if (matchingTags.length > 0) {
-    return `Matches tags: ${matchingTags.join(", ")}`;
-  }
-
-  // Check whenToUse matches
-  for (const when of prompt.when_to_use) {
-    const whenTokens = new Set(tokenize(when));
-    if ([...taskTokens].some((t) => whenTokens.has(t))) {
-      return `Matches use case: "${when}"`;
-    }
-  }
-
-  if (score > 0.5) return "Strong semantic match";
-  if (boost > 0) return "Partial keyword match";
-  return "General relevance";
+  // render human-friendly suggestions...
 }
 ```
 
-### 14.7 Web Integration
+**Note:** The CLI does **not** require a `prompt_embeddings.json` file. For this scale, in-memory
+embeddings are fast enough, and model assets can be cached in `~/.config/jfp/models`.
 
-```tsx
-// apps/web/src/lib/search/semantic.ts
+### 14.3 Web Integration
 
-// WASM module loaded from public directory
-let wasmModule: any = null;
-let searchInstance: any = null;
+- Default suggestions use BM25.
+- “Improve suggestions” toggle lazy-loads semantic model.
+- Run semantic rerank in a Web Worker to avoid blocking UI.
 
-/**
- * Initialize the WASM semantic search module.
- * Lazy-loaded on first use.
- *
- * Note: WASM files are in public/wasm/ and must be fetched at runtime.
- * We use the standard wasm-bindgen pattern for web targets.
- */
-async function initWasm(): Promise<void> {
-  if (searchInstance) return;
+### 14.4 Optional Data Pipeline
 
-  try {
-    // Fetch the WASM JavaScript glue code
-    const jsModule = await import(/* webpackIgnore: true */ "/wasm/jfp_search_wasm.js");
+If you decide to precompute embeddings for the web:
+- generate `/public/embeddings.json` during `build-data.ts`
+- fetch via `/embeddings.json` (static asset)
 
-    // Initialize WASM binary (wasm-bindgen handles this)
-    await jsModule.default("/wasm/jfp_search_wasm_bg.wasm");
-
-    // Load pre-computed embeddings from API
-    const response = await fetch("/api/embeddings");
-    const embeddingsJson = await response.text();
-
-    // Create search instance
-    searchInstance = new jsModule.JfpSearch(embeddingsJson);
-    wasmModule = jsModule;
-  } catch (error) {
-    console.warn("WASM semantic search unavailable, using fallback:", error);
-    searchInstance = null;
-  }
-}
-
-/**
- * Suggest prompts for a task description.
- * Uses WASM semantic search if available, falls back to MiniSearch.
- */
-export async function suggestPrompts(task: string, limit = 3): Promise<SuggestionResult[]> {
-  await initWasm();
-
-  if (searchInstance) {
-    const resultsJson = searchInstance.suggest(task, limit);
-    return JSON.parse(resultsJson);
-  }
-
-  // Fallback: use MiniSearch fuzzy matching
-  const { searchPrompts } = await import("./engine");
-  const results = searchPrompts(task, limit);
-
-  return results.map((r) => ({
-    id: r.id,
-    title: r.title,
-    description: r.description,
-    score: r.score / 10, // Normalize MiniSearch score
-    reason: "Fuzzy text match",
-  }));
-}
-```
-
-### 14.8 Build-Time Embedding Generation
-
-```typescript
-// scripts/generate-embeddings.ts
-
-/**
- * Generate prompt embeddings at build time.
- * Run: bun run scripts/generate-embeddings.ts
- *
- * Uses the shared hash embedder module (see section 14.5.5)
- */
-
-import { prompts } from "../apps/web/src/lib/prompts/registry";
-import { hashEmbed } from "../apps/web/src/lib/search/hash-embedder";
-
-// Generate embeddings for all prompts
-const embeddedPrompts = prompts.map((prompt) => {
-  // Combine relevant fields for embedding
-  const textForEmbedding = [
-    prompt.title,
-    prompt.description,
-    prompt.tags.join(" "),
-    prompt.whenToUse?.join(" ") ?? "",
-  ].join(" ");
-
-  return {
-    id: prompt.id,
-    title: prompt.title,
-    description: prompt.description,
-    category: prompt.category,
-    tags: prompt.tags,
-    when_to_use: prompt.whenToUse ?? [],
-    embedding: hashEmbed(textForEmbedding),
-  };
-});
-
-// Write to JSON file
-const output = JSON.stringify(embeddedPrompts, null, 2);
-await Bun.write("prompt_embeddings.json", output);
-await Bun.write("apps/web/public/embeddings.json", output);
-
-console.log(`Generated embeddings for ${embeddedPrompts.length} prompts`);
-console.log(`Output: prompt_embeddings.json (${(output.length / 1024).toFixed(1)} KB)`);
-```
-
-### 14.9 Updated Project Structure
-
-The following additions extend the base structure defined in **Part 5**:
+### 14.5 Updated Project Structure Additions
 
 ```
-jeffreysprompts.com/
-├── ...files from Part 5...
-│
-├── crates/                        # NEW: Rust WASM crates
-│   └── jfp-search-wasm/
-│       ├── Cargo.toml
-│       ├── Cargo.lock
-│       ├── src/
-│       │   └── lib.rs             # Semantic search implementation
-│       └── pkg/                   # Built WASM output (gitignored)
-│           ├── jfp_search_wasm.js
-│           ├── jfp_search_wasm_bg.wasm
-│           └── jfp_search_wasm.d.ts
-│
-├── .github/                       # NEW: GitHub Actions
-│   ├── workflows/
-│   │   ├── ci.yml                 # Lint, test, build on every push
-│   │   ├── release.yml            # Release on version tags
-│   │   └── dependabot.yml         # Dependency updates
-│   └── CODEOWNERS                 # Optional: define code owners
-│
-├── prompt_embeddings.json         # NEW: Pre-computed embeddings (CLI)
-│
-├── apps/web/
-│   ├── src/lib/
-│   │   ├── search/
-│   │   │   ├── engine.ts          # MiniSearch wrapper (existing)
-│   │   │   ├── hash-embedder.ts   # NEW: Shared hash embedder module
-│   │   │   └── semantic.ts        # NEW: WASM semantic search wrapper
-│   │   └── prompts/
-│   │       ├── types.ts           # Existing
-│   │       ├── registry.ts        # Existing
-│   │       └── bundles.ts         # NEW: Prompt bundles
-│   │
-│   └── public/
-│       ├── embeddings.json        # NEW: Pre-computed embeddings (web)
-│       └── wasm/                  # NEW: WASM files for browser
-│           ├── jfp_search_wasm.js
-│           └── jfp_search_wasm_bg.wasm
-│
-└── scripts/
-    ├── build-cli.sh               # Existing
-    ├── build-releases.sh          # Existing
-    ├── build-wasm.sh              # NEW: Build WASM module
-    └── generate-embeddings.ts     # NEW: Generate prompt embeddings
+packages/core/src/search/
+  bm25.ts
+  tokenize.ts
+  synonyms.ts
+  semantic.ts
 ```
 
-### 14.10 Implementation Phase Addition
+### 14.6 Phase Addition
 
-Add to Phase 4 or create new Phase:
-
-**Phase 4.5: Semantic Suggestion System**
-
-1. **Create Rust WASM crate**
-   ```bash
-   mkdir -p crates/jfp-search-wasm/src
-   # Create Cargo.toml and lib.rs
-   ```
-
-2. **Build WASM module**
-   ```bash
-   cd crates/jfp-search-wasm
-   wasm-pack build --target web --release
-   ```
-
-3. **Generate embeddings**
-   ```bash
-   bun run scripts/generate-embeddings.ts
-   ```
-
-4. **Integrate with CLI**
-   - Add `jfp suggest` command
-   - Add TypeScript fallback implementation
-
-5. **Integrate with web**
-   - Add `/api/embeddings` route
-   - Add WASM loading in search module
-   - Add "Suggest" UI in SpotlightSearch
+**Phase 4.5: Semantic Rerank (Optional)**
+1. Add `@xenova/transformers` dependency (lazy import)
+2. Implement `semanticRerank` in core
+3. Add CLI flag `--semantic`
+4. Add web toggle for “better suggestions”
 
 ---
 
@@ -6682,8 +6183,10 @@ jfp list                      # List all prompts
 jfp list --category ideation  # Filter by category
 jfp list --tag ultrathink     # Filter by tag
 jfp list --json               # JSON output for agents
-jfp search <query>            # Fuzzy search
-jfp suggest <task>            # Semantic suggestion (NEW)
+jfp list --pretty             # Pretty JSON (human-friendly)
+jfp search <query>            # BM25 search
+jfp suggest <task>            # Suggest prompts for a task
+jfp suggest <task> --semantic # Optional semantic rerank
 
 # Viewing
 jfp show <id>                 # Show full prompt
@@ -6692,6 +6195,9 @@ jfp show <id> --json          # JSON output
 
 # Copying & Exporting
 jfp copy <id>                 # Copy to clipboard
+jfp copy <id> --fill          # Prompt for missing variables
+jfp render <id>               # Render prompt with variables
+jfp render <id> --VAR=value   # Provide variables
 jfp export <id>               # Export as SKILL.md
 jfp export <id> --format md   # Export as markdown
 
@@ -6705,10 +6211,20 @@ jfp install --bundle <id>     # Install bundle as single skill (NEW)
 jfp uninstall <id>...         # Remove installed skills
 jfp installed                 # List installed skills
 jfp update                    # Update all installed skills
+jfp update --dry-run          # Show changes without writing
 
 # Bundles (NEW)
 jfp bundles                   # List available bundles
 jfp bundle show <id>          # Show bundle details
+
+# Registry
+jfp registry status           # Show registry cache status
+jfp registry refresh          # Refresh cached registry
+
+# Utilities
+jfp open <id>                 # Open prompt permalink in browser
+jfp serve                     # MCP server mode (agent-native)
+jfp completion --shell zsh    # Shell completions
 
 # Metadata
 jfp categories                # List categories
