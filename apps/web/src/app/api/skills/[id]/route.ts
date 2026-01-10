@@ -18,10 +18,13 @@ export async function GET(
 
   const skillMd = generateSkillMd(prompt);
 
+  // Sanitize ID for Content-Disposition header (defense-in-depth)
+  const safeId = id.replace(/[^a-z0-9-]/gi, "");
+
   return new NextResponse(skillMd, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${id}.SKILL.md"`,
+      "Content-Disposition": `attachment; filename="${safeId}.SKILL.md"`,
       "Cache-Control": "public, max-age=3600",
     },
   });

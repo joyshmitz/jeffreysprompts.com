@@ -56,7 +56,7 @@ export function bundleShowCommand(id: string, options: BundleShowOptions) {
 
   if (!bundle) {
     if (options.json) {
-      console.log(JSON.stringify({ error: "not_found", id }));
+      console.log(JSON.stringify({ error: "not_found", message: `Bundle not found: ${id}` }));
     } else {
       console.error(chalk.red("Bundle not found: " + id));
       console.log(chalk.dim("\nAvailable bundles:"));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
 import {
   X,
@@ -17,11 +17,7 @@ import { Button } from "./ui/button";
 import { useToast } from "./ui/toast";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
-import {
-  prompts,
-  getPrompt,
-  type Prompt,
-} from "@jeffreysprompts/core/prompts";
+import { getPrompt, type Prompt } from "@jeffreysprompts/core/prompts";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
 import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
 
@@ -36,12 +32,23 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const basketPrompts = items
-    .map((id) => getPrompt(id))
-    .filter((p): p is Prompt => p !== undefined);
+  const basketPrompts = useMemo(
+    () => items.map((id) => getPrompt(id)).filter((p): p is Prompt => p !== undefined),
+    [items]
+  );
+
+  // Clean up any missing prompts from the basket (e.g., if registry changed)
+  useEffect(() => {
+    if (basketPrompts.length === items.length) return;
+    const missingIds = items.filter((id) => !getPrompt(id));
+    if (missingIds.length === 0) return;
+    for (const id of missingIds) {
+      removeItem(id);
+    }
+  }, [items, basketPrompts.length, removeItem]);
 
   const handleDownloadMarkdown = async () => {
-    if (basketPrompts.length === 0) return;
+      if (basketPrompts.length === 0) return;
 
     setExporting(true);
     try {
@@ -78,7 +85,7 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
   };
 
   const handleDownloadSkills = async () => {
-    if (basketPrompts.length === 0) return;
+      if (basketPrompts.length === 0) return;
 
     setExporting(true);
     try {
@@ -166,7 +173,7 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
             <ShoppingBasket className="h-5 w-5 text-primary" />
             <h2 className="font-semibold">Basket</h2>
             <span className="text-sm text-muted-foreground">
-              ({items.length})
+              ({basketPrompts.length})
             </span>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -176,7 +183,7 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
 
         {/* Items list */}
         <div className="flex-1 overflow-y-auto p-4">
-          {items.length === 0 ? (
+          {basketPrompts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <ShoppingBasket className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>Your basket is empty</p>
@@ -214,7 +221,7 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
         </div>
 
         {/* Actions */}
-        {items.length > 0 && (
+        {basketPrompts.length > 0 && (
           <div className="p-4 border-t border-border space-y-2">
             <Button
               variant="outline"

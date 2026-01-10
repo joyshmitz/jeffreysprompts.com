@@ -459,6 +459,6 @@ export async function updateCliCommand(options: UpdateCliOptions = {}) {
     } else {
       console.log(chalk.red("x Update check failed: " + result.error));
     }
-    process.exitCode = 1;
+    process.exit(1);
   }
 }
