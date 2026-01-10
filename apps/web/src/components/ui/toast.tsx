@@ -89,9 +89,11 @@ function ToastItem({
 
   React.useEffect(() => {
     const duration = toast.duration ?? 5000;
+    // Guard against durations < 300ms to prevent negative timeout
+    const exitDelay = Math.max(0, duration - 300);
     const exitTimer = setTimeout(() => {
       setExiting(true);
-    }, duration - 300);
+    }, exitDelay);
 
     const removeTimer = setTimeout(() => {
       onRemove();

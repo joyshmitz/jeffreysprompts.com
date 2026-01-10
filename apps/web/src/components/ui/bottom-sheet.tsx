@@ -5,6 +5,9 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+// Module-level counter to track open sheets for proper overflow management
+let openSheetCount = 0;
+
 const CloseIcon = () => (
   <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -51,12 +54,22 @@ export function BottomSheet({
 
     if (open) {
       document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
+      // Only lock scroll on first open sheet
+      if (openSheetCount === 0) {
+        document.body.style.overflow = "hidden";
+      }
+      openSheetCount++;
     }
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
+      if (open) {
+        openSheetCount--;
+        // Only restore scroll when all sheets are closed
+        if (openSheetCount === 0) {
+          document.body.style.overflow = "";
+        }
+      }
     };
   }, [open, onClose]);
 
