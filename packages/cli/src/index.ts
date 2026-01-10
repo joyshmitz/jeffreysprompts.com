@@ -21,6 +21,7 @@ import {
   doctorCommand,
   aboutCommand,
 } from "./commands/utilities";
+import { helpCommand } from "./commands/help";
 
 export const cli = cac("jfp");
 
@@ -152,6 +153,11 @@ cli
   .command("about", "About JeffreysPrompts CLI")
   .option("--json", "Output JSON")
   .action(aboutCommand);
+
+cli
+  .command("help", "Show comprehensive documentation")
+  .option("--json", "Output JSON")
+  .action(helpCommand);
 
 cli.help();
 cli.version(version);
