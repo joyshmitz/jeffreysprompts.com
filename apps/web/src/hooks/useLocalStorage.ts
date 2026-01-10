@@ -38,7 +38,8 @@ export function useLocalStorage<T>(
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialValueRef = useRef<T>(initialValue);
   // Track latest value for use in cleanup (avoids stale closure bug)
-  const latestValueRef: MutableRefObject<T | null> = useRef<T | null>(null);
+  const latestValueRef: MutableRefObject<T> = useRef<T>(initialValue);
+  const hasLatestValueRef = useRef(false);
   // Track previous key to flush pending writes on key change
   const prevKeyRef = useRef<string>(key);
 
@@ -61,7 +62,7 @@ export function useLocalStorage<T>(
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
       // Write latest value to the OLD key (not current mount/initial load)
-      if (latestValueRef.current !== null && oldKey !== key) {
+      if (hasLatestValueRef.current && oldKey !== key) {
         try {
           window.localStorage.setItem(oldKey, JSON.stringify(latestValueRef.current));
         } catch {
@@ -124,6 +125,7 @@ export function useLocalStorage<T>(
   // Keep latestValueRef in sync (for use in cleanup without stale closure)
   useEffect(() => {
     latestValueRef.current = storedValue;
+    hasLatestValueRef.current = true;
   }, [storedValue]);
 
   // Persist on unmount if there's a pending debounce
@@ -134,7 +136,7 @@ export function useLocalStorage<T>(
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         // Use ref to get the actual latest value, not a stale closure
-        if (latestValueRef.current !== null) {
+        if (hasLatestValueRef.current) {
           try {
             window.localStorage.setItem(key, JSON.stringify(latestValueRef.current));
           } catch {

@@ -256,9 +256,17 @@ export function StaggerChildren({
       className={className}
       {...motionProps}
     >
-      {React.Children.map(children, (child) => (
-        <motion.div variants={itemVariants}>{child}</motion.div>
-      ))}
+      {React.Children.map(children, (child, index) => {
+        const key =
+          React.isValidElement(child) && child.key !== null
+            ? child.key
+            : index;
+        return (
+          <motion.div key={key} variants={itemVariants}>
+            {child}
+          </motion.div>
+        );
+      })}
     </motion.div>
   );
 }

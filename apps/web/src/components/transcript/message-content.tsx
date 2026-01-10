@@ -30,7 +30,7 @@ function parseContent(content: string): ContentBlock[] {
   for (const line of lines) {
     // Check for code fence start (trim to handle trailing whitespace)
     const trimmedLine = line.trim();
-    const fenceMatch = trimmedLine.match(/^```(\w*)$/);
+    const fenceMatch = trimmedLine.match(/^```([^\s]*)$/);
 
     if (fenceMatch && !inCodeBlock) {
       // Starting a code block
