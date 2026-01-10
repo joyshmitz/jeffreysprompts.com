@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Search, Sparkles, Terminal, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,15 @@ export function Hero({
   selectedCategory,
 }: HeroProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // Initialize to "Ctrl" to match server-rendered HTML, update on mount
+  const [modifierKey, setModifierKey] = useState("Ctrl");
+
+  // Detect platform and update modifier key on client-side only
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.platform?.includes("Mac")) {
+      setModifierKey("⌘");
+    }
+  }, []);
 
   const handleSearchSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -123,7 +132,7 @@ export function Hero({
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-zinc-400">
                 <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 font-mono">
-                  {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}
+                  {modifierKey}
                 </kbd>
                 <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 font-mono">K</kbd>
               </div>
