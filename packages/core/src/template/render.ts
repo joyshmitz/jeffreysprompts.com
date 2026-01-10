@@ -53,7 +53,13 @@ export function getMissingVariables(
     .filter((v) => v.required)
     .map((v) => v.name);
 
-  return required.filter((name) => !vars[name] && !getDefaultValue(prompt, name));
+  return required.filter((name) => {
+    const value = vars[name];
+    const hasValue = value !== undefined && value !== "";
+    const defaultValue = getDefaultValue(prompt, name);
+    const hasDefault = defaultValue !== undefined && defaultValue !== "";
+    return !hasValue && !hasDefault;
+  });
 }
 
 /**

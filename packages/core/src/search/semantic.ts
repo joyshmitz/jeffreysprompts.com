@@ -107,7 +107,12 @@ function normalizeVector(vec: number[]): number[] {
  * Cosine similarity between two vectors
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
+  if (a.length !== b.length) {
+    console.warn(
+      `[semantic] Cosine similarity dimension mismatch: ${a.length} vs ${b.length}. Returning 0.`
+    );
+    return 0;
+  }
   let dotProduct = 0;
   for (let i = 0; i < a.length; i++) {
     dotProduct += a[i] * b[i];
@@ -115,9 +120,24 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct; // Vectors are already normalized
 }
 
+/** Default timeout for model loading (30 seconds) */
+const MODEL_LOAD_TIMEOUT_MS = 30000;
+
+/**
+ * Create a timeout promise that rejects after specified milliseconds
+ */
+function timeoutPromise(ms: number, operation: string): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${operation} timed out after ${ms}ms`));
+    }, ms);
+  });
+}
+
 /**
  * Lazy-load the transformer pipeline
  * Catches errors gracefully and sets loadError state
+ * Includes timeout protection to prevent hanging on slow networks
  */
 async function loadTransformerPipeline(options: SemanticOptions = {}): Promise<unknown | null> {
   if (transformerState.pipeline) {
@@ -147,14 +167,19 @@ async function loadTransformerPipeline(options: SemanticOptions = {}): Promise<u
       env.cacheDir = cachePath;
       env.allowLocalModels = true;
 
-      // Load feature extraction pipeline (embeddings)
-      transformerState.pipeline = await pipeline(
+      // Load feature extraction pipeline (embeddings) with timeout protection
+      const loadPipeline = pipeline(
         "feature-extraction",
         modelId,
         {
           quantized: true, // Use quantized model for smaller size
         }
       );
+
+      transformerState.pipeline = await Promise.race([
+        loadPipeline,
+        timeoutPromise(MODEL_LOAD_TIMEOUT_MS, "Model loading"),
+      ]);
     } catch (err) {
       transformerState.loadError = err instanceof Error ? err : new Error(String(err));
       console.warn(
