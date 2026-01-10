@@ -150,6 +150,8 @@ Maintain a `skills/manifest.json` that records:
 The CLI uses this to make `jfp update` deterministic and to avoid unnecessary rewrites.
 Only overwrite skills that include `x_jfp_generated: true` (unless `--force` is provided).
 
+Implementation note: `install` and `update` should call `updateSkillsManifest()` after writes.
+
 #### Why Skills Matter for JeffreysPrompts
 
 By exporting prompts as Claude Code skills, users can:
@@ -666,14 +668,46 @@ simple renderer that performs safe string substitution (no logic, no eval).
 
 import { type Prompt } from "../prompts/types";
 
+function applyVariableDefaults(prompt: Prompt, vars: Record<string, string>): Record<string, string> {
+  const defaults = Object.fromEntries(
+    (prompt.variables ?? [])
+      .filter((v) => v.default !== undefined)
+      .map((v) => [v.name, String(v.default)])
+  );
+  return { ...defaults, ...vars };
+}
+
 export function renderPrompt(prompt: Prompt, vars: Record<string, string>): string {
+  const merged = applyVariableDefaults(prompt, vars);
   return prompt.content.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => {
-    return vars[key] ?? "";
+    return merged[key] ?? "";
   });
 }
 ```
 
-The web UI and CLI both use this for “prompt compilation” (see Part 6.6).
+The web UI and CLI both use this for “prompt compilation” (see Part 6.7).
+
+#### 2.2.1 Core Package Barrel Exports
+
+Keep `packages/core/src/index.ts` explicit so consumers can import from `@jfp/core` safely:
+
+```typescript
+// packages/core/src/index.ts
+
+export * from "./prompts/types";
+export * from "./prompts/registry";
+export * from "./prompts/bundles";
+export * from "./prompts/workflows";
+
+export * from "./export/skills";
+export * from "./export/markdown";
+export * from "./export/json";
+
+export * from "./search/engine";
+export * from "./search/synonyms";
+
+export * from "./template/render";
+```
 
 ### 2.3 Prompt Registry (TypeScript Data)
 
@@ -1182,6 +1216,7 @@ Include a small synonyms map (fix/repair, docs/readme, perf/speed) to improve le
 import { prompts } from "../prompts/registry";
 import { type Prompt, type PromptCategory } from "../prompts/types";
 import { bm25Search } from "./bm25";
+import { expandQueryWithSynonyms } from "./synonyms";
 
 export interface SearchResult {
   id: string;
@@ -1194,10 +1229,11 @@ export interface SearchResult {
   score: number;
 }
 
-export function searchPrompts(query: string, limit = 20): SearchResult[] {
+export function searchPrompts(query: string, limit = 20, source: Prompt[] = prompts): SearchResult[] {
   if (!query.trim()) return [];
 
-  const results = bm25Search(prompts, query, {
+  const expanded = expandQueryWithSynonyms(query);
+  const results = bm25Search(source, expanded, {
     limit,
     boost: { title: 3, description: 2, tags: 1.5, content: 1 },
   });
@@ -1214,12 +1250,12 @@ export function searchPrompts(query: string, limit = 20): SearchResult[] {
   }));
 }
 
-export function filterByCategory(category: PromptCategory): Prompt[] {
-  return prompts.filter((p) => p.category === category);
+export function filterByCategory(category: PromptCategory, source: Prompt[] = prompts): Prompt[] {
+  return source.filter((p) => p.category === category);
 }
 
-export function filterByTag(tag: string): Prompt[] {
-  return prompts.filter((p) => p.tags.includes(tag));
+export function filterByTag(tag: string, source: Prompt[] = prompts): Prompt[] {
+  return source.filter((p) => p.tags.includes(tag));
 }
 
 export function searchAndFilter(
@@ -1262,6 +1298,24 @@ export function searchAndFilter(
 - If semantic mode is enabled, embed query + candidates and rerank by cosine similarity.
 - Keep BM25 as the default to avoid heavy dependencies for typical usage.
 
+Synonyms helper (lightweight query expansion):
+
+```typescript
+// packages/core/src/search/synonyms.ts
+
+const SYNONYMS: Record<string, string[]> = {
+  fix: ["repair", "resolve", "debug"],
+  docs: ["readme", "documentation"],
+  perf: ["performance", "speed", "optimize"],
+};
+
+export function expandQueryWithSynonyms(query: string): string {
+  const tokens = query.toLowerCase().split(/\s+/);
+  const expanded = tokens.flatMap((t) => [t, ...(SYNONYMS[t] ?? [])]);
+  return expanded.join(" ");
+}
+```
+
 ### 3.3 Automated Skills Management via jfp CLI
 
 > **Note**: This section shows the core CLI implementation. Some functions called in `main()` are
@@ -1270,19 +1324,30 @@ export function searchAndFilter(
 > - `showAbout` — See Part 12.3 (Ecosystem Integration)
 > - Interactive mode helpers — See Part 6.3 (Interactive Mode)
 
+Root wrapper (kept tiny so `bun build --compile ./jfp.ts` stays stable):
+
 ```typescript
-// jfp.ts — Skills management commands
-// Entry point for the jfp CLI tool
+// jfp.ts (root)
+import "./packages/cli/src/index";
+```
+
+```typescript
+// packages/cli/src/index.ts — CLI entry point
+// Root-level jfp.ts is a thin wrapper that imports and runs this module.
 
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
 import chalk from "chalk";
-import { prompts, getPrompt, type Prompt } from "@jfp/core/prompts";
+import { createHash } from "crypto";
+import { type Prompt } from "@jfp/core/prompts";
 import { searchPrompts } from "@jfp/core/search/engine";
 import { generateSkillMd } from "@jfp/core/export/skills";
+import { generatePromptMarkdown } from "@jfp/core/export/markdown";
 import { renderPrompt } from "@jfp/core/template/render";
 import { cac } from "cac";
+import { loadRegistry } from "./lib/registry-loader";
+import { input, select } from "@inquirer/prompts";
 
 // In production, commands should operate on registry prompts loaded via SWR cache
 // (see Part 6.6), not the static bundled `prompts` array.
@@ -1330,6 +1395,88 @@ function parseVarFlags(argv: string[]): Record<string, string> {
   return vars;
 }
 
+function findPrompt(registry: Prompt[], id: string): Prompt | undefined {
+  return registry.find((p) => p.id === id);
+}
+
+async function promptForVars(prompt: Prompt, existing: Record<string, string> = {}): Promise<Record<string, string>> {
+  const vars: Record<string, string> = { ...existing };
+  if (!prompt.variables?.length) return vars;
+
+  // Minimal interactive fill; keep required vars unfilled until user provides them.
+  for (const variable of prompt.variables) {
+    if (vars[variable.name]) continue;
+    if (!variable.required && variable.default !== undefined) {
+      vars[variable.name] = String(variable.default);
+      continue;
+    }
+    // Use @inquirer/prompts input/select in real implementation
+    const value = variable.type === "select"
+      ? await select({ message: variable.label, choices: variable.options?.map((o) => ({ name: o, value: o })) ?? [] })
+      : await input({ message: `${variable.label}`, default: variable.default });
+    vars[variable.name] = value ?? "";
+  }
+
+  return vars;
+}
+
+function readContextFile(path: string, maxBytes = 200000): string {
+  const data = readFileSync(path);
+  if (data.length <= maxBytes) return data.toString("utf-8");
+  const truncated = data.subarray(0, maxBytes).toString("utf-8");
+  return `${truncated}\n\n[Context truncated to ${maxBytes} bytes]`;
+}
+
+async function readStdin(maxBytes = 200000): Promise<string> {
+  const text = await new Response(Bun.stdin).text();
+  if (text.length <= maxBytes) return text;
+  return `${text.slice(0, maxBytes)}\n\n[Context truncated to ${maxBytes} bytes]`;
+}
+
+function formatRegistryStatus(status: { version: string; updatedAt?: string; cachedAt?: string }) {
+  return [
+    `Registry version: ${status.version}`,
+    status.updatedAt ? `Updated: ${status.updatedAt}` : null,
+    status.cachedAt ? `Cached: ${status.cachedAt}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+function formatRegistryRefresh(result: { updated: boolean; version: string }) {
+  return result.updated
+    ? `Registry updated to ${result.version}`
+    : `Registry already up to date (${result.version})`;
+}
+
+function getRegistryStatus() {
+  // Read cache metadata (etag, version, cachedAt) from ~/.config/jfp/registry.meta.json
+  return { version: "unknown", cachedAt: undefined, updatedAt: undefined };
+}
+
+async function refreshRegistry(cachePath?: string) {
+  // See Part 6.6 for full SWR + ETag implementation (writes cache + metadata).
+  // If registry.manifest.json is present, verify sha256 before writing.
+}
+
+function printCompletion(shell: string) {
+  // Use cac's built-in completion output or ship a static template.
+  // Example: console.log(cli.generateCompletion({ shell }));
+}
+
+function updateSkillsManifest(skillsDir: string, registry: Prompt[]) {
+  const manifestPath = join(skillsDir, "manifest.json");
+  const entries = registry.map((p) => ({
+    id: p.id,
+    version: p.version,
+    updatedAt: p.updatedAt ?? p.created,
+    hash: createHash("sha256").update(generateSkillMd(p)).digest("hex"),
+  }));
+  writeFileSync(manifestPath, JSON.stringify({ generatedAt: new Date().toISOString(), entries }, null, 2));
+}
+
+async function startMcpServer() {
+  // See Part 6.9 for MCP server details.
+}
+
 const cli = cac("jfp");
 cli
   .option("--json", "machine-readable output (auto when piped)", { default: !process.stdout.isTTY })
@@ -1351,7 +1498,8 @@ interface JfpConfig {
 
 // jfp list — List all prompts
 async function listCommand(flags: Flags) {
-  let result = prompts;
+  const registry = await loadRegistry();
+  let result = registry;
 
   // Apply filters
   if (flags.category) {
@@ -1385,14 +1533,15 @@ async function listCommand(flags: Flags) {
   }
 }
 
-// jfp search — Fuzzy search prompts
+// jfp search — BM25 search prompts
 async function searchCommand(query: string, flags: Flags) {
   if (!query) {
     console.error(chalk.red("Usage: jfp search <query>"));
     process.exit(2);
   }
 
-  const results = searchPrompts(query, flags.limit ?? 20);
+  const registry = await loadRegistry();
+  const results = searchPrompts(query, flags.limit ?? 20, registry);
 
   if (flags.json) {
     printJson({
@@ -1427,10 +1576,11 @@ async function showCommand(id: string, flags: Flags) {
     process.exit(2);
   }
 
-  const prompt = getPrompt(id);
+  const registry = await loadRegistry();
+  const prompt = findPrompt(registry, id);
   if (!prompt) {
     console.error(chalk.red(`Prompt not found: ${id}`));
-    console.error(chalk.dim(`Available: ${prompts.map((p) => p.id).join(", ")}`));
+    console.error(chalk.dim(`Available: ${registry.map((p) => p.id).join(", ")}`));
     process.exit(1);
   }
 
@@ -1472,7 +1622,8 @@ async function copyCommand(id: string, flags: Flags) {
     process.exit(2);
   }
 
-  const prompt = getPrompt(id);
+  const registry = await loadRegistry();
+  const prompt = findPrompt(registry, id);
   if (!prompt) {
     console.error(chalk.red(`Prompt not found: ${id}`));
     process.exit(1);
@@ -1517,7 +1668,8 @@ async function copyCommand(id: string, flags: Flags) {
 
 // jfp render — Render a prompt with variables + optional context
 async function renderCommand(id: string, flags: Flags) {
-  const prompt = getPrompt(id);
+  const registry = await loadRegistry();
+  const prompt = findPrompt(registry, id);
   if (!prompt) {
     console.error(chalk.red(`Prompt not found: ${id}`));
     process.exit(1);
@@ -1572,13 +1724,14 @@ async function exportCommand(ids: string[], flags: Flags) {
   const format = flags.format ?? "skill";  // "skill" or "md"
   const all = flags.all;
 
+  const registry = await loadRegistry();
   const toExport = all
-    ? prompts
-    : prompts.filter((p) => ids.includes(p.id));
+    ? registry
+    : registry.filter((p) => ids.includes(p.id));
 
   if (toExport.length === 0) {
     console.error(chalk.red("No matching prompts found."));
-    console.error(chalk.dim(`Available: ${prompts.map((p) => p.id).join(", ")}`));
+    console.error(chalk.dim(`Available: ${registry.map((p) => p.id).join(", ")}`));
     process.exit(1);
   }
 
@@ -1589,7 +1742,7 @@ async function exportCommand(ids: string[], flags: Flags) {
 
     const content = format === "skill"
       ? generateSkillMd(prompt)
-      : generateMarkdown(prompt);
+      : generatePromptMarkdown(prompt);
 
     await Bun.write(filename, content);
     console.log(chalk.green(`✓ Exported ${filename}`));
@@ -1598,30 +1751,7 @@ async function exportCommand(ids: string[], flags: Flags) {
 
 // Generate markdown export
 function generateMarkdown(prompt: Prompt): string {
-  return `# ${prompt.title}
-
-**Category:** ${prompt.category}
-**Tags:** ${prompt.tags.join(", ")}
-**Author:** ${prompt.author}
-
----
-
-${prompt.content}
-
----
-
-## When to Use
-
-${prompt.whenToUse?.map((w) => `- ${w}`).join("\n") ?? ""}
-
-## Tips
-
-${prompt.tips?.map((t) => `- ${t}`).join("\n") ?? ""}
-
----
-
-*From [JeffreysPrompts.com](https://jeffreysprompts.com/prompts/${prompt.id})*
-`;
+  return generatePromptMarkdown(prompt);
 }
 
 // jfp i — Interactive fzf-style browser
@@ -1752,13 +1882,14 @@ async function installCommand(args: string[], flags: Flags) {
   // Ensure target directory exists
   mkdirSync(targetDir, { recursive: true });
 
+  const registry = await loadRegistry();
   const toInstall = all
-    ? prompts
-    : prompts.filter((p) => skillIds.includes(p.id));
+    ? registry
+    : registry.filter((p) => skillIds.includes(p.id));
 
   if (toInstall.length === 0) {
     console.error(chalk.red("No matching prompts found."));
-    console.error(chalk.dim(`Available: ${prompts.map((p) => p.id).join(", ")}`));
+    console.error(chalk.dim(`Available: ${registry.map((p) => p.id).join(", ")}`));
     process.exit(1);
   }
 
@@ -1776,6 +1907,7 @@ async function installCommand(args: string[], flags: Flags) {
     console.log(chalk.green(`✓  ${prompt.title} → ${skillDir}`));
   }
 
+  updateSkillsManifest(targetDir, toInstall);
   console.log();
   console.log(chalk.cyan("Restart Claude Code to load the new skills."));
 }
@@ -1790,8 +1922,9 @@ async function uninstallCommand(args: string[], flags: Flags) {
     ? join(process.cwd(), ".claude", "skills")
     : join(homedir(), ".config", "claude", "skills");
 
+  const registry = await loadRegistry();
   const toRemove = all
-    ? prompts.map((p) => p.id)
+    ? registry.map((p) => p.id)
     : skillIds;
 
   for (const skillId of toRemove) {
@@ -1811,8 +1944,9 @@ async function installedCommand(flags: Flags) {
   const projectDir = join(process.cwd(), ".claude", "skills");
 
   const installed: { id: string; location: "personal" | "project" }[] = [];
+  const registry = await loadRegistry();
 
-  for (const prompt of prompts) {
+  for (const prompt of registry) {
     if (existsSync(join(personalDir, prompt.id, "SKILL.md"))) {
       installed.push({ id: prompt.id, location: "personal" });
     }
@@ -1835,7 +1969,7 @@ async function installedCommand(flags: Flags) {
   console.log(chalk.bold("Installed Skills:"));
   console.log();
   for (const { id, location } of installed) {
-    const prompt = getPrompt(id);
+    const prompt = findPrompt(registry, id);
     const badge = location === "personal"
       ? chalk.blue("personal")
       : chalk.green("project");
@@ -1858,8 +1992,9 @@ async function updateCommand(flags: Flags) {
   const projectDir = join(process.cwd(), ".claude", "skills");
 
   let updated = 0;
+  const registry = await loadRegistry();
 
-  for (const prompt of prompts) {
+  for (const prompt of registry) {
     const personalPath = join(personalDir, prompt.id, "SKILL.md");
     const projectPath = join(projectDir, prompt.id, "SKILL.md");
 
@@ -1911,18 +2046,24 @@ async function updateCommand(flags: Flags) {
     console.log();
     console.log(chalk.cyan(`Updated ${updated} skill(s). Restart Claude Code to reload.`));
   }
+
+  if (!flags.dryRun) {
+    updateSkillsManifest(personalDir, registry);
+    updateSkillsManifest(projectDir, registry);
+  }
 }
 
 // jfp categories — List all categories
 async function categoriesCommand(flags: Flags) {
-  const categories = [...new Set(prompts.map((p) => p.category))].sort();
+  const registry = await loadRegistry();
+  const categories = [...new Set(registry.map((p) => p.category))].sort();
 
   if (flags.json) {
     printJson({
       count: categories.length,
       categories: categories.map((c) => ({
         name: c,
-        count: prompts.filter((p) => p.category === c).length,
+        count: registry.filter((p) => p.category === c).length,
       })),
     }, flags);
     return;
@@ -1930,15 +2071,16 @@ async function categoriesCommand(flags: Flags) {
 
   console.log(chalk.bold("Categories:\n"));
   for (const category of categories) {
-    const count = prompts.filter((p) => p.category === category).length;
+    const count = registry.filter((p) => p.category === category).length;
     console.log(`  ${chalk.cyan(category.padEnd(20))} ${chalk.dim(`(${count} prompts)`)}`);
   }
 }
 
 // jfp tags — List all tags with counts
 async function tagsCommand(flags: Flags) {
+  const registry = await loadRegistry();
   const tagCounts = new Map<string, number>();
-  for (const prompt of prompts) {
+  for (const prompt of registry) {
     for (const tag of prompt.tags) {
       tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
     }
@@ -2870,6 +3012,7 @@ jeffreysprompts.com/
 │       │   │   ├── prompt-card.tsx       # Individual prompt display
 │       │   │   ├── prompt-grid.tsx       # Responsive grid of cards
 │       │   │   ├── prompt-detail.tsx     # Full prompt view (modal)
+│       │   │   ├── prompt-detail-sheet.tsx # Mobile bottom-sheet detail view
 │       │   │   ├── search-bar.tsx        # Full-text search input
 │       │   │   ├── spotlight-search.tsx  # Cmd+K command palette
 │       │   │   ├── category-filter.tsx   # Category pill selector
@@ -2916,10 +3059,12 @@ jeffreysprompts.com/
 │       │   └── hooks/
 │       │       ├── use-search.ts
 │       │       ├── use-basket.ts
-│       │       └── use-copy.ts
+│       │       ├── use-copy.ts
+│       │       └── use-local-storage.ts
 │       │
 │       └── public/
 │           ├── og-image.png
+│           ├── registry.json            # Optional static registry payload
 │           ├── registry.manifest.json   # Optional registry checksum manifest
 │           ├── manifest.json
 │           ├── icons/
@@ -3357,6 +3502,7 @@ ${chalk.dim("https://jeffreysprompts.com")}
 
 ```typescript
 import { search, select, confirm } from "@inquirer/prompts";
+import { generatePromptMarkdown } from "@jfp/core/export/markdown";
 
 // Helper: Copy text to clipboard (cross-platform, using Bun.spawn)
 async function copyToClipboard(text: string): Promise<void> {
@@ -3412,52 +3558,33 @@ async function installSkill(prompt: Prompt): Promise<void> {
 // Helper: Export prompt as markdown file
 async function exportMarkdown(prompt: Prompt): Promise<void> {
   const filename = `${prompt.id}.md`;
-  const content = `# ${prompt.title}
-
-**Category:** ${prompt.category}
-**Tags:** ${prompt.tags.join(", ")}
-**Author:** ${prompt.author}
-
----
-
-${prompt.content}
-
----
-
-## When to Use
-
-${prompt.whenToUse?.map((w) => `- ${w}`).join("\n") ?? ""}
-
-## Tips
-
-${prompt.tips?.map((t) => `- ${t}`).join("\n") ?? ""}
-
----
-
-*From [JeffreysPrompts.com](https://jeffreysprompts.com/prompts/${prompt.id})*
-`;
+  const content = generatePromptMarkdown(prompt);
 
   await Bun.write(filename, content);
   console.log(chalk.green(`✓ Exported ${filename}`));
 }
 
 async function interactiveMode() {
+  const registry = await loadRegistry();
   const selected = await search({
     message: "Search prompts...",
     source: async (input) => {
       if (!input?.trim()) {
-        return prompts.map((p) => ({
+        return registry.map((p) => ({
           name: `${p.title} ${chalk.dim(`(${p.category})`)}`,
           value: p,
           description: p.description,
         }));
       }
 
-      return searchPrompts(input, 20).map((item) => ({
-        name: `${item.title} ${chalk.dim(`(${item.category})`)}`,
-        value: item,
-        description: item.description,
-      }));
+      return searchPrompts(input, 20, registry).map((item) => {
+        const prompt = findPrompt(registry, item.id);
+        return {
+          name: `${item.title} ${chalk.dim(`(${item.category})`)}`,
+          value: prompt ?? item,
+          description: item.description,
+        };
+      });
     },
   });
 
@@ -3527,6 +3654,24 @@ echo ""
 echo "Done!"
 ```
 
+Build-data script should also emit the registry manifest used for integrity checks:
+
+```typescript
+// scripts/build-data.ts (excerpt)
+import { buildRegistryPayload } from "../packages/core/src/export/json";
+import { createHash } from "crypto";
+
+const payload = buildRegistryPayload();
+const json = JSON.stringify(payload);
+const sha256 = createHash("sha256").update(json).digest("hex");
+
+await Bun.write("apps/web/public/registry.json", json);
+await Bun.write(
+  "apps/web/public/registry.manifest.json",
+  JSON.stringify({ version: payload.version, updatedAt: payload.updatedAt, sha256 }, null, 2)
+);
+```
+
 ### 6.5 CLI Output Contracts & Golden Tests (NEW)
 
 Because agents depend on stable JSON output, add golden tests for:
@@ -3544,7 +3689,7 @@ Prompts are content, and content changes faster than binaries. The CLI should lo
 - Ship with an embedded snapshot (offline-first).
 - Read cache from `~/.config/jfp/registry.json` if present.
 - In the background, fetch `/api/prompts` with `If-None-Match` and update cache for next run.
-- Store the latest `ETag` alongside the cache to avoid unnecessary downloads.
+- Store the latest `ETag` and timestamps in `~/.config/jfp/registry.meta.json` to avoid unnecessary downloads.
 
 ```typescript
 // packages/cli/src/lib/registry-loader.ts
@@ -3552,15 +3697,71 @@ Prompts are content, and content changes faster than binaries. The CLI should lo
 export async function loadRegistry(): Promise<Prompt[]> {
   const embedded = prompts; // bundled snapshot
   const cachePath = join(homedir(), ".config", "jfp", "registry.json");
+  const metaPath = join(homedir(), ".config", "jfp", "registry.meta.json");
+  const localDir = join(homedir(), ".config", "jfp", "local");
 
   const cached = existsSync(cachePath)
     ? JSON.parse(readFileSync(cachePath, "utf-8"))
     : null;
 
   // Fire-and-forget refresh (2s timeout)
-  refreshRegistry(cachePath).catch(() => {});
+  refreshRegistry({ cachePath, metaPath }).catch(() => {});
 
-  return cached?.prompts ?? embedded;
+  const base = cached?.prompts ?? embedded;
+  const local = loadLocalPrompts(localDir);
+  return mergeLocalPrompts(base, local);
+}
+```
+
+Suggested helpers:
+- `loadLocalPrompts(dir)` reads `*.md` with optional YAML frontmatter.
+- `mergeLocalPrompts(base, local)` merges by id (local overrides base).
+
+```typescript
+function mergeLocalPrompts(base: Prompt[], local: Prompt[]): Prompt[] {
+  const byId = new Map(base.map((p) => [p.id, p]));
+  for (const p of local) byId.set(p.id, p);
+  return Array.from(byId.values());
+}
+```
+
+```typescript
+function loadLocalPrompts(dir: string): Prompt[] {
+  if (!existsSync(dir)) return [];
+  // Read *.md files; parse optional YAML frontmatter for id/title/tags.
+  // Convert to Prompt objects with category "workflow" or "communication" by default.
+  return [];
+}
+```
+
+```typescript
+import { createHash } from "crypto";
+
+async function refreshRegistry({ cachePath, metaPath }: { cachePath: string; metaPath: string }) {
+  const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, "utf-8")) : {};
+  const res = await fetch("https://jeffreysprompts.com/api/prompts", {
+    headers: meta.etag ? { "If-None-Match": meta.etag } : {},
+  });
+
+  if (res.status === 304) return { updated: false, version: meta.version ?? "unknown" };
+  const payload = await res.json();
+
+  // Optional manifest verification
+  const manifestRes = await fetch("https://jeffreysprompts.com/registry.manifest.json");
+  if (manifestRes.ok) {
+    const manifest = await manifestRes.json();
+    const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    if (hash !== manifest.sha256) throw new Error("Registry checksum mismatch");
+  }
+
+  writeFileSync(cachePath, JSON.stringify(payload, null, 2));
+  writeFileSync(metaPath, JSON.stringify({
+    etag: res.headers.get("etag"),
+    version: payload.version,
+    cachedAt: new Date().toISOString(),
+  }, null, 2));
+
+  return { updated: true, version: payload.version };
 }
 ```
 
@@ -3805,11 +4006,24 @@ Key UX requirements:
 import { renderPrompt } from "@jfp/core/template/render";
 
 const storageKey = `jfp-vars:${prompt.id}`;
-const [values, setValues] = useLocalStorage(storageKey, prompt.variables ?? []);
+const defaults = Object.fromEntries((prompt.variables ?? []).map((v) => [v.name, v.default ?? ""]));
+const [values, setValues] = useLocalStorage(storageKey, defaults);
 
-const rendered = renderPrompt(prompt.content, values);
+const rendered = renderPrompt(prompt, values);
 
 <CopyButton text={rendered} />
+```
+
+```typescript
+// apps/web/src/hooks/use-local-storage.ts (sketch)
+export function useLocalStorage<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initial;
+  });
+  useEffect(() => localStorage.setItem(key, JSON.stringify(value)), [key, value]);
+  return [value, setValue] as const;
+}
 ```
 
 ### 7.3 SpotlightSearch Component
@@ -4044,6 +4258,7 @@ Provide a `/contribute` page that:
 
 Add a PWA manifest + service worker:
 - cache `/api/prompts` and static assets
+- if using a static payload, also cache `/registry.json` and `/registry.manifest.json`
 - show an offline banner when using cached data
 - use SWR-style client fetch to revalidate in background
 - keep BM25 search in-browser so offline search still works
