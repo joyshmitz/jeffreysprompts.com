@@ -6,37 +6,7 @@ import { createHash } from "crypto";
 import type { Prompt } from "../prompts/types";
 import type { Workflow } from "../prompts/workflows";
 import { getPrompt } from "../prompts/registry";
-
-/**
- * Escape a string for safe YAML scalar value
- * Quotes strings containing special YAML characters
- */
-function escapeYamlValue(value: string): string {
-  // Check if value needs quoting (contains special chars, newlines, or starts/contains special chars)
-  if (
-    value.includes(":") ||
-    value.includes("#") ||
-    value.includes("\n") ||
-    value.includes('"') ||
-    value.includes("'") ||
-    value.includes("[") ||
-    value.includes("]") ||
-    value.includes("{") ||
-    value.includes("}") ||
-    value.includes(">") ||
-    value.includes("|") ||
-    value.startsWith(" ") ||
-    value.endsWith(" ") ||
-    value.startsWith("@") ||
-    value.startsWith("!") ||
-    value.startsWith("&") ||
-    value.startsWith("*")
-  ) {
-    // Use double quotes with escaped internal double quotes
-    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
-  }
-  return value;
-}
+import { escapeYamlValue, escapeYamlArrayItem } from "./yaml";
 
 /**
  * Generate SKILL.md content for a single prompt
@@ -49,7 +19,7 @@ export function generateSkillMd(prompt: Prompt): string {
     `version: ${escapeYamlValue(prompt.version)}`,
     `author: ${escapeYamlValue(prompt.author)}`,
     `category: ${escapeYamlValue(prompt.category)}`,
-    `tags: [${prompt.tags.map((t) => `"${t.replace(/"/g, '\\"')}"`).join(", ")}]`,
+    `tags: [${prompt.tags.map((t) => `"${escapeYamlArrayItem(t)}"`).join(", ")}]`,
     `source: https://jeffreysprompts.com/prompts/${prompt.id}`,
     "x_jfp_generated: true",
     "---",

@@ -3,6 +3,7 @@
 
 import type { Prompt } from "./types";
 import { getPrompt } from "./registry";
+import { escapeYamlValue } from "../export/yaml";
 
 /**
  * Lucide icon name for bundle display
@@ -109,34 +110,6 @@ export function getBundlePrompts(bundle: Bundle): Prompt[] {
 }
 
 /**
- * Escape a string for safe YAML scalar value
- */
-function escapeYamlValue(value: string): string {
-  if (
-    value.includes(":") ||
-    value.includes("#") ||
-    value.includes("\n") ||
-    value.includes('"') ||
-    value.includes("'") ||
-    value.includes("[") ||
-    value.includes("]") ||
-    value.includes("{") ||
-    value.includes("}") ||
-    value.includes(">") ||
-    value.includes("|") ||
-    value.startsWith(" ") ||
-    value.endsWith(" ") ||
-    value.startsWith("@") ||
-    value.startsWith("!") ||
-    value.startsWith("&") ||
-    value.startsWith("*")
-  ) {
-    return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`;
-  }
-  return value;
-}
-
-/**
  * Generate SKILL.md content for a bundle (combined skill)
  * Creates a single skill file containing all prompts in the bundle
  */
@@ -150,7 +123,7 @@ export function generateBundleSkillMd(bundle: Bundle): string {
     `version: ${escapeYamlValue(bundle.version)}`,
     `author: ${escapeYamlValue(bundle.author)}`,
     `type: bundle`,
-    `prompts: [${bundle.promptIds.map((id) => `"${id}"`).join(", ")}]`,
+    `prompts: [${prompts.map((p) => `"${p.id}"`).join(", ")}]`,
     `source: https://jeffreysprompts.com/bundles/${bundle.id}`,
     "x_jfp_generated: true",
     "---",
