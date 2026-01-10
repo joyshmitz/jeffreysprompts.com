@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
+import { JsonLd, websiteJsonLd, softwareAppJsonLd } from "@/components/JsonLd";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JeffreysPrompts.com - Curated Prompts for Agentic Coding",
+  metadataBase: new URL("https://jeffreysprompts.com"),
+  title: {
+    default: "Jeffrey's Prompts - Curated Prompts for Agentic Coding",
+    template: "%s | Jeffrey's Prompts",
+  },
   description:
     "A curated collection of battle-tested prompts for AI coding agents. Browse, copy, and install as Claude Code skills.",
   keywords: [
@@ -26,11 +31,25 @@ export const metadata: Metadata = {
     "Claude Code",
     "agentic",
     "developer tools",
+    "LLM prompts",
+    "AI prompts",
+    "system prompts",
   ],
   authors: [{ name: "Jeffrey Emanuel", url: "https://twitter.com/doodlestein" }],
   creator: "Jeffrey Emanuel",
+  publisher: "Jeffrey Emanuel",
   manifest: "/manifest.json",
-  themeColor: "#8b5cf6",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -46,18 +65,20 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "JeffreysPrompts.com",
-    description: "Curated prompts for agentic coding",
+    title: "Jeffrey's Prompts",
+    description: "Curated prompts for agentic coding - browse, copy, and install as Claude Code skills",
     url: "https://jeffreysprompts.com",
-    siteName: "JeffreysPrompts.com",
+    siteName: "Jeffrey's Prompts",
+    locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "JeffreysPrompts.com",
+    title: "Jeffrey's Prompts",
     description: "Curated prompts for agentic coding",
     creator: "@doodlestein",
   },
+  category: "technology",
 };
 
 export default function RootLayout({
@@ -67,6 +88,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <JsonLd data={websiteJsonLd} />
+        <JsonLd data={softwareAppJsonLd} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
