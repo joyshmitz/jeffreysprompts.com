@@ -3,9 +3,10 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { searchPrompts, type SearchResult } from "@jeffreysprompts/core/search"
+import { searchPrompts, semanticRerank, type SearchResult, type RankedResult } from "@jeffreysprompts/core/search"
 import { Badge } from "./ui/badge"
 import { useToast } from "@/components/ui/toast"
+import { useLocalStorage } from "@/hooks/useLocalStorage"
 
 // ============================================================================
 // Types
@@ -48,6 +49,12 @@ const CommandIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const SparklesIcon = ({ className }: { className?: string }) => (
+  <svg className={cn("size-4", className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+  </svg>
+)
+
 // ============================================================================
 // Debounce Hook
 // ============================================================================
@@ -76,7 +83,11 @@ export function SpotlightSearch({
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [results, setResults] = React.useState<SearchResult[]>([])
   const [copied, setCopied] = React.useState<string | null>(null)
+  const [isReranking, setIsReranking] = React.useState(false)
   const { success, error } = useToast()
+
+  // Persist semantic mode preference
+  const [semanticMode, setSemanticMode] = useLocalStorage("jfp-semantic-search", false)
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
@@ -91,10 +102,68 @@ export function SpotlightSearch({
       return
     }
 
-    const searchResults = searchPrompts(debouncedQuery, { limit: 10 })
-    setResults(searchResults)
-    setSelectedIndex(0)
-  }, [debouncedQuery])
+    let cancelled = false
+
+    async function performSearch() {
+      // Get more results if we'll be reranking
+      const limit = semanticMode ? 20 : 10
+      const searchResults = searchPrompts(debouncedQuery, { limit })
+
+      if (cancelled) return
+
+      if (semanticMode && searchResults.length > 0) {
+        setIsReranking(true)
+        setResults(searchResults) // Show BM25 results immediately
+
+        try {
+          // Convert to RankedResult format
+          const rankedResults: RankedResult[] = searchResults.map((r) => ({
+            id: r.prompt.id,
+            score: r.score,
+            text: `${r.prompt.title} ${r.prompt.description} ${r.prompt.tags.join(" ")}`,
+          }))
+
+          // Apply semantic reranking with hash fallback
+          const reranked = await semanticRerank(debouncedQuery, rankedResults, {
+            topN: 20,
+            fallback: "hash",
+          })
+
+          if (cancelled) return
+
+          // Map back to SearchResult format
+          const rerankedIds = reranked.map((r) => r.id)
+          const resultById = new Map(searchResults.map((r) => [r.prompt.id, r]))
+
+          const rerankedResults = rerankedIds
+            .map((id, idx) => {
+              const original = resultById.get(id)
+              if (!original) return null
+              return { ...original, score: reranked[idx].score }
+            })
+            .filter((r): r is SearchResult => r !== null)
+            .slice(0, 10)
+
+          setResults(rerankedResults)
+        } catch (err) {
+          console.warn("[SpotlightSearch] Semantic rerank failed, using BM25:", err)
+          // Keep BM25 results on failure
+        } finally {
+          if (!cancelled) setIsReranking(false)
+        }
+      } else {
+        setResults(searchResults.slice(0, 10))
+      }
+
+      if (!cancelled) setSelectedIndex(0)
+    }
+
+    performSearch()
+
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedQuery, semanticMode])
 
   // Global keyboard shortcut (Cmd+K / Ctrl+K)
   React.useEffect(() => {
@@ -244,6 +313,22 @@ export function SpotlightSearch({
               aria-activedescendant={results[selectedIndex] ? `spotlight-result-${results[selectedIndex].prompt.id}` : undefined}
               aria-autocomplete="list"
             />
+            {/* Semantic mode toggle */}
+            <button
+              type="button"
+              onClick={() => setSemanticMode(!semanticMode)}
+              title={semanticMode ? "Semantic search enabled" : "Enable semantic search"}
+              className={cn(
+                "shrink-0 p-1.5 rounded-md transition-colors",
+                semanticMode
+                  ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              aria-pressed={semanticMode}
+              aria-label="Toggle semantic search"
+            >
+              <SparklesIcon className={cn(isReranking && "animate-pulse")} />
+            </button>
             <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground bg-muted rounded font-mono">
               esc
             </kbd>
@@ -323,11 +408,19 @@ export function SpotlightSearch({
                 <span className="ml-1">Copy</span>
               </span>
             </div>
-            <span className="flex items-center gap-1">
-              <CommandIcon className="size-3" />
-              <span>K</span>
-              <span className="ml-1">to open</span>
-            </span>
+            <div className="flex items-center gap-3">
+              {semanticMode && (
+                <span className="flex items-center gap-1 text-amber-500">
+                  <SparklesIcon className={cn("size-3", isReranking && "animate-pulse")} />
+                  {isReranking ? "Improving..." : "Semantic"}
+                </span>
+              )}
+              <span className="flex items-center gap-1">
+                <CommandIcon className="size-3" />
+                <span>K</span>
+                <span className="ml-1">to open</span>
+              </span>
+            </div>
           </div>
         </div>
       )}
