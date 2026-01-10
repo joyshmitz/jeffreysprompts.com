@@ -2,7 +2,6 @@
 
 import { useCallback } from "react";
 import { Check, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +55,7 @@ export function TagFilter({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+            className="h-9 sm:h-6 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white touch-manipulation"
             onClick={handleClear}
             aria-label={`Clear ${selected.length} selected tag${selected.length === 1 ? "" : "s"}`}
           >
