@@ -144,13 +144,14 @@ This design allows skills to bundle unlimited context without bloating the initi
 
 #### Skill Update Manifest (NEW)
 
-Maintain a `skills/manifest.json` that records:
-`{ promptId, version, updatedAt, hash }`
+Maintain a `manifest.json` **inside each skills directory** (personal + project) that records:
+`{ promptId, version, updatedAt, hash }` (hash = SHA256 of the installed SKILL.md content)
 
-The CLI uses this to make `jfp update` deterministic and to avoid unnecessary rewrites.
+The CLI uses this to make `jfp update` deterministic, detect user edits, and avoid unnecessary rewrites.
 Only overwrite skills that include `x_jfp_generated: true` (unless `--force` is provided).
 
-Implementation note: `install` and `update` should call `updateSkillsManifest()` after writes.
+Implementation note: update only the entries you actually write or remove (don’t blindly rebuild).
+`install`, `update`, and `uninstall` should update the manifest for affected IDs.
 
 #### Why Skills Matter for JeffreysPrompts
 
@@ -1343,9 +1344,9 @@ import "./packages/cli/src/index";
 // packages/cli/src/index.ts — CLI entry point
 // Root-level jfp.ts is a thin wrapper that imports and runs this module.
 
-import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync, mkdtempSync } from "fs";
 import { join, dirname } from "path";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
 import chalk from "chalk";
 import { createHash } from "crypto";
 import { type Prompt } from "@jfp/core/prompts";
@@ -1463,14 +1464,20 @@ function normalizeVars(prompt: Prompt, vars: Record<string, string>): Record<str
 function loadConfig(): Partial<JfpConfig> {
   const path = join(homedir(), ".config", "jfp", "config.json");
   if (!existsSync(path)) return {};
-  return JSON.parse(readFileSync(path, "utf-8"));
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    console.error(chalk.yellow("Invalid ~/.config/jfp/config.json (ignoring)"));
+    return {};
+  }
 }
 
-function formatRegistryStatus(status: { version: string; updatedAt?: string; cachedAt?: string }) {
+function formatRegistryStatus(status: { version: string; updatedAt?: string; cachedAt?: string; cachePresent: boolean }) {
   return [
     `Registry version: ${status.version}`,
     status.updatedAt ? `Updated: ${status.updatedAt}` : null,
     status.cachedAt ? `Cached: ${status.cachedAt}` : null,
+    status.cachePresent ? null : "Cache: missing",
   ].filter(Boolean).join("\n");
 }
 
@@ -1481,54 +1488,97 @@ function formatRegistryRefresh(result: { updated: boolean; version: string }) {
 }
 
 function getRegistryPaths() {
-  const base = join(homedir(), ".config", "jfp");
+  const config = loadConfig();
+  const cachePath = config.registryCachePath ?? join(homedir(), ".config", "jfp", "registry.json");
+  const metaPath = config.registryMetaPath ?? join(dirname(cachePath), "registry.meta.json");
+  const registryUrl = config.registryUrl ?? "https://jeffreysprompts.com/registry.json";
+  const manifestUrl = config.registryManifestUrl
+    ?? (registryUrl.endsWith("registry.json") ? registryUrl.replace(/registry\\.json$/, "registry.manifest.json") : undefined);
+  const timeoutMs = config.registryRefreshTimeoutMs ?? 2000;
   return {
-    cachePath: join(base, "registry.json"),
-    metaPath: join(base, "registry.meta.json"),
+    cachePath,
+    metaPath,
+    registryUrl,
+    manifestUrl,
+    timeoutMs,
   };
 }
 
-function getRegistryStatus(metaPath: string) {
-  if (!existsSync(metaPath)) {
-    return { version: "none", cachedAt: undefined, updatedAt: undefined };
+function getRegistryStatus(cachePath: string, metaPath: string) {
+  const cachePresent = existsSync(cachePath);
+  if (!cachePresent) {
+    return { version: "none", cachedAt: undefined, updatedAt: undefined, cachePresent };
   }
-  const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+  const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, "utf-8")) : {};
   return {
     version: meta.version ?? "unknown",
     cachedAt: meta.cachedAt,
     updatedAt: meta.updatedAt,
+    cachePresent,
   };
 }
 
-async function refreshRegistry(opts: { cachePath: string; metaPath: string; registryUrl?: string }) {
-  // See Part 6.6 for full SWR + ETag implementation (writes cache + metadata).
-  // If registry.manifest.json is present, verify sha256 before writing.
-}
+// refreshRegistry implementation in Part 6.6 (stale-while-revalidate)
 
 function printCompletion(shell: string) {
   // Use cac's built-in completion output or ship a static template.
   // Example: console.log(cli.generateCompletion({ shell }));
+  const commands = [
+    "list", "search", "suggest", "show", "copy", "render",
+    "export", "install", "uninstall", "installed", "update",
+    "bundles", "bundle", "categories", "tags",
+    "registry", "open", "serve", "completion", "about", "update-cli",
+  ];
+
   if (shell === "bash") {
-    console.log(`# bash completion (generated)\ncomplete -W "list search show copy render export install uninstall installed update bundles bundle categories tags registry open serve completion about" jfp`);
+    console.log(`# bash completion (generated)\ncomplete -W "${commands.join(" ")}" jfp`);
   } else if (shell === "zsh") {
     console.log(`# zsh completion (generated)\ncompdef _gnu_generic jfp`);
   } else if (shell === "fish") {
-    console.log(`complete -c jfp -f -a "list search show copy render export install uninstall installed update bundles bundle categories tags registry open serve completion about"`);
+    console.log(`complete -c jfp -f -a "${commands.join(" ")}"`);
   } else {
     console.error("Unsupported shell");
   }
 }
 
-function updateSkillsManifest(skillsDir: string, registry: Prompt[]) {
+type SkillsManifestEntry = {
+  promptId: string;
+  version: string;
+  updatedAt?: string;
+  hash: string;
+};
+
+function hashContent(content: string) {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function updateSkillsManifest(
+  skillsDir: string,
+  updated: Prompt[] = [],
+  removed: string[] = []
+) {
   if (!existsSync(skillsDir)) return;
   const manifestPath = join(skillsDir, "manifest.json");
-  const installed = registry.filter((p) => existsSync(join(skillsDir, p.id, "SKILL.md")));
-  const entries = installed.map((p) => ({
-    promptId: p.id,
-    version: p.version,
-    updatedAt: p.updatedAt ?? p.created,
-    hash: createHash("sha256").update(generateSkillMd(p)).digest("hex"),
-  }));
+  const existing = existsSync(manifestPath)
+    ? JSON.parse(readFileSync(manifestPath, "utf-8"))
+    : { entries: [] as SkillsManifestEntry[] };
+
+  const byId = new Map((existing.entries ?? []).map((e: SkillsManifestEntry) => [e.promptId, e]));
+  for (const id of removed) byId.delete(id);
+
+  for (const prompt of updated) {
+    const skillPath = join(skillsDir, prompt.id, "SKILL.md");
+    if (!existsSync(skillPath)) continue;
+    const content = readFileSync(skillPath, "utf-8");
+    byId.set(prompt.id, {
+      promptId: prompt.id,
+      version: prompt.version,
+      updatedAt: prompt.updatedAt ?? prompt.created,
+      hash: hashContent(content),
+    });
+  }
+
+  const entries = Array.from(byId.values());
   writeFileSync(manifestPath, JSON.stringify({ generatedAt: new Date().toISOString(), entries }, null, 2));
 }
 
@@ -1548,6 +1598,9 @@ interface JfpConfig {
   projectSkillsDir: string;    // Default: .claude/skills
   registryUrl: string;         // Default: https://jeffreysprompts.com/registry.json
   registryCachePath: string;   // Default: ~/.config/jfp/registry.json
+  registryMetaPath: string;    // Default: ~/.config/jfp/registry.meta.json
+  registryManifestUrl: string; // Default: https://jeffreysprompts.com/registry.manifest.json
+  registryRefreshTimeoutMs: number; // Default: 2000
   autoRefreshRegistry: boolean;
   autoUpdate: boolean;         // Check for CLI updates on startup (opt-in)
   lastUpdateCheck: string;     // ISO timestamp
@@ -1772,13 +1825,19 @@ async function openCommand(id: string) {
 // jfp registry status/refresh — Registry cache management
 async function registryStatusCommand(flags: Flags) {
   const paths = getRegistryPaths();
-  const status = await getRegistryStatus(paths.metaPath);
+  const status = await getRegistryStatus(paths.cachePath, paths.metaPath);
   flags.json ? printJson(status, flags) : console.log(formatRegistryStatus(status));
 }
 
 async function registryRefreshCommand(flags: Flags) {
   const paths = getRegistryPaths();
-  const result = await refreshRegistry({ ...paths });
+  const result = await refreshRegistry({
+    cachePath: paths.cachePath,
+    metaPath: paths.metaPath,
+    registryUrl: paths.registryUrl,
+    manifestUrl: paths.manifestUrl,
+    timeoutMs: paths.timeoutMs,
+  });
   flags.json ? printJson(result, flags) : console.log(formatRegistryRefresh(result));
 }
 
@@ -1956,6 +2015,7 @@ async function installCommand(args: string[], flags: Flags) {
   const toInstall = all
     ? registry
     : registry.filter((p) => skillIds.includes(p.id));
+  const installed: Prompt[] = [];
 
   if (toInstall.length === 0) {
     console.error(chalk.red("No matching prompts found."));
@@ -1975,9 +2035,10 @@ async function installCommand(args: string[], flags: Flags) {
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(skillPath, generateSkillMd(prompt));
     console.log(chalk.green(`✓  ${prompt.title} → ${skillDir}`));
+    installed.push(prompt);
   }
 
-  updateSkillsManifest(targetDir, toInstall);
+  updateSkillsManifest(targetDir, installed);
   console.log();
   console.log(chalk.cyan("Restart Claude Code to load the new skills."));
 }
@@ -2012,7 +2073,7 @@ async function uninstallCommand(args: string[], flags: Flags) {
     }
   }
 
-  updateSkillsManifest(targetDir, registry);
+  updateSkillsManifest(targetDir, [], toRemove);
 }
 
 // jfp installed — List installed skills
@@ -2065,9 +2126,9 @@ function extractSkillVersion(content: string): string {
 
 function readSkillsManifest(skillsDir: string) {
   const path = join(skillsDir, "manifest.json");
-  if (!existsSync(path)) return new Map<string, string>();
+  if (!existsSync(path)) return new Map<string, SkillsManifestEntry>();
   const data = JSON.parse(readFileSync(path, "utf-8"));
-  return new Map((data.entries ?? []).map((e: { promptId: string; version: string }) => [e.promptId, e.version]));
+  return new Map((data.entries ?? []).map((e: SkillsManifestEntry) => [e.promptId, e]));
 }
 
 async function updateCommand(flags: Flags) {
@@ -2076,6 +2137,8 @@ async function updateCommand(flags: Flags) {
   const projectDir = join(process.cwd(), ".claude", "skills");
 
   let updated = 0;
+  const updatedPersonal: Prompt[] = [];
+  const updatedProject: Prompt[] = [];
   const registry = await loadRegistry();
   const personalManifest = readSkillsManifest(personalDir);
   const projectManifest = readSkillsManifest(projectDir);
@@ -2083,13 +2146,20 @@ async function updateCommand(flags: Flags) {
   for (const prompt of registry) {
     const personalPath = join(personalDir, prompt.id, "SKILL.md");
     const projectPath = join(projectDir, prompt.id, "SKILL.md");
+    const nextSkill = generateSkillMd(prompt);
+    const nextHash = hashContent(nextSkill);
 
     if (existsSync(personalPath)) {
       const existing = readFileSync(personalPath, "utf-8");
+      const existingHash = hashContent(existing);
+      const entry = personalManifest.get(prompt.id);
       const isGenerated = existing.includes("x_jfp_generated: true");
+      const isModified = entry?.hash && entry.hash !== existingHash;
       if (!isGenerated && !flags.force) {
         console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
-      } else if (personalManifest.get(prompt.id) === prompt.version && !flags.force) {
+      } else if (isModified && !flags.force) {
+        console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (local edits detected; use --force)`));
+      } else if (existingHash === nextHash && !flags.force) {
         continue;
       } else if (flags.dryRun) {
         const currentVersion = extractSkillVersion(existing);
@@ -2100,18 +2170,24 @@ async function updateCommand(flags: Flags) {
         updated++;
       } else {
         const tmp = `${personalPath}.tmp`;
-        writeFileSync(tmp, generateSkillMd(prompt));
+        writeFileSync(tmp, nextSkill);
         renameSync(tmp, personalPath);
         console.log(chalk.green(`✓  Updated ${prompt.id} (personal)`));
         updated++;
+        updatedPersonal.push(prompt);
       }
     }
     if (existsSync(projectPath)) {
       const existing = readFileSync(projectPath, "utf-8");
+      const existingHash = hashContent(existing);
+      const entry = projectManifest.get(prompt.id);
       const isGenerated = existing.includes("x_jfp_generated: true");
+      const isModified = entry?.hash && entry.hash !== existingHash;
       if (!isGenerated && !flags.force) {
         console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (modified; use --force to overwrite)`));
-      } else if (projectManifest.get(prompt.id) === prompt.version && !flags.force) {
+      } else if (isModified && !flags.force) {
+        console.log(chalk.yellow(`⏭  Skipping ${prompt.id} (local edits detected; use --force)`));
+      } else if (existingHash === nextHash && !flags.force) {
         continue;
       } else if (flags.dryRun) {
         const currentVersion = extractSkillVersion(existing);
@@ -2122,10 +2198,11 @@ async function updateCommand(flags: Flags) {
         updated++;
       } else {
         const tmp = `${projectPath}.tmp`;
-        writeFileSync(tmp, generateSkillMd(prompt));
+        writeFileSync(tmp, nextSkill);
         renameSync(tmp, projectPath);
         console.log(chalk.green(`✓  Updated ${prompt.id} (project)`));
         updated++;
+        updatedProject.push(prompt);
       }
     }
   }
@@ -2138,9 +2215,37 @@ async function updateCommand(flags: Flags) {
   }
 
   if (!flags.dryRun) {
-    updateSkillsManifest(personalDir, registry);
-    updateSkillsManifest(projectDir, registry);
+    updateSkillsManifest(personalDir, updatedPersonal);
+    updateSkillsManifest(projectDir, updatedProject);
   }
+}
+
+// jfp update-cli — Self-update the CLI binary (opt-in)
+async function updateCliCommand(flags: Flags) {
+  // 1) Resolve platform/arch → release artifact name
+  const { binary, url, shaUrl } = resolveReleaseTarget();
+
+  // 2) Download binary + SHA256SUMS to temp dir
+  const tmpDir = mkdtempSync(join(tmpdir(), "jfp-update-"));
+  const binPath = join(tmpDir, binary);
+  await downloadFile(url, binPath);
+  const sumsPath = join(tmpDir, "SHA256SUMS.txt");
+  await downloadFile(shaUrl, sumsPath);
+
+  // 3) Verify checksum (fail closed)
+  verifyChecksum(binPath, sumsPath, binary);
+
+  // 4) Atomically replace current binary
+  const installPath = resolveExecutablePath(); // e.g., process.execPath
+  const nextPath = `${installPath}.new`;
+  renameSync(binPath, nextPath);
+  renameSync(nextPath, installPath);
+
+  if (flags.json) {
+    printJson({ updated: true, path: installPath }, flags);
+    return;
+  }
+  console.log(chalk.green(`✓ Updated jfp at ${installPath}`));
 }
 
 // jfp categories — List all categories
@@ -2345,6 +2450,9 @@ cli.command("update", "update installed skills")
   .option("--dry-run", "show updates without writing")
   .action((opts) => updateCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
 
+cli.command("update-cli", "self-update the CLI")
+  .action((opts) => updateCliCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
+
 cli.command("categories", "list categories")
   .action((opts) => categoriesCommand({ ...opts, json: cli.options.json, pretty: cli.options.pretty }));
 
@@ -2411,7 +2519,7 @@ export function InstallSkillButton({ prompt }: InstallSkillButtonProps) {
     // Generate the shell command (using quoted HEREDOC, no escaping needed)
     const skillContent = generateSkillMd(prompt);
 
-    const command = `mkdir -p ~/.config/claude/skills/${prompt.id} && cat > ~/.config/claude/skills/${prompt.id}/SKILL.md << 'EOF'
+    const command = `mkdir -p "$HOME/.config/claude/skills/${prompt.id}" && cat > "$HOME/.config/claude/skills/${prompt.id}/SKILL.md" << 'EOF'
 ${skillContent}
 EOF
 echo "✓ Installed ${prompt.id}. Restart Claude Code to load."`;
@@ -3131,6 +3239,7 @@ jeffreysprompts.com/
 │       │   │       └── stats-dashboard.tsx # Session statistics
 │       │   │
 │       │   ├── lib/
+│       │   │   ├── registry-client.ts   # SWR fetch + cache registry.json
 │       │   │   ├── search/
 │       │   │   │   ├── engine.ts         # Thin wrapper / worker bridge to core BM25
 │       │   │   │   └── types.ts          # Search types
@@ -3789,8 +3898,9 @@ Prompts are content, and content changes faster than binaries. The CLI should lo
 
 - Ship with an embedded snapshot (offline-first).
 - Read cache from `~/.config/jfp/registry.json` if present.
-- In the background, fetch `/registry.json` with `If-None-Match` and update cache for next run.
+- In the background (2s timeout by default, configurable), fetch `/registry.json` with `If-None-Match` and update cache for next run.
 - Store the latest `ETag` and timestamps in `~/.config/jfp/registry.meta.json` to avoid unnecessary downloads.
+- Respect `autoRefreshRegistry: false` in config to disable background refresh.
 
 ```typescript
 // packages/cli/src/lib/registry-loader.ts
@@ -3799,16 +3909,21 @@ export async function loadRegistry(): Promise<Prompt[]> {
   const embedded = prompts; // bundled snapshot
   const config = loadConfig();
   const cachePath = config.registryCachePath ?? join(homedir(), ".config", "jfp", "registry.json");
-  const metaPath = join(homedir(), ".config", "jfp", "registry.meta.json");
+  const metaPath = config.registryMetaPath ?? join(dirname(cachePath), "registry.meta.json");
   const localDir = config.localPromptsDir ?? join(homedir(), ".config", "jfp", "local");
   const registryUrl = config.registryUrl ?? "https://jeffreysprompts.com/registry.json";
+  const manifestUrl = config.registryManifestUrl
+    ?? (registryUrl.endsWith("registry.json") ? registryUrl.replace(/registry\\.json$/, "registry.manifest.json") : undefined);
+  const timeoutMs = config.registryRefreshTimeoutMs ?? 2000;
 
   const cached = existsSync(cachePath)
     ? JSON.parse(readFileSync(cachePath, "utf-8"))
     : null;
 
-  // Fire-and-forget refresh (2s timeout)
-  refreshRegistry({ cachePath, metaPath, registryUrl }).catch(() => {});
+  // Fire-and-forget refresh (configurable timeout)
+  if (config.autoRefreshRegistry !== false) {
+    refreshRegistry({ cachePath, metaPath, registryUrl, manifestUrl, timeoutMs }).catch(() => {});
+  }
 
   const base = cached?.prompts ?? embedded;
   const local = loadLocalPrompts(localDir);
@@ -3844,25 +3959,42 @@ async function refreshRegistry({
   cachePath,
   metaPath,
   registryUrl = "https://jeffreysprompts.com/registry.json",
-}: { cachePath: string; metaPath: string; registryUrl?: string }) {
+  manifestUrl,
+  timeoutMs = 2000,
+}: {
+  cachePath: string;
+  metaPath: string;
+  registryUrl?: string;
+  manifestUrl?: string;
+  timeoutMs?: number;
+}) {
   const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, "utf-8")) : {};
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const res = await fetch(registryUrl, {
     headers: meta.etag ? { "If-None-Match": meta.etag } : {},
+    signal: controller.signal,
   });
+  clearTimeout(timeout);
 
   if (res.status === 304) return { updated: false, version: meta.version ?? "unknown" };
   const payload = await res.json();
 
   // Optional manifest verification
-  const manifestUrl = registryUrl.replace("registry.json", "registry.manifest.json");
-  const manifestRes = await fetch(manifestUrl);
-  if (manifestRes.ok) {
-    const manifest = await manifestRes.json();
-    const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-    if (hash !== manifest.sha256) throw new Error("Registry checksum mismatch");
+  const derivedManifestUrl = manifestUrl
+    ?? (registryUrl.endsWith("registry.json") ? registryUrl.replace(/registry\\.json$/, "registry.manifest.json") : undefined);
+  if (derivedManifestUrl) {
+    const manifestRes = await fetch(derivedManifestUrl);
+    if (manifestRes.ok) {
+      const manifest = await manifestRes.json();
+      const hash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+      if (hash !== manifest.sha256) throw new Error("Registry checksum mismatch");
+    }
   }
 
-  writeFileSync(cachePath, JSON.stringify(payload, null, 2));
+  mkdirSync(dirname(cachePath), { recursive: true });
+  mkdirSync(dirname(metaPath), { recursive: true });
+  writeFileSync(cachePath, JSON.stringify(payload));
   writeFileSync(metaPath, JSON.stringify({
     etag: res.headers.get("etag"),
     version: payload.version,
@@ -3892,6 +4024,7 @@ The CLI verifies the checksum **before** writing cache:
 This adds tamper-resistance without adding heavy signing infrastructure.
 
 Note: checksum verification applies to `/registry.json` only (filtered `/api/prompts` responses are not checksummed).
+If you host the registry at a custom URL, set `registryManifestUrl` in config.
 
 ### 6.7 Prompt Rendering + Context Injection
 
@@ -3940,6 +4073,26 @@ This avoids “stale binary” drift for users who want it, without forcing netw
 ---
 
 ## Part 7: Web App Components (Detailed)
+
+### 7.0 Registry Data Loading (SWR-Style)
+
+Use `/registry.json` as the canonical data source for the web UI. Server components can
+fetch with revalidation; client components can revalidate in the background (SWR-style).
+
+```typescript
+// apps/web/src/lib/registry-client.ts
+import type { RegistryPayload } from "@jfp/core/export/json";
+
+export async function fetchRegistry(): Promise<RegistryPayload> {
+  const res = await fetch("/registry.json", { cache: "force-cache" });
+  if (!res.ok) throw new Error("Failed to load registry");
+  return res.json();
+}
+```
+
+Notes:
+- For live revalidation on the client, wrap `fetchRegistry` in SWR or a lightweight `useEffect` hook.
+- The PWA service worker should cache `/registry.json` for offline use.
 
 ### 7.1 PromptCard Component
 
@@ -4385,8 +4538,7 @@ Provide a `/contribute` page that:
 ### 7.8 PWA + Offline Support
 
 Add a PWA manifest + service worker:
-- cache `/api/prompts` and static assets
-- if using a static payload, also cache `/registry.json` and `/registry.manifest.json`
+- cache `/registry.json`, `/registry.manifest.json`, and static assets
 - show an offline banner when using cached data
 - use SWR-style client fetch to revalidate in background
 - keep BM25 search in-browser so offline search still works
@@ -4479,7 +4631,9 @@ Used for uptime checks and deployment verification.
    - Clear all
 
 3. **Create API routes**
-   - `GET /api/prompts` → JSON
+   - `GET /api/prompts` → filtered JSON
+   - `GET /registry.json` → full registry payload (static)
+   - `GET /registry.manifest.json` → checksum manifest (static)
    - `GET /api/skills/[id]` → SKILL.md
    - `GET /api/health` → status
    - `GET /install.sh` → Shell script
