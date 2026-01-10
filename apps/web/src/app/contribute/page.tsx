@@ -65,7 +65,7 @@ export default function ContributePage() {
   const [id, setId] = useState("");
   const [idTouched, setIdTouched] = useState(false);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<PromptCategory | "">("");
+  const [category, setCategory] = useState<PromptCategory>("ideation");
   const [tagsInput, setTagsInput] = useState("");
   const [author, setAuthor] = useState("Community");
   const [twitter, setTwitter] = useState("");
@@ -85,8 +85,10 @@ export default function ContributePage() {
   const whenToUse = useMemo(() => parseLineList(whenToUseInput), [whenToUseInput]);
   const tips = useMemo(() => parseLineList(tipsInput), [tipsInput]);
 
-  const effectiveId = id || slugify(title) || "your-prompt-id";
-  const effectiveCategory = (category || "ideation") as PromptCategory;
+  const effectiveId = idTouched
+    ? (id || slugify(title) || "your-prompt-id")
+    : (slugify(title) || "your-prompt-id");
+  const effectiveCategory = category;
   const safeContent = content.trim()
     ? escapeTemplateLiteral(content.trim())
     : "Write your prompt content here.";
@@ -98,7 +100,7 @@ export default function ContributePage() {
       `  title: ${quote(title || "Your Prompt Title")},`,
       `  description: ${quote(description || "One-line description of the prompt")},`,
       `  category: ${quote(effectiveCategory)},`,
-      `  tags: ${formatArray(tags.length ? tags : ["tag-one", "tag-two"])},`,
+      `  tags: ${formatArray(tags)},`,
       `  author: ${quote(author || "Community")},`,
     ];
 
@@ -110,8 +112,8 @@ export default function ContributePage() {
       `  version: ${quote("1.0.0")},`,
       `  created: ${quote(createdDate)},`,
       `  content: \`${safeContent}\`,`,
-      `  whenToUse: ${formatArray(whenToUse.length ? whenToUse : ["When you need X", "When you need Y"])},`,
-      `  tips: ${formatArray(tips.length ? tips : ["Tip 1", "Tip 2"])},`,
+      `  whenToUse: ${formatArray(whenToUse)},`,
+      `  tips: ${formatArray(tips)},`,
       "}"
     );
 
@@ -155,7 +157,7 @@ export default function ContributePage() {
     return `https://github.com/Dicklesworthstone/jeffreysprompts.com/compare?expand=1&${params.toString()}`;
   }, [issueBody, issueTitle]);
 
-  const idIsValid = SAFE_ID_PATTERN.test(effectiveId);
+  const idIsValid = !idTouched || SAFE_ID_PATTERN.test(id);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-white to-white dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
