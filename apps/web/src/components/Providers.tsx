@@ -1,13 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ThemeProvider } from "./theme-provider";
 import { AlertTriangle } from "lucide-react";
-import { SpotlightSearch } from "./SpotlightSearch";
 import { BasketProvider } from "@/contexts/basket-context";
 import { ToastProvider, Toaster } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
+
+// Lazy load SpotlightSearch - it's only needed when user presses Cmd+K
+// This reduces initial bundle size significantly (~100KB+ of search/semantic code)
+const SpotlightSearch = dynamic(
+  () => import("./SpotlightSearch").then((mod) => mod.SpotlightSearch),
+  { ssr: false }
+);
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -42,7 +49,7 @@ export function Providers({ children }: ProvidersProps) {
           <ErrorBoundary variant="default">
             {children}
           </ErrorBoundary>
-          <ErrorBoundary variant="minimal" fallback={spotlightFallback}>
+          <ErrorBoundary fallback={spotlightFallback}>
             <SpotlightSearch />
           </ErrorBoundary>
           <Toaster />

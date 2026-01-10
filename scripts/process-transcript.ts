@@ -225,7 +225,7 @@ function processTranscript(
     // Also check for tool_use blocks embedded in content array (Claude Code format)
     if (Array.isArray(rawContent)) {
       const toolUseBlocks = rawContent.filter(
-        (block): block is { type: "tool_use"; name: string; input: { file_path?: string; content?: string; new_string?: string } } =>
+        (block): block is { type: "tool_use"; name?: string; input?: { file_path?: string; content?: string; new_string?: string } } =>
           typeof block === "object" && block !== null && block.type === "tool_use"
       );
       toolCallCount += toolUseBlocks.length;
