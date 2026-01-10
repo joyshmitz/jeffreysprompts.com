@@ -9,6 +9,18 @@ import { getPrompt } from "../prompts/registry";
 import { escapeYamlValue, escapeYamlArrayItem } from "./yaml";
 
 /**
+ * Get a code fence that doesn't conflict with content.
+ * Uses longer fences (````, `````, etc.) if content contains backticks.
+ */
+function getCodeFence(content: string): string {
+  let fence = "```";
+  while (content.includes(fence)) {
+    fence += "`";
+  }
+  return fence;
+}
+
+/**
  * Generate SKILL.md content for a single prompt
  */
 export function generateSkillMd(prompt: Prompt): string {
@@ -106,9 +118,10 @@ export function generateWorkflowSkillMd(workflow: Workflow): string {
       return;
     }
 
-    content.push("```");
+    const fence = getCodeFence(prompt.content);
+    content.push(fence);
     content.push(prompt.content);
-    content.push("```", "");
+    content.push(fence, "");
   });
 
   content.push("---", "");

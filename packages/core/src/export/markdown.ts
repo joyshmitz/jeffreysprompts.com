@@ -6,6 +6,18 @@ import type { Workflow } from "../prompts/workflows";
 import { getPrompt } from "../prompts/registry";
 
 /**
+ * Get a code fence that doesn't conflict with content.
+ * Uses longer fences (````, `````, etc.) if content contains backticks.
+ */
+function getCodeFence(content: string): string {
+  let fence = "```";
+  while (content.includes(fence)) {
+    fence += "`";
+  }
+  return fence;
+}
+
+/**
  * Generate standalone markdown for a single prompt
  */
 export function generatePromptMarkdown(prompt: Prompt): string {
@@ -21,10 +33,11 @@ export function generatePromptMarkdown(prompt: Prompt): string {
     "",
     "## Prompt",
     "",
-    "```",
-    prompt.content,
-    "```",
   ];
+
+  // Use a code fence that doesn't conflict with content
+  const fence = getCodeFence(prompt.content);
+  sections.push(fence, prompt.content, fence);
 
   if (prompt.whenToUse?.length) {
     sections.push("", "## When to Use", "");
@@ -122,9 +135,10 @@ export function generateWorkflowMarkdown(workflow: Workflow): string {
     }
 
     sections.push("");
-    sections.push("```");
+    const fence = getCodeFence(prompt.content);
+    sections.push(fence);
     sections.push(prompt.content);
-    sections.push("```");
+    sections.push(fence);
     sections.push("");
   });
 
