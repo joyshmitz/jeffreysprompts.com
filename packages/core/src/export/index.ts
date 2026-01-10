@@ -10,11 +10,12 @@ export {
   generateSkillEntries,
   computeSkillHash,
   createManifestEntry,
+  generateWorkflowSkillMd,
 } from "./skills";
 export type { SkillManifestEntry, SkillManifest } from "./skills";
 
 // Markdown export
-export { generatePromptMarkdown, generateBundleMarkdown } from "./markdown";
+export { generatePromptMarkdown, generateBundleMarkdown, generateWorkflowMarkdown } from "./markdown";
 
 // JSON export (registry payload)
 export { buildRegistryPayload, buildPromptList } from "./json";

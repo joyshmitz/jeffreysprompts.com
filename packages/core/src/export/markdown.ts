@@ -2,6 +2,8 @@
 // Generate standalone markdown files from prompts
 
 import type { Prompt } from "../prompts/types";
+import type { Workflow } from "../prompts/workflows";
+import { getPrompt } from "../prompts/registry";
 
 /**
  * Generate standalone markdown for a single prompt
@@ -85,4 +87,52 @@ export function generateBundleMarkdown(prompts: Prompt[], title: string): string
   }
 
   return sections.join("\n");
+}
+
+/**
+ * Generate markdown for a workflow (ordered prompt chain)
+ */
+export function generateWorkflowMarkdown(workflow: Workflow): string {
+  const sections: string[] = [
+    `# ${workflow.title}`,
+    "",
+    `> ${workflow.description}`,
+  ];
+
+  if (workflow.whenToUse.length) {
+    sections.push("", "## When to Use", "");
+    for (const item of workflow.whenToUse) {
+      sections.push(`- ${item}`);
+    }
+  }
+
+  sections.push("", "## Steps", "");
+
+  workflow.steps.forEach((step, index) => {
+    const prompt = getPrompt(step.promptId);
+    const stepTitle = prompt?.title ?? step.promptId;
+
+    sections.push(`### Step ${index + 1}: ${stepTitle}`, "");
+    sections.push(`**Prompt ID:** \`${step.promptId}\``);
+    sections.push(`**Handoff note:** ${step.note}`);
+
+    if (!prompt) {
+      sections.push("", "_Prompt not found in registry._", "");
+      return;
+    }
+
+    sections.push("");
+    sections.push("```");
+    sections.push(prompt.content);
+    sections.push("```");
+    sections.push("");
+  });
+
+  sections.push(
+    "---",
+    "",
+    `*From [JeffreysPrompts.com](https://jeffreysprompts.com/workflows/${workflow.id})*`
+  );
+
+  return sections.join("\n") + "\n";
 }
