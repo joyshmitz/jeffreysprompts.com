@@ -1,0 +1,11 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_next/
+
+# Host
+Host: https://jeffreysprompts.com
+
+# Sitemaps
+Sitemap: https://jeffreysprompts.com/sitemap.xml
