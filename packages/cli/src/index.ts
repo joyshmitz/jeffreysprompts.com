@@ -14,6 +14,7 @@ import { suggestCommand } from "./commands/suggest";
 import { interactiveCommand } from "./commands/interactive";
 import { bundlesCommand, bundleShowCommand } from "./commands/bundles";
 import { statusCommand, refreshCommand } from "./commands/registry";
+import { completionCommand } from "./commands/completion";
 import {
   categoriesCommand,
   tagsCommand,
@@ -155,6 +156,11 @@ cli
   .command("about", "About JeffreysPrompts CLI")
   .option("--json", "Output JSON")
   .action(aboutCommand);
+
+cli
+  .command("completion", "Generate shell completion script")
+  .option("--shell <shell>", "Shell: bash, zsh, or fish")
+  .action((options) => completionCommand(options, cli));
 
 cli
   .command("serve", "Start MCP server for agent-native access")
