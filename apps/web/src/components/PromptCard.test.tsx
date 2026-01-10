@@ -111,20 +111,21 @@ describe("PromptCard", () => {
       expect(screen.getByText("ideation")).toBeInTheDocument();
     });
 
-    it("renders tags (up to 4)", () => {
+    it("renders tags (up to 3)", () => {
       render(
         <TestWrapper>
           <PromptCard prompt={mockPrompt} />
         </TestWrapper>
       );
 
-      expect(screen.getByText("#test")).toBeInTheDocument();
-      expect(screen.getByText("#mock")).toBeInTheDocument();
-      expect(screen.getByText("#example")).toBeInTheDocument();
-      expect(screen.getByText("#vitest")).toBeInTheDocument();
-      // 5th tag should be hidden, showing "+1" instead
-      expect(screen.queryByText("#extra-tag")).not.toBeInTheDocument();
-      expect(screen.getByText("+1")).toBeInTheDocument();
+      // Tags are now displayed without # prefix and limited to 3
+      expect(screen.getByText("test")).toBeInTheDocument();
+      expect(screen.getByText("mock")).toBeInTheDocument();
+      expect(screen.getByText("example")).toBeInTheDocument();
+      // 4th and 5th tags should be hidden, showing "+2" instead
+      expect(screen.queryByText("vitest")).not.toBeInTheDocument();
+      expect(screen.queryByText("extra-tag")).not.toBeInTheDocument();
+      expect(screen.getByText("+2")).toBeInTheDocument();
     });
 
     it("renders estimated tokens when available", () => {
@@ -134,7 +135,7 @@ describe("PromptCard", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("~250 tokens")).toBeInTheDocument();
+      expect(screen.getByText("250 tokens")).toBeInTheDocument();
     });
 
     it("renders content preview", () => {
@@ -250,17 +251,17 @@ describe("PromptCard", () => {
   });
 
   describe("basket functionality", () => {
-    it("shows Add button when not in basket", () => {
+    it("shows Save button when not in basket", () => {
       render(
         <TestWrapper>
           <PromptCard prompt={mockPrompt} />
         </TestWrapper>
       );
 
-      expect(screen.getByRole("button", { name: /add/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
     });
 
-    it("adds item to basket when Add clicked", async () => {
+    it("adds item to basket when Save clicked", async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(
         <TestWrapper>
@@ -268,8 +269,8 @@ describe("PromptCard", () => {
         </TestWrapper>
       );
 
-      const addButton = screen.getByRole("button", { name: /add/i });
-      await user.click(addButton);
+      const saveButton = screen.getByRole("button", { name: /save/i });
+      await user.click(saveButton);
 
       // Should now show "Added"
       expect(screen.getByRole("button", { name: /added/i })).toBeInTheDocument();
@@ -284,15 +285,15 @@ describe("PromptCard", () => {
       );
 
       // Add to basket
-      const addButton = screen.getByRole("button", { name: /add/i });
-      await user.click(addButton);
+      const saveButton = screen.getByRole("button", { name: /save/i });
+      await user.click(saveButton);
 
       // Now click Added to remove
       const addedButton = screen.getByRole("button", { name: /added/i });
       await user.click(addedButton);
 
-      // Should show "Add" again
-      expect(screen.getByRole("button", { name: /add/i })).toBeInTheDocument();
+      // Should show "Save" again
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
     });
   });
 
@@ -352,10 +353,10 @@ describe("PromptCard", () => {
         </TestWrapper>
       );
 
-      const addButton = screen.getByRole("button", { name: /add/i });
-      await user.click(addButton);
+      const saveButton = screen.getByRole("button", { name: /save/i });
+      await user.click(saveButton);
 
-      // onClick should not be called when clicking add button
+      // onClick should not be called when clicking save button
       expect(onClick).not.toHaveBeenCalled();
     });
   });
