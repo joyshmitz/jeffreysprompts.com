@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from "./theme-provider";
 import { SpotlightSearch } from "./SpotlightSearch";
+import { BasketProvider } from "@/contexts/basket-context";
 import { ToastProvider, Toaster } from "@/components/ui/toast";
 
 interface ProvidersProps {
@@ -12,9 +13,11 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider defaultTheme="system">
       <ToastProvider>
-        {children}
-        <SpotlightSearch />
-        <Toaster />
+        <BasketProvider>
+          {children}
+          <SpotlightSearch />
+          <Toaster />
+        </BasketProvider>
       </ToastProvider>
     </ThemeProvider>
   );
