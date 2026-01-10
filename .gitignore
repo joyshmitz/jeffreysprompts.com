@@ -107,3 +107,7 @@ generated/
 # Note: .beads/ is managed by beads and should be committed
 # The daemon socket is excluded
 .beads/*.sock
+
+# bv (beads viewer) local config and caches
+.bv/
+a.out

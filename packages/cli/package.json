@@ -1,0 +1,22 @@
+{
+  "name": "@jeffreysprompts/cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CLI commands for JeffreysPrompts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@jeffreysprompts/core": "workspace:*",
+    "cac": "^6.7.14",
+    "chalk": "^5.4.0",
+    "boxen": "^8.0.0",
+    "cli-table3": "^0.6.5",
+    "@inquirer/prompts": "^7.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

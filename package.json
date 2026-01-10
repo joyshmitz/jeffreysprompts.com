@@ -1,0 +1,30 @@
+{
+  "name": "jeffreysprompts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A curated collection of battle-tested prompts for agentic coding",
+  "author": "Jeffrey Emanuel <jeffrey@jeffreysprompts.com>",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "lint": "bun run --cwd apps/web lint",
+    "test": "bun run --cwd apps/web test",
+    "test:cli": "bun test jfp.test.ts",
+    "jfp": "bun run jfp.ts",
+    "build:cli": "./scripts/build-cli.sh",
+    "build:releases": "./scripts/build-releases.sh",
+    "build:data": "bun run scripts/build-data.ts",
+    "validate": "bun run scripts/validate-prompts.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "cac": "^6.7.14"
+  }
+}
