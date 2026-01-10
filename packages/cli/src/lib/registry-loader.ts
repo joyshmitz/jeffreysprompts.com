@@ -40,6 +40,10 @@ function writeJsonFile(path: string, value: unknown): void {
   writeFileSync(path, JSON.stringify(value, null, 2));
 }
 
+function getPromptArray(value: unknown): Prompt[] | null {
+  return Array.isArray(value) ? (value as Prompt[]) : null;
+}
+
 function mergePrompts(base: Prompt[], extras: Prompt[]): Prompt[] {
   if (!extras.length) return base;
   const merged = base.slice();
@@ -96,11 +100,12 @@ async function fetchRegistry(
     }
 
     const payload = (await res.json()) as RegistryPayload;
+    const promptCount = Array.isArray(payload.prompts) ? payload.prompts.length : 0;
     const meta: RegistryMeta = {
       version: payload.version ?? "unknown",
       etag: res.headers.get("etag"),
       fetchedAt: new Date().toISOString(),
-      promptCount: payload.prompts?.length ?? 0,
+      promptCount,
     };
 
     return { payload, meta, notModified: false };
@@ -121,16 +126,17 @@ export async function loadRegistry(): Promise<LoadedRegistry> {
   const config = loadConfig();
   const cachedPayload = readJsonFile<RegistryPayloadLike>(config.registry.cachePath);
   const cachedMeta = readJsonFile<RegistryMeta>(config.registry.metaPath);
+  const cachedPrompts = getPromptArray(cachedPayload?.prompts);
   const localPrompts = config.localPrompts.enabled
     ? loadLocalPrompts(config.localPrompts.dir)
     : [];
 
-  if (cachedPayload?.prompts?.length) {
+  if (cachedPrompts?.length) {
     if (config.registry.autoRefresh) {
       void refreshRegistry().catch(() => undefined);
     }
     return {
-      prompts: mergePrompts(cachedPayload.prompts, localPrompts),
+      prompts: mergePrompts(cachedPrompts, localPrompts),
       meta: cachedMeta,
       source: "cache",
     };
@@ -142,11 +148,12 @@ export async function loadRegistry(): Promise<LoadedRegistry> {
     cachedMeta?.etag ?? null
   );
 
-  if (remote.payload && remote.meta) {
+  const remotePrompts = getPromptArray(remote.payload?.prompts);
+  if (remote.payload && remote.meta && remotePrompts) {
     writeJsonFile(config.registry.cachePath, remote.payload);
     writeJsonFile(config.registry.metaPath, remote.meta);
     return {
-      prompts: mergePrompts(remote.payload.prompts, localPrompts),
+      prompts: mergePrompts(remotePrompts, localPrompts),
       meta: remote.meta,
       source: "remote",
     };
@@ -166,6 +173,7 @@ export async function refreshRegistry(): Promise<LoadedRegistry> {
   const config = loadConfig();
   const cachedPayload = readJsonFile<RegistryPayloadLike>(config.registry.cachePath);
   const cachedMeta = readJsonFile<RegistryMeta>(config.registry.metaPath);
+  const cachedPrompts = getPromptArray(cachedPayload?.prompts);
   const localPrompts = config.localPrompts.enabled
     ? loadLocalPrompts(config.localPrompts.dir)
     : [];
@@ -176,7 +184,7 @@ export async function refreshRegistry(): Promise<LoadedRegistry> {
     cachedMeta?.etag ?? null
   );
 
-  if (remote.notModified && cachedPayload?.prompts?.length) {
+  if (remote.notModified && cachedPrompts?.length) {
     const refreshedMeta: RegistryMeta | null = cachedMeta
       ? { ...cachedMeta, fetchedAt: new Date().toISOString() }
       : null;
@@ -184,25 +192,26 @@ export async function refreshRegistry(): Promise<LoadedRegistry> {
       writeJsonFile(config.registry.metaPath, refreshedMeta);
     }
     return {
-      prompts: mergePrompts(cachedPayload.prompts, localPrompts),
+      prompts: mergePrompts(cachedPrompts, localPrompts),
       meta: refreshedMeta,
       source: "cache",
     };
   }
 
-  if (remote.payload && remote.meta) {
+  const remotePrompts = getPromptArray(remote.payload?.prompts);
+  if (remote.payload && remote.meta && remotePrompts) {
     writeJsonFile(config.registry.cachePath, remote.payload);
     writeJsonFile(config.registry.metaPath, remote.meta);
     return {
-      prompts: mergePrompts(remote.payload.prompts, localPrompts),
+      prompts: mergePrompts(remotePrompts, localPrompts),
       meta: remote.meta,
       source: "remote",
     };
   }
 
-  if (cachedPayload?.prompts?.length) {
+  if (cachedPrompts?.length) {
     return {
-      prompts: mergePrompts(cachedPayload.prompts, localPrompts),
+      prompts: mergePrompts(cachedPrompts, localPrompts),
       meta: cachedMeta,
       source: "cache",
     };
