@@ -57,24 +57,24 @@ export function useToast() {
   if (!context) {
     // Return a no-op implementation if context is not available
     return {
-      toast: () => {},
-      success: () => {},
-      error: () => {},
-      info: () => {},
-      warning: () => {},
+      toast: (_toast: Omit<Toast, "id">) => {},
+      success: (_title: string, _message?: string, _duration?: number) => {},
+      error: (_title: string, _message?: string, _duration?: number) => {},
+      info: (_title: string, _message?: string, _duration?: number) => {},
+      warning: (_title: string, _message?: string, _duration?: number) => {},
     };
   }
 
   return {
     toast: context.addToast,
-    success: (title: string, message?: string) =>
-      context.addToast({ type: "success", title, message }),
-    error: (title: string, message?: string) =>
-      context.addToast({ type: "error", title, message }),
-    info: (title: string, message?: string) =>
-      context.addToast({ type: "info", title, message }),
-    warning: (title: string, message?: string) =>
-      context.addToast({ type: "warning", title, message }),
+    success: (title: string, message?: string, duration?: number) =>
+      context.addToast({ type: "success", title, message, duration }),
+    error: (title: string, message?: string, duration?: number) =>
+      context.addToast({ type: "error", title, message, duration }),
+    info: (title: string, message?: string, duration?: number) =>
+      context.addToast({ type: "info", title, message, duration }),
+    warning: (title: string, message?: string, duration?: number) =>
+      context.addToast({ type: "warning", title, message, duration }),
   };
 }
 

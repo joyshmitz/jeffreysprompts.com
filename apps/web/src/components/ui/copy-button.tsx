@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { toast } from "./toast";
+import { useToast } from "./toast";
 
 // ============================================================================
 // ICONS
@@ -89,6 +89,7 @@ export function CopyButton({
 }: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { success, error } = useToast();
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -120,7 +121,7 @@ export function CopyButton({
           : `"${text}"`
         : undefined;
 
-      toast.success(successMessage, preview, 3000);
+      success(successMessage, preview, 3000);
 
       // Optional haptic feedback on supported devices
       if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -131,7 +132,7 @@ export function CopyButton({
       onCopy?.();
     } catch (error) {
       console.error("Failed to copy:", error);
-      toast.error("Failed to copy", "Please try again");
+      error("Failed to copy", "Please try again");
     }
   };
 

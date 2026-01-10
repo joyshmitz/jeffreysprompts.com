@@ -6,6 +6,7 @@ import { Copy, Check, ExternalLink, Sparkles, Rocket, Code, FileText, Brain, Zap
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { Bundle, BundleIcon } from "@jeffreysprompts/core/prompts/bundles";
 
@@ -39,6 +40,7 @@ interface BundleCardProps {
 
 export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
   const [copied, setCopied] = useState(false);
+  const { success, error } = useToast();
 
   // Get icon component
   const IconComponent = bundle.icon ? iconMap[bundle.icon] : Package;
@@ -52,12 +54,14 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
         const command = "jfp install " + bundle.promptIds.join(" ");
         await navigator.clipboard.writeText(command);
         setCopied(true);
+        const preview = command.length > 70 ? `${command.slice(0, 70)}...` : command;
+        success("Install command copied", preview, 3000);
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        // Clipboard API not available
+        error("Failed to copy", "Please try again");
       }
     },
-    [bundle.promptIds]
+    [bundle.promptIds, success, error]
   );
 
   return (

@@ -15,6 +15,7 @@ import {
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { useBasket } from "@/hooks/use-basket";
 import type { Prompt, PromptDifficulty } from "@jeffreysprompts/core/prompts/types";
@@ -49,6 +50,7 @@ const difficultyConfig: Record<
 
 export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardProps) {
   const [copied, setCopied] = useState(false);
+  const { success, error } = useToast();
   const { isInBasket, addItem, removeItem } = useBasket();
   const inBasket = isInBasket(prompt.id);
 
@@ -58,13 +60,14 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
       try {
         await navigator.clipboard.writeText(prompt.content);
         setCopied(true);
+        success("Copied prompt", prompt.title, 3000);
         onCopy?.(prompt);
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        // Clipboard API not available
+        error("Failed to copy", "Please try again");
       }
     },
-    [prompt, onCopy]
+    [prompt, onCopy, success, error]
   );
 
   const handleBasketToggle = useCallback(

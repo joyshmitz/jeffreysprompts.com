@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { searchPrompts, type SearchResult } from "@jeffreysprompts/core/search"
 import { Badge } from "./ui/badge"
+import { useToast } from "@/components/ui/toast"
 
 // ============================================================================
 // Types
@@ -75,6 +76,7 @@ export function SpotlightSearch({
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [results, setResults] = React.useState<SearchResult[]>([])
   const [copied, setCopied] = React.useState<string | null>(null)
+  const { success, error } = useToast()
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
@@ -169,10 +171,12 @@ export function SpotlightSearch({
         try {
           await navigator.clipboard.writeText(result.prompt.content)
           setCopied(promptId)
+          success("Copied prompt", result.prompt.title, 2500)
           // Keep dialog open briefly to show feedback
           setTimeout(() => setIsOpen(false), 500)
         } catch (err) {
           console.error("Failed to copy:", err)
+          error("Failed to copy", "Please try again")
           setIsOpen(false)
         }
       } else {
@@ -181,7 +185,7 @@ export function SpotlightSearch({
 
       onSelect?.(promptId)
     },
-    [copyOnSelect, onSelect]
+    [copyOnSelect, onSelect, success, error]
   )
 
   // Don't render on server
