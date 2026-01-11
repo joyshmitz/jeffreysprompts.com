@@ -414,7 +414,7 @@ describe("CLI Authentication Flow E2E", () => {
 
       const output = JSON.parse(result.stdout);
       expect(output.logged_out).toBe(true);
-      expect(output.message).toContain(TEST_CREDENTIALS.email);
+      expect(output.email).toBe(TEST_CREDENTIALS.email);
 
       logger.step("Verifying credentials cleared");
       expect(existsSync(getCredentialsPath())).toBe(false);
