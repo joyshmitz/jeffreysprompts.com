@@ -40,7 +40,7 @@ function getHelpData() {
     documentation: "https://jeffreysprompts.com/docs",
     commands: {
       listing_searching: [
-        { name: "list", description: "List all prompts", options: ["--category", "--tag", "--json"] },
+        { name: "list", description: "List all prompts", options: ["--category", "--tag", "--mine", "--saved", "--json"] },
         { name: "search <query>", description: "Search prompts by query", options: ["--limit", "--json"] },
         { name: "suggest <task>", description: "Suggest prompts for a task", options: ["--limit", "--json"] },
       ],
