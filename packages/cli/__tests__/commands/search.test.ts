@@ -150,7 +150,8 @@ describe("searchCommand", () => {
       }
 
       const parsed = JSON.parse(output.join(""));
-      expect(parsed.error).toBe("not_authenticated");
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_authenticated");
       expect(exitCode).toBe(1);
     });
 
@@ -168,7 +169,8 @@ describe("searchCommand", () => {
       }
 
       const parsed = JSON.parse(output.join(""));
-      expect(parsed.error).toBe("not_authenticated");
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_authenticated");
       expect(exitCode).toBe(1);
     });
 
@@ -207,7 +209,8 @@ describe("searchCommand", () => {
       }
 
       const parsed = JSON.parse(output.join(""));
-      expect(parsed.error).toBe("invalid_limit");
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("invalid_limit");
       expect(exitCode).toBe(1);
     });
 
