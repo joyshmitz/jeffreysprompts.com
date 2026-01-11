@@ -1,0 +1,247 @@
+/**
+ * Notes Command
+ *
+ * Manage personal notes on prompts.
+ * - jfp notes <prompt-id> - Show notes for a prompt
+ * - jfp notes <prompt-id> --add 'text' - Add a note
+ * - jfp notes <prompt-id> --delete <note-id> - Delete a note
+ *
+ * Notes are private to the authenticated user.
+ */
+
+import chalk from "chalk";
+import boxen from "boxen";
+import { apiClient, isAuthError, requiresPremium } from "../lib/api-client";
+import { getAccessToken } from "../lib/credentials";
+import { shouldOutputJson } from "../lib/utils";
+import { getPrompt } from "@jeffreysprompts/core/prompts";
+
+export interface NotesOptions {
+  add?: string;
+  delete?: string;
+  json?: boolean;
+}
+
+interface Note {
+  id: string;
+  prompt_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface NotesResponse {
+  notes: Note[];
+  prompt_id: string;
+}
+
+interface NoteActionResponse {
+  success: boolean;
+  note?: Note;
+  message?: string;
+}
+
+/**
+ * Notes command - view, add, or delete notes on prompts
+ */
+export async function notesCommand(promptId: string, options: NotesOptions = {}): Promise<void> {
+  // Check authentication
+  const token = await getAccessToken();
+  if (!token) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({
+        success: false,
+        error: "not_authenticated",
+        message: "You must be logged in to manage notes",
+      }));
+    } else {
+      console.log(chalk.yellow("You must be logged in to manage notes"));
+      console.log(chalk.dim("Run 'jfp login' to sign in"));
+    }
+    process.exit(1);
+  }
+
+  // Validate prompt exists (check local registry first)
+  const prompt = getPrompt(promptId);
+  if (!prompt) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({
+        success: false,
+        error: "prompt_not_found",
+        message: `Prompt not found: ${promptId}`,
+      }));
+    } else {
+      console.log(chalk.red(`Prompt not found: ${promptId}`));
+      console.log(chalk.dim("Use 'jfp search <query>' to find prompts"));
+    }
+    process.exit(1);
+  }
+
+  // Handle delete
+  if (options.delete) {
+    return deleteNote(promptId, options.delete, options);
+  }
+
+  // Handle add
+  if (options.add) {
+    return addNote(promptId, options.add, options);
+  }
+
+  // Default: list notes
+  return listNotes(promptId, options);
+}
+
+/**
+ * List notes for a prompt
+ */
+async function listNotes(promptId: string, options: NotesOptions): Promise<void> {
+  const response = await apiClient.get<NotesResponse>(`/cli/notes/${promptId}`);
+
+  if (!response.ok) {
+    handleApiError(response, options);
+    return;
+  }
+
+  const { notes } = response.data!;
+
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({
+      success: true,
+      prompt_id: promptId,
+      notes,
+      count: notes.length,
+    }));
+    return;
+  }
+
+  // Human-readable output
+  if (notes.length === 0) {
+    console.log(chalk.dim(`No notes for prompt: ${promptId}`));
+    console.log(chalk.dim("\nAdd a note with: jfp notes " + promptId + " --add 'Your note here'"));
+    return;
+  }
+
+  console.log(chalk.bold(`Notes for ${promptId}`) + chalk.dim(` (${notes.length})`));
+  console.log();
+
+  for (const note of notes) {
+    const createdDate = new Date(note.created_at).toLocaleDateString();
+    console.log(chalk.cyan(`[${note.id}]`) + " " + chalk.dim(createdDate));
+    console.log("  " + note.content);
+    console.log();
+  }
+
+  console.log(chalk.dim("Delete a note with: jfp notes " + promptId + " --delete <note-id>"));
+}
+
+/**
+ * Add a note to a prompt
+ */
+async function addNote(promptId: string, content: string, options: NotesOptions): Promise<void> {
+  if (!content.trim()) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({
+        success: false,
+        error: "empty_note",
+        message: "Note content cannot be empty",
+      }));
+    } else {
+      console.log(chalk.red("Note content cannot be empty"));
+    }
+    process.exit(1);
+  }
+
+  const response = await apiClient.post<NoteActionResponse>(`/cli/notes/${promptId}`, {
+    content: content.trim(),
+  });
+
+  if (!response.ok) {
+    handleApiError(response, options);
+    return;
+  }
+
+  const { note } = response.data!;
+
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({
+      success: true,
+      action: "added",
+      prompt_id: promptId,
+      note,
+    }));
+    return;
+  }
+
+  console.log(chalk.green("✓") + " Note added to " + chalk.bold(promptId));
+  console.log(chalk.dim("  ID: " + note?.id));
+  console.log(chalk.dim("  Content: " + content.trim().substring(0, 50) + (content.length > 50 ? "..." : "")));
+}
+
+/**
+ * Delete a note
+ */
+async function deleteNote(promptId: string, noteId: string, options: NotesOptions): Promise<void> {
+  const response = await apiClient.delete<NoteActionResponse>(`/cli/notes/${promptId}/${noteId}`);
+
+  if (!response.ok) {
+    handleApiError(response, options);
+    return;
+  }
+
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({
+      success: true,
+      action: "deleted",
+      prompt_id: promptId,
+      note_id: noteId,
+    }));
+    return;
+  }
+
+  console.log(chalk.green("✓") + " Note deleted: " + chalk.dim(noteId));
+}
+
+/**
+ * Handle API errors with appropriate messaging
+ */
+function handleApiError(response: { ok: boolean; status: number; error?: string }, options: NotesOptions): void {
+  if (isAuthError(response)) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({
+        success: false,
+        error: "authentication_required",
+        message: "Session expired. Please run 'jfp login' to sign in again.",
+      }));
+    } else {
+      console.log(chalk.yellow("Session expired. Please run 'jfp login' to sign in again."));
+    }
+    process.exit(1);
+  }
+
+  if (requiresPremium(response)) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({
+        success: false,
+        error: "premium_required",
+        message: "Notes require a Premium subscription",
+      }));
+    } else {
+      console.log(chalk.yellow("Notes require a Premium subscription"));
+      console.log(chalk.dim("Upgrade at https://pro.jeffreysprompts.com"));
+    }
+    process.exit(1);
+  }
+
+  // Generic error
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({
+      success: false,
+      error: "api_error",
+      status: response.status,
+      message: response.error || "An error occurred",
+    }));
+  } else {
+    console.log(chalk.red("Error: " + (response.error || "An error occurred")));
+  }
+  process.exit(1);
+}

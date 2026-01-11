@@ -27,6 +27,7 @@ import { serveCommand } from "./commands/serve";
 import { updateCliCommand } from "./commands/update-cli";
 import { loginCommand } from "./commands/login";
 import { logoutCommand, whoamiCommand } from "./commands/auth";
+import { notesCommand } from "./commands/notes";
 
 export const cli = cac("jfp");
 
@@ -149,6 +150,13 @@ cli
   .command("whoami", "Show current logged-in user")
   .option("--json", "Output JSON")
   .action(whoamiCommand);
+
+cli
+  .command("notes <prompt-id>", "Manage personal notes on prompts")
+  .option("--add <text>", "Add a note")
+  .option("--delete <note-id>", "Delete a note by ID")
+  .option("--json", "Output JSON")
+  .action(notesCommand);
 
 cli
   .command("i", "Interactive mode - fzf-style prompt picker")
