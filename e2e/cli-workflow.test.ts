@@ -104,15 +104,17 @@ describe("CLI E2E: Discovery Flow", () => {
 
     expect(exitCode).toBe(0);
 
-    const prompts = parseJson<unknown[]>(stdout);
-    expect(prompts).not.toBeNull();
-    expect(Array.isArray(prompts)).toBe(true);
-    expect(prompts!.length).toBeGreaterThan(0);
+    // List returns wrapped response with prompts array
+    const response = parseJson<{ prompts: unknown[]; count: number }>(stdout);
+    expect(response).not.toBeNull();
+    expect(Array.isArray(response!.prompts)).toBe(true);
+    expect(response!.prompts.length).toBeGreaterThan(0);
+    expect(response!.count).toBe(response!.prompts.length);
 
-    log("list", `Found ${prompts!.length} prompts`);
+    log("list", `Found ${response!.prompts.length} prompts`);
 
     // Verify schema of first prompt
-    const firstPrompt = prompts![0] as Record<string, unknown>;
+    const firstPrompt = response!.prompts[0] as Record<string, unknown>;
     expect(firstPrompt).toHaveProperty("id");
     expect(firstPrompt).toHaveProperty("title");
     expect(firstPrompt).toHaveProperty("description");
@@ -129,16 +131,17 @@ describe("CLI E2E: Discovery Flow", () => {
 
     expect(exitCode).toBe(0);
 
-    const prompts = parseJson<{ category: string }[]>(stdout);
-    expect(prompts).not.toBeNull();
-    expect(prompts!.length).toBeGreaterThan(0);
+    // List returns wrapped response with prompts array
+    const response = parseJson<{ prompts: { category: string }[]; count: number }>(stdout);
+    expect(response).not.toBeNull();
+    expect(response!.prompts.length).toBeGreaterThan(0);
 
     // All should be ideation
-    for (const prompt of prompts!) {
+    for (const prompt of response!.prompts) {
       expect(prompt.category).toBe("ideation");
     }
 
-    log("list-filter", `Found ${prompts!.length} ideation prompts`);
+    log("list-filter", `Found ${response!.prompts.length} ideation prompts`);
   });
 
   it("Step 3: search prompts", async () => {
@@ -352,14 +355,19 @@ describe("CLI E2E: JSON Schema Stability", () => {
    * Breaking changes to these will break agent integrations.
    */
 
-  it("list schema: array of prompts with required fields", async () => {
+  it("list schema: wrapped response with prompts array having required fields", async () => {
     const { stdout } = await runCli("list --json");
-    const prompts = parseJson<Record<string, unknown>[]>(stdout)!;
+    const response = parseJson<{ prompts: Record<string, unknown>[]; count: number }>(stdout)!;
+
+    // Wrapped response structure
+    expect(response).toHaveProperty("prompts");
+    expect(response).toHaveProperty("count");
+    expect(Array.isArray(response.prompts)).toBe(true);
 
     const requiredFields = ["id", "title", "description", "category", "tags", "version", "content", "author", "created"];
 
     for (const field of requiredFields) {
-      expect(prompts[0]).toHaveProperty(field);
+      expect(response.prompts[0]).toHaveProperty(field);
     }
   });
 
