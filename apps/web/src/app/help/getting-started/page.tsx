@@ -1,8 +1,11 @@
-"use client";
-
+import type { Metadata } from "next";
 import { HelpLayout, ArticleCard } from "@/components/help/HelpLayout";
 import { helpCategories } from "@/lib/help-categories";
-import { BookOpen } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Getting Started - Help Center",
+  description: "Learn the basics of JeffreysPrompts.com and get up and running quickly.",
+};
 
 export default function GettingStartedPage() {
   const category = helpCategories.find((c) => c.slug === "getting-started");
@@ -19,7 +22,7 @@ export default function GettingStartedPage() {
             key={article.slug}
             href={`/help/getting-started/${article.slug}`}
             title={article.title}
-            icon={BookOpen}
+            iconName="BookOpen"
           />
         ))}
       </div>

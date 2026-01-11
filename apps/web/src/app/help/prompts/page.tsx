@@ -1,8 +1,11 @@
-"use client";
-
+import type { Metadata } from "next";
 import { HelpLayout, ArticleCard } from "@/components/help/HelpLayout";
 import { helpCategories } from "@/lib/help-categories";
-import { Sparkles } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Prompts & Collections - Help Center",
+  description: "Learn how to manage, organize, and export prompts on JeffreysPrompts.com.",
+};
 
 export default function PromptsPage() {
   const category = helpCategories.find((c) => c.slug === "prompts");
@@ -19,7 +22,7 @@ export default function PromptsPage() {
             key={article.slug}
             href={`/help/prompts/${article.slug}`}
             title={article.title}
-            icon={Sparkles}
+            iconName="Sparkles"
           />
         ))}
       </div>

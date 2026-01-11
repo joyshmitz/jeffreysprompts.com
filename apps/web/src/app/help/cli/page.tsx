@@ -1,8 +1,12 @@
-"use client";
-
+import type { Metadata } from "next";
 import { HelpLayout, ArticleCard } from "@/components/help/HelpLayout";
 import { helpCategories } from "@/lib/help-categories";
-import { Terminal } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "CLI Tool - Help Center",
+  description:
+    "Learn how to use the jfp command-line interface for accessing prompts from your terminal.",
+};
 
 export default function CLIPage() {
   const category = helpCategories.find((c) => c.slug === "cli");
@@ -19,7 +23,7 @@ export default function CLIPage() {
             key={article.slug}
             href={`/help/cli/${article.slug}`}
             title={article.title}
-            icon={Terminal}
+            iconName="Terminal"
           />
         ))}
       </div>

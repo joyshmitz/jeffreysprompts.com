@@ -15,8 +15,6 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { helpCategories } from "@/lib/help-categories";
 
-export { helpCategories };
-
 const iconMap: Record<string, LucideIcon> = {
   BookOpen,
   Sparkles,
@@ -174,10 +172,12 @@ interface ArticleCardProps {
   href: string;
   title: string;
   description?: string;
-  icon?: React.ElementType;
+  iconName?: keyof typeof iconMap;
 }
 
-export function ArticleCard({ href, title, description, icon: Icon }: ArticleCardProps) {
+export function ArticleCard({ href, title, description, iconName }: ArticleCardProps) {
+  const Icon = iconName ? iconMap[iconName] : null;
+
   return (
     <Link
       href={href}
