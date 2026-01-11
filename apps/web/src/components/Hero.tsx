@@ -53,7 +53,6 @@ export function Hero({
   const parallaxY2 = useTransform(scrollY, [0, 500], [0, -120]);
   const parallaxY3 = useTransform(scrollY, [0, 500], [0, -60]);
   const parallaxScale = useTransform(scrollY, [0, 300], [1, 0.95]);
-  const parallaxOpacity = useTransform(scrollY, [0, 400], [1, 0]);
 
   // Handle mouse move for gradient tracking
   const handleMouseMove = useCallback(
@@ -71,8 +70,10 @@ export function Hero({
   );
 
   // Detect platform and update modifier key on client-side only
+  // This is an intentional pattern: server renders "Ctrl", client updates to "⌘" on Mac
   useEffect(() => {
     if (typeof navigator !== "undefined" && navigator.platform?.includes("Mac")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: client-only platform detection
       setModifierKey("⌘");
     }
   }, []);

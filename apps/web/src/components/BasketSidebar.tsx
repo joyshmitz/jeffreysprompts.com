@@ -5,7 +5,6 @@ import JSZip from "jszip";
 import {
   X,
   Trash2,
-  Download,
   FileText,
   Package,
   Copy,
