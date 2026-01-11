@@ -58,17 +58,17 @@ describe("listCommand", () => {
   });
 
   describe("JSON output", () => {
-    it("should output valid JSON array", async () => {
+    it("should output JSON payload with prompts array", async () => {
       await listCommand({ json: true });
       const json = JSON.parse(output.join(""));
-      expect(Array.isArray(json)).toBe(true);
+      expect(Array.isArray(json.prompts)).toBe(true);
     });
 
     it("should include required fields in JSON", async () => {
       await listCommand({ json: true });
       const json = JSON.parse(output.join(""));
 
-      for (const prompt of json) {
+      for (const prompt of json.prompts) {
         expect(prompt).toHaveProperty("id");
         expect(prompt).toHaveProperty("title");
         expect(prompt).toHaveProperty("description");
@@ -82,7 +82,7 @@ describe("listCommand", () => {
       await listCommand({ json: true, category: "documentation" });
       const json = JSON.parse(output.join(""));
 
-      for (const prompt of json) {
+      for (const prompt of json.prompts) {
         expect(prompt.category).toBe("documentation");
       }
     });
@@ -91,7 +91,7 @@ describe("listCommand", () => {
       await listCommand({ json: true, tag: "ultrathink" });
       const json = JSON.parse(output.join(""));
 
-      for (const prompt of json) {
+      for (const prompt of json.prompts) {
         expect(prompt.tags).toContain("ultrathink");
       }
     });
@@ -101,7 +101,7 @@ describe("listCommand", () => {
     it("should maintain stable JSON schema for agents", async () => {
       await listCommand({ json: true });
       const json = JSON.parse(output.join(""));
-      const firstPrompt = json[0];
+      const firstPrompt = json.prompts[0];
 
       // These fields MUST exist - breaking changes break agent integrations
       const requiredFields = [
@@ -156,7 +156,8 @@ describe("listCommand", () => {
       }
 
       const parsed = JSON.parse(output.join(""));
-      expect(parsed.error).toBe("not_authenticated");
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_authenticated");
       expect(exitCode).toBe(1);
     });
 
@@ -175,7 +176,8 @@ describe("listCommand", () => {
       }
 
       const parsed = JSON.parse(output.join(""));
-      expect(parsed.error).toBe("not_authenticated");
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_authenticated");
       expect(exitCode).toBe(1);
     });
   });

@@ -463,8 +463,8 @@ describe("cross-command schema consistency", () => {
   it("list and show return same prompt structure", async () => {
     // Get a prompt from list
     await listCommand({ json: true });
-    const listOutput = getJsonOutput<Record<string, unknown>[]>();
-    const fromList = listOutput.find(
+    const listOutput = getJsonOutput<ListResponse>();
+    const fromList = listOutput.prompts.find(
       (p) => p.id === "idea-wizard"
     ) as Record<string, unknown>;
 

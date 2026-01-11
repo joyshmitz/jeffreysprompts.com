@@ -12,6 +12,7 @@ import open from "open";
 import chalk from "chalk";
 import boxen from "boxen";
 import { saveCredentials, loadCredentials, type Credentials } from "../lib/credentials";
+import { shouldOutputJson } from "../lib/utils";
 
 // Premium site URL for authentication
 const PREMIUM_URL = process.env.JFP_PREMIUM_URL ?? "https://pro.jeffreysprompts.com";
@@ -27,16 +28,14 @@ export interface LoginOptions {
  * Main login command handler
  */
 export async function loginCommand(options: LoginOptions = {}): Promise<void> {
+  const jsonOutput = shouldOutputJson(options);
   // Check if already logged in
   const existing = await loadCredentials();
   if (existing) {
-    if (options.json) {
-      console.log(JSON.stringify({
-        success: false,
-        error: "already_logged_in",
-        message: `Already logged in as ${existing.email}`,
+    if (jsonOutput) {
+      writeJsonError("already_logged_in", `Already logged in as ${existing.email}`, {
         email: existing.email,
-      }));
+      });
     } else {
       console.log(chalk.yellow("You are already logged in as " + existing.email));
       console.log(chalk.dim("Run 'jfp logout' first to switch accounts"));
@@ -74,8 +73,9 @@ function canOpenBrowser(): boolean {
  */
 async function loginLocal(options: LoginOptions): Promise<void> {
   const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+  const jsonOutput = shouldOutputJson(options);
 
-  if (!options.json) {
+  if (!jsonOutput) {
     console.log(chalk.dim("Starting login flow..."));
   }
 
@@ -87,7 +87,7 @@ async function loginLocal(options: LoginOptions): Promise<void> {
   authUrl.searchParams.set("port", String(port));
   authUrl.searchParams.set("redirect", "local");
 
-  if (!options.json) {
+  if (!jsonOutput) {
     console.log(chalk.dim("\nOpening browser to sign in with Google..."));
     console.log(chalk.dim(`URL: ${authUrl.toString()}\n`));
   }
@@ -96,13 +96,13 @@ async function loginLocal(options: LoginOptions): Promise<void> {
   try {
     await open(authUrl.toString());
   } catch {
-    if (!options.json) {
+    if (!jsonOutput) {
       console.log(chalk.yellow("Could not open browser automatically."));
       console.log(`Please visit: ${chalk.cyan(authUrl.toString())}`);
     }
   }
 
-  if (!options.json) {
+  if (!jsonOutput) {
     console.log(chalk.dim("Waiting for authentication..."));
   }
 
@@ -113,13 +113,12 @@ async function loginLocal(options: LoginOptions): Promise<void> {
     // Save credentials
     await saveCredentials(credentials);
 
-    if (options.json) {
-      console.log(JSON.stringify({
-        success: true,
+    if (jsonOutput) {
+      writeJson({
+        authenticated: true,
         email: credentials.email,
         tier: credentials.tier,
-        message: `Logged in as ${credentials.email}`,
-      }));
+      });
     } else {
       console.log(
         boxen(
@@ -133,24 +132,16 @@ async function loginLocal(options: LoginOptions): Promise<void> {
     close();
 
     if (err instanceof Error && err.message === "timeout") {
-      if (options.json) {
-        console.log(JSON.stringify({
-          success: false,
-          error: "timeout",
-          message: "Login timed out",
-        }));
+      if (jsonOutput) {
+        writeJsonError("timeout", "Login timed out");
       } else {
         console.log(chalk.red("\nLogin timed out. Please try again."));
         console.log(chalk.dim("Tip: Use 'jfp login --remote' for headless environments"));
       }
     } else {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      if (options.json) {
-        console.log(JSON.stringify({
-          success: false,
-          error: "login_failed",
-          message: errorMessage,
-        }));
+      if (jsonOutput) {
+        writeJsonError("login_failed", errorMessage);
       } else {
         console.log(chalk.red("\nLogin failed:"), errorMessage);
       }
@@ -342,8 +333,9 @@ interface DeviceTokenError {
  */
 async function loginRemote(options: LoginOptions): Promise<void> {
   const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+  const jsonOutput = shouldOutputJson(options);
 
-  if (!options.json) {
+  if (!jsonOutput) {
     console.log(chalk.dim("Initiating device code authentication...\n"));
   }
 
@@ -357,14 +349,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    if (options.json) {
-      console.log(
-        JSON.stringify({
-          success: false,
-          error: "network_error",
-          message: `Could not reach authentication server: ${errorMessage}`,
-        })
-      );
+    if (jsonOutput) {
+      writeJsonError("network_error", `Could not reach authentication server: ${errorMessage}`);
     } else {
       console.log(chalk.red("Could not reach authentication server"));
       console.log(chalk.dim(errorMessage));
@@ -373,14 +359,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
   }
 
   if (!deviceCodeResponse.ok) {
-    if (options.json) {
-      console.log(
-        JSON.stringify({
-          success: false,
-          error: "device_code_failed",
-          message: "Failed to initiate authentication",
-        })
-      );
+    if (jsonOutput) {
+      writeJsonError("device_code_failed", "Failed to initiate authentication");
     } else {
       console.log(chalk.red("Failed to initiate authentication"));
     }
@@ -391,15 +371,14 @@ async function loginRemote(options: LoginOptions): Promise<void> {
     (await deviceCodeResponse.json()) as DeviceCodeResponse;
 
   // Display instructions to user
-  if (options.json) {
-    console.log(
-      JSON.stringify({
-        status: "pending",
-        verification_url,
-        user_code: formatUserCode(user_code),
-        message: `Visit ${verification_url} and enter code: ${formatUserCode(user_code)}`,
-      })
-    );
+  if (jsonOutput) {
+    writeJson({
+      status: "pending",
+      authenticated: false,
+      verification_url,
+      user_code: formatUserCode(user_code),
+      message: `Visit ${verification_url} and enter code: ${formatUserCode(user_code)}`,
+    });
   } else {
     console.log(
       boxen(
@@ -453,15 +432,12 @@ async function loginRemote(options: LoginOptions): Promise<void> {
           user_id: credentials.user_id,
         });
 
-        if (options.json) {
-          console.log(
-            JSON.stringify({
-              success: true,
-              email: credentials.email,
-              tier: credentials.tier,
-              message: `Logged in as ${credentials.email}`,
-            })
-          );
+        if (jsonOutput) {
+          writeJson({
+            authenticated: true,
+            email: credentials.email,
+            tier: credentials.tier,
+          });
         } else {
           console.log(
             boxen(
@@ -480,7 +456,7 @@ async function loginRemote(options: LoginOptions): Promise<void> {
 
       if (errorBody.error === "authorization_pending") {
         // User hasn't completed auth yet, keep polling
-        if (!options.json) {
+        if (!jsonOutput) {
           process.stdout.write(".");
         }
         continue;
@@ -493,14 +469,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
       }
 
       if (errorBody.error === "expired_token") {
-        if (options.json) {
-          console.log(
-            JSON.stringify({
-              success: false,
-              error: "expired_token",
-              message: "Device code expired. Please try again.",
-            })
-          );
+        if (jsonOutput) {
+          writeJsonError("expired_token", "Device code expired. Please try again.");
         } else {
           console.log(chalk.red("\n\nDevice code expired. Please try again."));
         }
@@ -508,14 +478,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
       }
 
       if (errorBody.error === "access_denied") {
-        if (options.json) {
-          console.log(
-            JSON.stringify({
-              success: false,
-              error: "access_denied",
-              message: "Authentication was denied.",
-            })
-          );
+        if (jsonOutput) {
+          writeJsonError("access_denied", "Authentication was denied.");
         } else {
           console.log(chalk.red("\n\nAuthentication was denied."));
         }
@@ -524,39 +488,35 @@ async function loginRemote(options: LoginOptions): Promise<void> {
 
       // Unknown error
       const errorMessage = errorBody.error_description || errorBody.error;
-      if (options.json) {
-        console.log(
-          JSON.stringify({
-            success: false,
-            error: errorBody.error,
-            message: errorMessage,
-          })
-        );
+      if (jsonOutput) {
+        writeJsonError(errorBody.error, errorMessage);
       } else {
         console.log(chalk.red("\n\nAuthentication failed:"), errorMessage);
       }
       process.exit(1);
     } catch {
       // Network error, keep trying
-      if (!options.json) {
+      if (!jsonOutput) {
         process.stdout.write("x");
       }
     }
   }
 
   // Timeout
-  if (options.json) {
-    console.log(
-      JSON.stringify({
-        success: false,
-        error: "timeout",
-        message: "Authentication timed out. Please try again.",
-      })
-    );
+  if (jsonOutput) {
+    writeJsonError("timeout", "Authentication timed out. Please try again.");
   } else {
     console.log(chalk.red("\n\nAuthentication timed out. Please try again."));
   }
   process.exit(1);
+}
+
+function writeJson(payload: Record<string, unknown>): void {
+  console.log(JSON.stringify(payload));
+}
+
+function writeJsonError(code: string, message: string, extra: Record<string, unknown> = {}): void {
+  writeJson({ error: true, code, message, ...extra });
 }
 
 /**

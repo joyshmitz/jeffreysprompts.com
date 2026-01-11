@@ -331,6 +331,9 @@ export function SwipeablePromptCard({
           // Only enable touch manipulation when not swiping
           touchAction: state.isSwiping ? "none" : "pan-y",
         }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
       >
         <PromptCard
           prompt={prompt}
@@ -338,7 +341,95 @@ export function SwipeablePromptCard({
           onCopy={onCopy}
           onClick={onClick}
         />
+
+        {/* Heart animation on double-tap */}
+        <AnimatePresence>
+          {showHeartAnimation && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.3, 1], opacity: [0, 1, 1] }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+            >
+              <Heart className="w-16 h-16 text-pink-500 fill-pink-500 drop-shadow-lg" />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
+
+      {/* Quick actions menu (long-press) */}
+      <AnimatePresence>
+        {showQuickActions && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowQuickActions(false)}
+            />
+            {/* Menu */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-zinc-900 rounded-t-3xl p-4 pb-8 shadow-2xl"
+            >
+              <div className="w-12 h-1 bg-zinc-300 dark:bg-zinc-700 rounded-full mx-auto mb-4" />
+              <h3 className="font-semibold text-lg mb-4 text-center">{prompt.title}</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    handleCopy();
+                    setShowQuickActions(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <Copy className="w-5 h-5 text-sky-500" />
+                  <span>Copy to Clipboard</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleAddToBasket();
+                    setShowQuickActions(false);
+                  }}
+                  disabled={inBasket}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                    inBasket
+                      ? "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-400"
+                      : "bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                  )}
+                >
+                  <ShoppingBag className={cn("w-5 h-5", inBasket ? "text-zinc-400" : "text-indigo-500")} />
+                  <span>{inBasket ? "Already in Basket" : "Add to Basket"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onSave?.(prompt);
+                    haptic.success();
+                    setShowQuickActions(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  <span>Save Prompt</span>
+                </button>
+              </div>
+              <button
+                onClick={() => setShowQuickActions(false)}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+                <span>Cancel</span>
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
