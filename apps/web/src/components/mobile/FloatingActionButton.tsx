@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Copy, ShoppingBag, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useIsSmallScreen } from "@/hooks/useIsMobile";
 
 interface FABAction {
   id: string;
@@ -83,16 +84,8 @@ export function FloatingActionButton({
   hidden = false,
 }: FloatingActionButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsSmallScreen();
   const haptic = useHaptic();
-
-  // Detect mobile viewport
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   const handleToggle = useCallback(() => {
     if (onPress && !actions.length) {

@@ -103,6 +103,7 @@ export function useIsSmallScreen(
       setIsSmall(window.innerWidth < breakpoint);
     };
 
+    checkWidth();
     window.addEventListener("resize", checkWidth);
     return () => window.removeEventListener("resize", checkWidth);
   }, [breakpoint]);

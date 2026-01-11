@@ -10,6 +10,7 @@ import { featuredPrompts, prompts, type Prompt, type PromptCategory } from "@jef
 import { Badge } from "./ui/badge"
 import { useToast } from "@/components/ui/toast"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { useIsSmallScreen } from "@/hooks/useIsMobile"
 
 // ============================================================================
 // Constants
@@ -125,7 +126,7 @@ export function SpotlightSearch({
   const [copied, setCopied] = React.useState<string | null>(null)
   const [isReranking, setIsReranking] = React.useState(false)
   const [selectedCategory, setSelectedCategory] = React.useState<PromptCategory | null>(null)
-  const [isMobile, setIsMobile] = React.useState(false)
+  const isMobile = useIsSmallScreen()
   const { success, error } = useToast()
 
   // Persist semantic mode preference and recent searches
@@ -134,14 +135,6 @@ export function SpotlightSearch({
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
-
-  // Detect mobile viewport
-  React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
 
   // Save search to recent searches
   const saveRecentSearch = React.useCallback((searchQuery: string) => {

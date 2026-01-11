@@ -5,7 +5,6 @@ import {
   useState,
   useRef,
   useEffect,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
@@ -14,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { PromptCard } from "@/components/PromptCard";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useIsSmallScreen } from "@/hooks/useIsMobile";
 import { useBasket } from "@/hooks/use-basket";
 import { useToast } from "@/components/ui/toast";
 import { trackEvent } from "@/lib/analytics";
@@ -64,15 +64,7 @@ export function SwipeablePromptCard({
   onSave,
   isMobile: isMobileProp,
 }: SwipeablePromptCardProps) {
-  const autoIsMobile = useSyncExternalStore(
-    (callback) => {
-      if (typeof window === "undefined") return () => undefined;
-      window.addEventListener("resize", callback);
-      return () => window.removeEventListener("resize", callback);
-    },
-    () => (typeof window === "undefined" ? false : window.innerWidth < 768),
-    () => false
-  );
+  const fallbackIsMobile = useIsSmallScreen();
   const [actionTriggered, setActionTriggered] = useState<"copy" | "basket" | "save" | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -150,7 +142,7 @@ export function SwipeablePromptCard({
     return timer;
   }, []);
 
-  const isMobile = typeof isMobileProp === "boolean" ? isMobileProp : autoIsMobile;
+  const isMobile = typeof isMobileProp === "boolean" ? isMobileProp : fallbackIsMobile;
 
   const handleCopy = useCallback(async () => {
     try {
