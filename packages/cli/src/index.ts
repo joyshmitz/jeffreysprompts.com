@@ -247,20 +247,29 @@ cli
   .command("config [action] [key] [value]", "Manage CLI configuration")
   .option("--json", "Output JSON")
   .action((action: string | undefined, key: string | undefined, value: string | undefined, options: { json?: boolean }) => {
+    const outputError = (code: string, message: string) => {
+      if (options.json) {
+        console.log(JSON.stringify({ error: true, code, message }));
+      } else {
+        console.error(message);
+      }
+      process.exit(1);
+    };
+
     switch (action) {
       case "list":
       case undefined:
         return configListCommand(options);
       case "get":
         if (!key) {
-          console.error("Usage: jfp config get <key>");
-          process.exit(1);
+          outputError("missing_argument", "Usage: jfp config get <key>");
+          return;
         }
         return configGetCommand(key, options);
       case "set":
         if (!key || value === undefined) {
-          console.error("Usage: jfp config set <key> <value>");
-          process.exit(1);
+          outputError("missing_argument", "Usage: jfp config set <key> <value>");
+          return;
         }
         return configSetCommand(key, value, options);
       case "reset":
@@ -268,9 +277,7 @@ cli
       case "path":
         return configPathCommand(options);
       default:
-        console.error(`Unknown config action: ${action}`);
-        console.log("Available: list, get, set, reset, path");
-        process.exit(1);
+        outputError("unknown_action", `Unknown config action: ${action}. Available: list, get, set, reset, path`);
     }
   });
 
