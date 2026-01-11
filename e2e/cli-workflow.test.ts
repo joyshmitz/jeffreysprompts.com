@@ -886,6 +886,150 @@ describe("CLI E2E: Project-local vs Personal Skill Installation", () => {
   });
 });
 
+describe("CLI E2E: TTY vs Pipe Output Mode Switching", () => {
+  /**
+   * Tests that the CLI correctly switches output modes based on terminal context.
+   *
+   * The shouldOutputJson function returns true when:
+   * - options.json === true (explicit --json flag)
+   * - !process.stdout.isTTY (piped/redirected output)
+   *
+   * Since these E2E tests run in a script context (non-TTY), we test:
+   * 1. Piped output defaults to JSON even without --json flag
+   * 2. --json flag always produces JSON (explicit)
+   * 3. JSON output is valid and parseable
+   */
+
+  it("piped output (non-TTY) defaults to JSON format", async () => {
+    log("tty-pipe", "Testing that piped output produces JSON without --json flag");
+
+    // Run without --json flag, but output should still be JSON because non-TTY
+    const { stdout, exitCode } = await runCli("list");
+
+    expect(exitCode).toBe(0);
+
+    // Should be valid JSON since we're in a non-TTY context
+    const result = parseJson<unknown[]>(stdout);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result)).toBe(true);
+
+    log("tty-pipe", "Piped output correctly defaults to JSON");
+  });
+
+  it("--json flag produces JSON regardless of context", async () => {
+    log("tty-json-flag", "Testing --json flag explicitly produces JSON");
+
+    const { stdout, exitCode } = await runCli("list --json");
+
+    expect(exitCode).toBe(0);
+
+    // Should definitely be JSON with explicit flag
+    const result = parseJson<unknown[]>(stdout);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result)).toBe(true);
+
+    log("tty-json-flag", "Explicit --json produces valid JSON");
+  });
+
+  it("show command outputs JSON in piped mode", async () => {
+    log("tty-show", "Testing show command in piped mode");
+
+    const { stdout, exitCode } = await runCli("show idea-wizard");
+
+    expect(exitCode).toBe(0);
+
+    // Should be JSON object
+    const result = parseJson<{ id: string; content: string }>(stdout);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("idea-wizard");
+    expect(typeof result!.content).toBe("string");
+
+    log("tty-show", "Show command outputs JSON in piped mode");
+  });
+
+  it("search command outputs JSON in piped mode", async () => {
+    log("tty-search", "Testing search command in piped mode");
+
+    const { stdout, exitCode } = await runCli("search wizard");
+
+    expect(exitCode).toBe(0);
+
+    // Should be JSON array of search results
+    const result = parseJson<unknown[]>(stdout);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result)).toBe(true);
+
+    log("tty-search", "Search command outputs JSON in piped mode");
+  });
+
+  it("help command outputs JSON in piped mode", async () => {
+    log("tty-help", "Testing help command in piped mode");
+
+    const { stdout, exitCode } = await runCli("help");
+
+    expect(exitCode).toBe(0);
+
+    // Should be JSON with help structure
+    const result = parseJson<{ name: string; commands: Record<string, unknown> }>(stdout);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe("jfp");
+    expect(result!.commands).toBeDefined();
+
+    log("tty-help", "Help command outputs JSON in piped mode");
+  });
+
+  it("error output is JSON in piped mode", async () => {
+    log("tty-error", "Testing error output in piped mode");
+
+    const { stdout, exitCode } = await runCli("show nonexistent-prompt");
+
+    expect(exitCode).toBe(1);
+
+    // Error should be JSON
+    const result = parseJson<{ error: string; message?: string }>(stdout);
+    expect(result).not.toBeNull();
+    expect(result!.error).toBe("not_found");
+
+    log("tty-error", "Error output is JSON in piped mode");
+  });
+
+  it("categories command requires --json flag for JSON output", async () => {
+    log("tty-categories", "Testing categories command with --json flag");
+
+    // categories uses options.json directly, not shouldOutputJson
+    // So it requires explicit --json flag
+    const { stdout, exitCode } = await runCli("categories --json");
+
+    expect(exitCode).toBe(0);
+
+    // Should be JSON array of categories
+    const result = parseJson<{ name: string; count: number }[]>(stdout);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result!.length).toBeGreaterThan(0);
+
+    log("tty-categories", "Categories outputs JSON with --json flag");
+  });
+
+  it("tags command requires --json flag for JSON output", async () => {
+    log("tty-tags", "Testing tags command with --json flag");
+
+    // tags uses options.json directly, not shouldOutputJson
+    // So it requires explicit --json flag
+    const { stdout, exitCode } = await runCli("tags --json");
+
+    expect(exitCode).toBe(0);
+
+    // Should be JSON array of tags
+    const result = parseJson<{ name: string; count: number }[]>(stdout);
+    expect(result).not.toBeNull();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result!.length).toBeGreaterThan(0);
+
+    log("tty-tags", "Tags outputs JSON with --json flag");
+  });
+});
+
 describe("CLI E2E: Invalid Input and Edge Case Handling", () => {
   /**
    * Tests the CLI's handling of:
