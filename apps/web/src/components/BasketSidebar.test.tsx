@@ -3,7 +3,7 @@
  *
  * Tests rendering states (open/closed, empty/populated), user interactions
  * (close, remove item, clear basket), and export functionality.
- * Philosophy: NO mocks except clipboard API - test real component behavior.
+ * Philosophy: Minimal mocks - only URL object methods for download tests.
  *
  * @see @/components/BasketSidebar.tsx
  */
