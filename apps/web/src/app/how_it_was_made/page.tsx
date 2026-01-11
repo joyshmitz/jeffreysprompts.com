@@ -5,8 +5,11 @@ import { Clock, MessageSquare, Wrench, Code2, ArrowRight } from "lucide-react";
 import { StatsDashboard } from "@/components/transcript/stats-dashboard";
 import { TranscriptTimeline } from "@/components/transcript/timeline";
 import { InsightCard } from "@/components/transcript/insight-card";
+import { MultiModelFeedback } from "@/components/transcript/multi-model-feedback";
 import { getAnnotations, getAnnotationsByType } from "@/data/annotations";
 import type { ProcessedTranscript, TranscriptHighlight } from "@/lib/transcript/types";
+// Import the processed transcript data
+import processedTranscriptData from "@/data/processed-transcript.json";
 
 export const metadata: Metadata = {
   title: "How It Was Made | JeffreysPrompts.com",
@@ -19,71 +22,14 @@ export const metadata: Metadata = {
   },
 };
 
-// Placeholder transcript data until real transcript is available
-const placeholderTranscript: ProcessedTranscript = {
-  meta: {
-    sessionId: "placeholder-session",
-    startTime: "2026-01-10T00:00:00Z",
-    endTime: "2026-01-10T12:00:00Z",
-    duration: "12h",
-    model: "claude-opus-4-5-20251101",
-    stats: {
-      userMessages: 150,
-      assistantMessages: 320,
-      toolCalls: 1500,
-      filesEdited: 85,
-      linesWritten: 12000,
-      tokensUsed: 2500000,
-    },
-  },
-  sections: [
-    {
-      id: "planning",
-      title: "Project Planning",
-      summary: "Initial requirements gathering, architecture decisions, and technical planning",
-      startIndex: 0,
-      endIndex: 0,
-      tags: ["planning", "architecture"],
-    },
-    {
-      id: "setup",
-      title: "Project Setup",
-      summary: "Monorepo structure, dependencies, and tooling configuration",
-      startIndex: 0,
-      endIndex: 0,
-      tags: ["setup", "configuration"],
-    },
-    {
-      id: "core",
-      title: "Core Implementation",
-      summary: "TypeScript-native prompts registry, search engine, and export system",
-      startIndex: 0,
-      endIndex: 0,
-      tags: ["core", "typescript"],
-    },
-    {
-      id: "web",
-      title: "Web Application",
-      summary: "Next.js 16 app with React 19, Tailwind CSS 4, and shadcn/ui components",
-      startIndex: 0,
-      endIndex: 0,
-      tags: ["web", "nextjs", "react"],
-    },
-    {
-      id: "cli",
-      title: "CLI Development",
-      summary: "Agent-optimized command-line interface with JSON output and fuzzy search",
-      startIndex: 0,
-      endIndex: 0,
-      tags: ["cli", "agent-friendly"],
-    },
-  ],
-  messages: [],
+// Use the real processed transcript data
+const transcript: ProcessedTranscript = {
+  ...processedTranscriptData as unknown as ProcessedTranscript,
   highlights: getAnnotations(),
 };
 
 function HeroSection() {
-  const { stats, duration } = placeholderTranscript.meta;
+  const { stats, duration } = transcript.meta;
 
   return (
     <section className="relative overflow-hidden">
@@ -166,7 +112,7 @@ function StatsSection() {
       <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 text-center">
         Session Statistics
       </h2>
-      <StatsDashboard transcript={placeholderTranscript} />
+      <StatsDashboard transcript={transcript} />
     </section>
   );
 }
@@ -203,7 +149,7 @@ function InsightsSection() {
 }
 
 function TimelineSection() {
-  const { sections, messages } = placeholderTranscript;
+  const { sections, messages } = transcript;
 
   if (messages.length === 0) {
     return (
@@ -289,6 +235,7 @@ export default function HowItWasMadePage() {
       <HeroSection />
       <StatsSection />
       <IntroductionSection />
+      <MultiModelFeedback />
       <InsightsSection />
       <TimelineSection />
       <CTASection />

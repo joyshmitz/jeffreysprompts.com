@@ -23,28 +23,75 @@ import { type TranscriptHighlight } from "@/lib/transcript/types";
  * Keyed by message ID for O(1) lookup when rendering.
  */
 export const annotationsMap: Record<string, Omit<TranscriptHighlight, "messageId">> = {
-  // Example annotations - replace with real message IDs from transcript
-  // These serve as templates for the editorial commentary style
+  // Project Kickoff - The original prompt that started it all
+  "msg-0": {
+    type: "interesting_prompt",
+    annotation:
+      "The initial prompt that sparked the entire project - including the three 'favorite prompts' that would become the foundation of the site's content.",
+  },
 
-  // "msg-001": {
-  //   type: "key_decision",
-  //   annotation: "Chose TypeScript-native prompts over markdown files for type safety and IDE support.",
-  // },
+  // Key architectural decision - TypeScript-native prompts
+  "msg-15": {
+    type: "key_decision",
+    annotation:
+      "Chose TypeScript-native prompts over markdown files. This eliminates parsing, provides type safety, and enables IDE autocomplete for all prompt fields.",
+  },
 
-  // "msg-042": {
-  //   type: "interesting_prompt",
-  //   annotation: "Using 'ultrathink' combined with structured brainstorming produces higher quality ideas.",
-  // },
+  // BM25 Search Engine
+  "msg-91": {
+    type: "clever_solution",
+    annotation:
+      "Implemented custom BM25 search with weighted fields (title 3x, description 2x, tags 1.5x, content 1x). Much better relevance than simple text matching.",
+  },
 
-  // "msg-100": {
-  //   type: "clever_solution",
-  //   annotation: "BM25 search with weighted fields gives better results than simple text matching.",
-  // },
+  // CLI Design Philosophy
+  "msg-142": {
+    type: "key_decision",
+    annotation:
+      "Agent-first CLI design: JSON output by default when piped, token-dense quick-start mode (~100 tokens), and meaningful exit codes for programmatic parsing.",
+  },
 
-  // "msg-200": {
-  //   type: "lesson_learned",
-  //   annotation: "Always verify design system compatibility before copying components.",
-  // },
+  // Cursor tracking glow effect
+  "msg-295": {
+    type: "clever_solution",
+    annotation:
+      "PromptCard cursor-tracking glow effect using Framer Motion. Tracks mouse position to create a dynamic radial gradient that follows the cursor.",
+  },
+
+  // SpotlightSearch implementation
+  "msg-369": {
+    type: "key_decision",
+    annotation:
+      "SpotlightSearch (Cmd+K) as the primary discovery mechanism. Combines fuzzy search with recent history, category filtering, and keyboard navigation.",
+  },
+
+  // Skill manifest system
+  "msg-554": {
+    type: "clever_solution",
+    annotation:
+      "Skill manifest tracks installed prompts with SHA256 hashes. Detects user modifications to prevent accidental overwrites during updates.",
+  },
+
+  // Robot Mode philosophy
+  "msg-667": {
+    type: "lesson_learned",
+    annotation:
+      "The Robot-Mode Maker prompt in action: build tooling YOU would want to use. The CLI was designed by Claude, for Claude (and other agents).",
+  },
+
+  // Build process
+  "msg-798": {
+    type: "lesson_learned",
+    annotation:
+      "Single-file Bun binary compilation. The entire CLI compiles to one executable with no runtime dependencies - true portability.",
+  },
+
+  // Final polish
+  "msg-1100": {
+    type: "lesson_learned",
+    annotation:
+      "8 hours from first prompt to deployed site. The key was having clear patterns from brenner_bot to follow and systematic execution.",
+  },
 };
 
 /**
