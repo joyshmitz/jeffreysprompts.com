@@ -606,3 +606,282 @@ describe("CLI E2E: Skill Lifecycle", () => {
     log("uninstall-notfound", "Not found handled correctly");
   });
 });
+
+describe("CLI E2E: Project-local vs Personal Skill Installation", () => {
+  /**
+   * Tests skill installation to different locations:
+   * - Personal: ~/.config/claude/skills/ (default)
+   * - Project: .claude/skills/ (with --project flag)
+   *
+   * Verifies that:
+   * 1. Skills can be installed to both locations independently
+   * 2. The installed command shows correct location for each skill
+   * 3. Location filters (--personal, --project) work correctly
+   * 4. Uninstall respects the --project flag
+   */
+  const PERSONAL_SKILL_ID = "idea-wizard";
+  const PROJECT_SKILL_ID = "readme-reviser";
+  const PROJECT_DIR = "/tmp/jfp-e2e-project";
+  const FAKE_HOME = "/tmp/jfp-e2e-home";
+
+  // Custom runCli for project-local tests that sets CWD to project directory
+  async function runCliInProject(args: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    try {
+      const proc = Bun.spawn(["bun", `${PROJECT_ROOT}/jfp.ts`, ...args.split(" ")], {
+        cwd: PROJECT_DIR,
+        env: { ...process.env, HOME: FAKE_HOME },
+      });
+
+      const stdout = await new Response(proc.stdout).text();
+      const stderr = await new Response(proc.stderr).text();
+      const exitCode = await proc.exited;
+
+      return { stdout, stderr, exitCode };
+    } catch (error) {
+      return { stdout: "", stderr: String(error), exitCode: 1 };
+    }
+  }
+
+  it("Step 1: Setup project directory", async () => {
+    log("project-setup", `Creating project directory at ${PROJECT_DIR}`);
+
+    // Create project directory with .claude/skills structure
+    if (existsSync(PROJECT_DIR)) {
+      rmSync(PROJECT_DIR, { recursive: true });
+    }
+    mkdirSync(join(PROJECT_DIR, ".claude", "skills"), { recursive: true });
+
+    expect(existsSync(PROJECT_DIR)).toBe(true);
+    expect(existsSync(join(PROJECT_DIR, ".claude", "skills"))).toBe(true);
+
+    log("project-setup", "Project directory created");
+  });
+
+  it("Step 2: Install skill to personal location (default)", async () => {
+    log("personal-install", `Installing ${PERSONAL_SKILL_ID} to personal location`);
+
+    // Use runCli which sets HOME to FAKE_HOME
+    const { stdout, exitCode } = await runCli(`install ${PERSONAL_SKILL_ID} --json`);
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      success: boolean;
+      installed: string[];
+      targetDir: string;
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+    expect(result!.success).toBe(true);
+    expect(result!.installed).toContain(PERSONAL_SKILL_ID);
+    // Target should be personal location
+    expect(result!.targetDir).toContain(".config/claude/skills");
+
+    // Verify file exists
+    const skillPath = join(FAKE_HOME, ".config/claude/skills", PERSONAL_SKILL_ID, "SKILL.md");
+    expect(existsSync(skillPath)).toBe(true);
+
+    log("personal-install", `Installed to ${result!.targetDir}`);
+  });
+
+  it("Step 3: Install different skill to project location", async () => {
+    log("project-install", `Installing ${PROJECT_SKILL_ID} to project location with --project`);
+
+    // Use runCliInProject which runs from PROJECT_DIR
+    const { stdout, exitCode } = await runCliInProject(`install ${PROJECT_SKILL_ID} --project --json`);
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      success: boolean;
+      installed: string[];
+      targetDir: string;
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+    expect(result!.success).toBe(true);
+    expect(result!.installed).toContain(PROJECT_SKILL_ID);
+    // Target should be project-local location
+    expect(result!.targetDir).toContain(".claude/skills");
+    expect(result!.targetDir).not.toContain(".config");
+
+    // Verify file exists in project directory
+    const skillPath = join(PROJECT_DIR, ".claude/skills", PROJECT_SKILL_ID, "SKILL.md");
+    expect(existsSync(skillPath)).toBe(true);
+
+    log("project-install", `Installed to ${result!.targetDir}`);
+  });
+
+  it("Step 4: List all installed skills (both locations)", async () => {
+    log("list-all", "Listing all installed skills from both locations");
+
+    const { stdout, exitCode } = await runCliInProject("installed --json");
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      installed: Array<{ id: string; location: "personal" | "project" }>;
+      count: number;
+      locations: { personal: string | null; project: string | null };
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+    expect(result!.count).toBeGreaterThanOrEqual(2);
+
+    // Find our installed skills
+    const personalSkill = result!.installed.find(s => s.id === PERSONAL_SKILL_ID);
+    const projectSkill = result!.installed.find(s => s.id === PROJECT_SKILL_ID);
+
+    expect(personalSkill).toBeDefined();
+    expect(personalSkill!.location).toBe("personal");
+
+    expect(projectSkill).toBeDefined();
+    expect(projectSkill!.location).toBe("project");
+
+    // Both locations should be present
+    expect(result!.locations.personal).not.toBeNull();
+    expect(result!.locations.project).not.toBeNull();
+
+    log("list-all", `Found ${result!.count} skills across both locations`);
+  });
+
+  it("Step 5: List only personal skills with --personal flag", async () => {
+    log("list-personal", "Listing only personal skills with --personal flag");
+
+    const { stdout, exitCode } = await runCliInProject("installed --personal --json");
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      installed: Array<{ id: string; location: "personal" | "project" }>;
+      count: number;
+      locations: { personal: string | null; project: string | null };
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+
+    // All skills should be in personal location
+    for (const skill of result!.installed) {
+      expect(skill.location).toBe("personal");
+    }
+
+    // Should include our personal skill
+    const hasPersonalSkill = result!.installed.some(s => s.id === PERSONAL_SKILL_ID);
+    expect(hasPersonalSkill).toBe(true);
+
+    // Should NOT include the project skill
+    const hasProjectSkill = result!.installed.some(s => s.id === PROJECT_SKILL_ID);
+    expect(hasProjectSkill).toBe(false);
+
+    // Project location should be null
+    expect(result!.locations.project).toBeNull();
+
+    log("list-personal", `Found ${result!.count} personal skills`);
+  });
+
+  it("Step 6: List only project skills with --project flag", async () => {
+    log("list-project", "Listing only project skills with --project flag");
+
+    const { stdout, exitCode } = await runCliInProject("installed --project --json");
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      installed: Array<{ id: string; location: "personal" | "project" }>;
+      count: number;
+      locations: { personal: string | null; project: string | null };
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+
+    // All skills should be in project location
+    for (const skill of result!.installed) {
+      expect(skill.location).toBe("project");
+    }
+
+    // Should include our project skill
+    const hasProjectSkill = result!.installed.some(s => s.id === PROJECT_SKILL_ID);
+    expect(hasProjectSkill).toBe(true);
+
+    // Should NOT include the personal skill
+    const hasPersonalSkill = result!.installed.some(s => s.id === PERSONAL_SKILL_ID);
+    expect(hasPersonalSkill).toBe(false);
+
+    // Personal location should be null
+    expect(result!.locations.personal).toBeNull();
+
+    log("list-project", `Found ${result!.count} project skills`);
+  });
+
+  it("Step 7: Uninstall project skill with --project flag", async () => {
+    log("uninstall-project", `Uninstalling ${PROJECT_SKILL_ID} from project location`);
+
+    const { stdout, exitCode } = await runCliInProject(`uninstall ${PROJECT_SKILL_ID} --project --confirm --json`);
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      success: boolean;
+      removed: string[];
+      targetDir: string;
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+    expect(result!.success).toBe(true);
+    expect(result!.removed).toContain(PROJECT_SKILL_ID);
+
+    // Verify file is removed from project directory
+    const skillPath = join(PROJECT_DIR, ".claude/skills", PROJECT_SKILL_ID, "SKILL.md");
+    expect(existsSync(skillPath)).toBe(false);
+
+    log("uninstall-project", `Uninstalled from ${result!.targetDir}`);
+  });
+
+  it("Step 8: Verify personal skill still exists after project uninstall", async () => {
+    log("verify-personal", "Verifying personal skill is unaffected");
+
+    // Check installed --personal still shows our skill
+    const { stdout, exitCode } = await runCli("installed --personal --json");
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      installed: Array<{ id: string; location: string }>;
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+
+    const hasPersonalSkill = result!.installed.some(s => s.id === PERSONAL_SKILL_ID);
+    expect(hasPersonalSkill).toBe(true);
+
+    // Verify file still exists
+    const skillPath = join(FAKE_HOME, ".config/claude/skills", PERSONAL_SKILL_ID, "SKILL.md");
+    expect(existsSync(skillPath)).toBe(true);
+
+    log("verify-personal", "Personal skill confirmed intact");
+  });
+
+  it("Step 9: Cleanup - uninstall personal skill", async () => {
+    log("cleanup", `Cleaning up - uninstalling ${PERSONAL_SKILL_ID} from personal`);
+
+    const { stdout, exitCode } = await runCli(`uninstall ${PERSONAL_SKILL_ID} --confirm --json`);
+
+    expect(exitCode).toBe(0);
+
+    const result = parseJson<{
+      success: boolean;
+      removed: string[];
+    }>(stdout);
+
+    expect(result).not.toBeNull();
+    expect(result!.success).toBe(true);
+    expect(result!.removed).toContain(PERSONAL_SKILL_ID);
+
+    // Cleanup project directory
+    if (existsSync(PROJECT_DIR)) {
+      rmSync(PROJECT_DIR, { recursive: true });
+    }
+
+    log("cleanup", "All test skills uninstalled and project directory removed");
+  });
+});
