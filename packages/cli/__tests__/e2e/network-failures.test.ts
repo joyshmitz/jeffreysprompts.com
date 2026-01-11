@@ -145,7 +145,9 @@ describe("CLI Network Failure E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const prompts = JSON.parse(result.stdout);
+      const output = JSON.parse(result.stdout);
+      // list command now returns {"prompts":[...],"count":N}
+      const prompts = output.prompts;
       expect(Array.isArray(prompts)).toBe(true);
       expect(prompts.length).toBeGreaterThan(0);
 
@@ -186,7 +188,9 @@ describe("CLI Network Failure E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const results = JSON.parse(result.stdout);
+      const output = JSON.parse(result.stdout);
+      // search command now returns {"results":[...],"query":...}
+      const results = output.results;
       expect(Array.isArray(results)).toBe(true);
 
       logger.info("Search result", {
@@ -309,7 +313,8 @@ describe("CLI Network Failure E2E", () => {
       });
       expect(listResult.success).toBe(true);
 
-      const allPrompts = JSON.parse(listResult.stdout);
+      const listOutput = JSON.parse(listResult.stdout);
+      const allPrompts = listOutput.prompts;
       expect(allPrompts.length).toBeGreaterThan(0);
       logger.info("Found prompts", { count: allPrompts.length });
 
@@ -323,7 +328,8 @@ describe("CLI Network Failure E2E", () => {
       });
       expect(searchResult.success).toBe(true);
 
-      const searchResults = JSON.parse(searchResult.stdout);
+      const searchOutput = JSON.parse(searchResult.stdout);
+      const searchResults = searchOutput.results;
       expect(searchResults.length).toBeGreaterThan(0);
       logger.info("Search results", { count: searchResults.length });
 

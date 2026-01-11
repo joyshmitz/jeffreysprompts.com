@@ -122,7 +122,8 @@ describe("collectionsCommand - not logged in", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("not_authenticated");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_authenticated");
     expect(parsed.hint).toContain("login");
     expect(exitCode).toBe(1);
   });
@@ -159,7 +160,8 @@ describe("collectionsCommand - free tier", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("premium_required");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("premium_required");
     expect(exitCode).toBe(1);
   });
 
@@ -218,10 +220,10 @@ describe("collectionsCommand - premium tier", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.length).toBe(2);
-    expect(parsed[0].name).toBe("My Favorites");
-    expect(parsed[1].name).toBe("Work Prompts");
+    expect(Array.isArray(parsed.collections)).toBe(true);
+    expect(parsed.collections.length).toBe(2);
+    expect(parsed.collections[0].name).toBe("My Favorites");
+    expect(parsed.collections[1].name).toBe("Work Prompts");
     expect(exitCode).toBeUndefined();
   });
 
@@ -243,8 +245,8 @@ describe("collectionsCommand - premium tier", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.length).toBe(0);
+    expect(Array.isArray(parsed.collections)).toBe(true);
+    expect(parsed.collections.length).toBe(0);
   });
 
   it("handles API error", async () => {
@@ -269,7 +271,8 @@ describe("collectionsCommand - premium tier", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("api_error");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("api_error");
     expect(exitCode).toBe(1);
   });
 
@@ -295,7 +298,8 @@ describe("collectionsCommand - premium tier", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("auth_expired");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("auth_expired");
     expect(exitCode).toBe(1);
   });
 });
@@ -345,9 +349,9 @@ describe("collectionShowCommand - show collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.name).toBe("My Favorites");
-    expect(parsed.prompts.length).toBe(2);
-    expect(parsed.prompts[0].id).toBe("idea-wizard");
+    expect(parsed.collection.name).toBe("My Favorites");
+    expect(parsed.items.length).toBe(2);
+    expect(parsed.items[0].id).toBe("idea-wizard");
     expect(exitCode).toBeUndefined();
   });
 
@@ -373,7 +377,8 @@ describe("collectionShowCommand - show collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("not_found");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_found");
     expect(exitCode).toBe(1);
   });
 });
@@ -400,8 +405,8 @@ describe("collectionShowCommand - add to collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
-    expect(parsed.promptId).toBe("idea-wizard");
+    expect(parsed.added).toBe(true);
+    expect(parsed.prompt_id).toBe("idea-wizard");
     expect(exitCode).toBeUndefined();
   });
 
@@ -418,7 +423,8 @@ describe("collectionShowCommand - add to collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("not_found");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_found");
     expect(parsed.message).toContain("nonexistent-prompt");
     expect(exitCode).toBe(1);
   });
@@ -441,8 +447,8 @@ describe("collectionShowCommand - add to collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
-    expect(parsed.alreadyExists).toBe(true);
+    expect(parsed.added).toBe(false);
+    expect(parsed.already_exists).toBe(true);
     expect(exitCode).toBeUndefined();
   });
 
@@ -468,7 +474,8 @@ describe("collectionShowCommand - add to collection", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.error).toBe("not_found");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_found");
     expect(exitCode).toBe(1);
   });
 });

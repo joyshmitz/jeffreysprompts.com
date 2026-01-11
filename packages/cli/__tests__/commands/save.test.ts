@@ -115,8 +115,8 @@ describe("saveCommand - prompt validation", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("not_found");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_found");
     expect(exitCode).toBe(1);
   });
 });
@@ -143,8 +143,8 @@ describe("saveCommand - authentication checks", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("not_authenticated");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_authenticated");
     expect(parsed.hint).toContain("jfp login");
     expect(exitCode).toBe(1);
   });
@@ -173,8 +173,8 @@ describe("saveCommand - tier checks", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("requires_premium");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("requires_premium");
     expect(parsed.tier).toBe("free");
     expect(exitCode).toBe(1);
   });
@@ -207,7 +207,6 @@ describe("saveCommand - API integration", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
     expect(parsed.saved).toBe(true);
     expect(parsed.prompt_id).toBe("idea-wizard");
   });
@@ -230,7 +229,6 @@ describe("saveCommand - API integration", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
     expect(parsed.already_saved).toBe(true);
     // Should not exit with error
   });
@@ -263,8 +261,8 @@ describe("saveCommand - API integration", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("session_expired");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("session_expired");
     expect(exitCode).toBe(1);
   });
 
@@ -296,8 +294,8 @@ describe("saveCommand - API integration", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("requires_premium");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("requires_premium");
     expect(exitCode).toBe(1);
   });
 
@@ -322,8 +320,8 @@ describe("saveCommand - API integration", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("save_failed");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("save_failed");
     expect(exitCode).toBe(1);
   });
 });

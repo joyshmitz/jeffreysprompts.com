@@ -247,8 +247,9 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.exitCode).toBe(1);
 
       const output = JSON.parse(result.stdout);
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("not_authenticated");
       expect(output.authenticated).toBe(false);
-      expect(output.message).toContain("Not logged in");
 
       logger.info("Result", output);
       logger.summary();
@@ -317,6 +318,8 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.exitCode).toBe(1);
 
       const output = JSON.parse(result.stdout);
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("session_expired");
       expect(output.authenticated).toBe(false);
       expect(output.expired).toBe(true);
 
@@ -378,7 +381,7 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.success).toBe(true);
 
       const output = JSON.parse(result.stdout);
-      expect(output.success).toBe(true);
+      expect(output.logged_out).toBe(true);
       expect(output.message).toContain("Not logged in");
 
       logger.summary();
@@ -410,7 +413,7 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.success).toBe(true);
 
       const output = JSON.parse(result.stdout);
-      expect(output.success).toBe(true);
+      expect(output.logged_out).toBe(true);
       expect(output.message).toContain(TEST_CREDENTIALS.email);
 
       logger.step("Verifying credentials cleared");
@@ -442,8 +445,8 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.success).toBe(false);
 
       const output = JSON.parse(result.stdout);
-      expect(output.success).toBe(false);
-      expect(output.error).toBe("env_token");
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("env_token");
 
       logger.summary();
     });
@@ -474,8 +477,8 @@ describe("CLI Authentication Flow E2E", () => {
 
       logger.step("Validating output");
       const output = JSON.parse(result.stdout);
-      expect(output.success).toBe(false);
-      expect(output.error).toBe("already_logged_in");
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("already_logged_in");
       expect(output.email).toBe(TEST_CREDENTIALS.email);
 
       logger.info("Already logged in response", output);
@@ -505,8 +508,8 @@ describe("CLI Authentication Flow E2E", () => {
       expect(result.success).toBe(false);
 
       const output = JSON.parse(result.stdout);
-      expect(output.success).toBe(false);
-      expect(output.error).toBe("network_error");
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("network_error");
 
       logger.info("Network error handled", output);
       logger.summary();
@@ -568,7 +571,7 @@ describe("CLI Authentication Flow E2E", () => {
       });
       expect(logout.success).toBe(true);
       const logoutOutput = JSON.parse(logout.stdout);
-      expect(logoutOutput.success).toBe(true);
+      expect(logoutOutput.logged_out).toBe(true);
       logger.info("Logout result", logoutOutput);
 
       // Step 5: Verify logged out
@@ -654,6 +657,8 @@ describe("CLI Authentication Flow E2E", () => {
       logger.step("Validating graceful handling");
       expect(result.success).toBe(false);
       const output = JSON.parse(result.stdout);
+      expect(output.error).toBe(true);
+      expect(output.code).toBe("not_authenticated");
       expect(output.authenticated).toBe(false);
 
       logger.info("Corrupt credentials handled gracefully", output);

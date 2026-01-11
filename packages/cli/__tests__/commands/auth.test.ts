@@ -128,9 +128,10 @@ describe("whoamiCommand", () => {
     process.exit = originalExit;
 
     const output = consoleOutput.join("\n");
-    expect(output).toContain("authenticated");
-    expect(output).toContain("false");
-    expect(output).toContain("Not logged in");
+    const parsed = JSON.parse(output);
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("not_authenticated");
+    expect(parsed.authenticated).toBe(false);
     expect(exitCode).toBe(1);
   });
 
@@ -146,6 +147,7 @@ describe("whoamiCommand", () => {
     expect(parsed.authenticated).toBe(true);
     expect(parsed.email).toBe("user@example.com");
     expect(parsed.tier).toBe("premium");
+    expect(parsed.user_id).toBeDefined();
     expect(parsed.expired).toBe(false);
   });
 
@@ -172,6 +174,8 @@ describe("whoamiCommand", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("session_expired");
     expect(parsed.authenticated).toBe(false);
     expect(parsed.expired).toBe(true);
     expect(exitCode).toBe(1);
@@ -205,7 +209,7 @@ describe("logoutCommand", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
+    expect(parsed.logged_out).toBe(true);
     expect(parsed.message).toContain("Not logged in");
   });
 
@@ -221,8 +225,8 @@ describe("logoutCommand", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
-    expect(parsed.message).toContain("user@example.com");
+    expect(parsed.logged_out).toBe(true);
+    expect(parsed.email).toBe("user@example.com");
 
     // Verify credentials are cleared
     expect(existsSync(getCredentialsPath())).toBe(false);
@@ -251,8 +255,8 @@ describe("logoutCommand", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("env_token");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("env_token");
     expect(exitCode).toBe(1);
   });
 
@@ -278,7 +282,7 @@ describe("logoutCommand", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(true);
+    expect(parsed.logged_out).toBe(true);
     expect(parsed.revoked).toBe(true);
   });
 });

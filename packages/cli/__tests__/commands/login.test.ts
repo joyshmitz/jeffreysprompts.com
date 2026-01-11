@@ -112,20 +112,22 @@ describe("loginCommand - already logged in", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("already_logged_in");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("already_logged_in");
     expect(parsed.email).toBe("existing@example.com");
   });
 
-  it("shows already logged in message in human-readable format", async () => {
+  it("shows already logged in message (JSON in non-TTY)", async () => {
     createCredentialsFile({ email: "existing@example.com" });
     const { loginCommand } = await import("../../src/commands/login");
 
     await loginCommand({});
 
+    // In non-TTY environments, outputs JSON
     const output = consoleOutput.join("\n");
-    expect(output).toContain("already logged in");
-    expect(output).toContain("existing@example.com");
+    const parsed = JSON.parse(output);
+    expect(parsed.code || parsed.error).toBe("already_logged_in");
+    expect(parsed.email).toBe("existing@example.com");
   });
 });
 
@@ -153,8 +155,8 @@ describe("Device Code Flow - network error", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("network_error");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("network_error");
     expect(exitCode).toBe(1);
   });
 });
@@ -185,8 +187,8 @@ describe("Device Code Flow - server error", () => {
     const output = consoleOutput.join("\n");
     const parsed = JSON.parse(output);
 
-    expect(parsed.success).toBe(false);
-    expect(parsed.error).toBe("device_code_failed");
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("device_code_failed");
     expect(exitCode).toBe(1);
   });
 });

@@ -45,7 +45,10 @@ const PROMPT_OPTIONAL_KEYS = [
 ];
 
 const PROMPT_ALLOWED_KEYS = new Set([...PROMPT_REQUIRED_KEYS, ...PROMPT_OPTIONAL_KEYS]);
-const SEARCH_RESULT_KEYS = ["prompt", "score", "matchedFields"];
+// Search result now has flat structure with these keys
+const SEARCH_RESULT_REQUIRED_KEYS = ["id", "title", "description", "category", "score", "source"];
+const SEARCH_RESULT_OPTIONAL_KEYS = ["tags", "matchedFields"];
+const SEARCH_RESULT_ALLOWED_KEYS = new Set([...SEARCH_RESULT_REQUIRED_KEYS, ...SEARCH_RESULT_OPTIONAL_KEYS]);
 
 const expectPromptSchema = (prompt: Record<string, unknown>) => {
   for (const key of PROMPT_REQUIRED_KEYS) {
@@ -58,15 +61,16 @@ const expectPromptSchema = (prompt: Record<string, unknown>) => {
 };
 
 const expectSearchResultSchema = (result: Record<string, unknown>) => {
-  expect(Object.keys(result).sort()).toEqual([...SEARCH_RESULT_KEYS].sort());
-  expect(typeof result.score).toBe("number");
-  expect(Array.isArray(result.matchedFields)).toBe(true);
-
-  const prompt = result.prompt as Record<string, unknown> | undefined;
-  expect(prompt).toBeDefined();
-  if (prompt) {
-    expectPromptSchema(prompt);
+  // Check required fields exist
+  for (const key of SEARCH_RESULT_REQUIRED_KEYS) {
+    expect(result).toHaveProperty(key);
   }
+  // Check all fields are allowed
+  for (const key of Object.keys(result)) {
+    expect(SEARCH_RESULT_ALLOWED_KEYS.has(key)).toBe(true);
+  }
+  expect(typeof result.score).toBe("number");
+  expect(typeof result.source).toBe("string");
 };
 
 describe("CLI Discovery Flow E2E", () => {
@@ -100,20 +104,24 @@ describe("CLI Discovery Flow E2E", () => {
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);
 
-      const prompts = JSON.parse(result.stdout);
-      expect(Array.isArray(prompts)).toBe(true);
-      expect(prompts.length).toBeGreaterThan(0);
+      const response = JSON.parse(result.stdout);
+      // List now returns { prompts: [...], count: N }
+      expect(response).toHaveProperty("prompts");
+      expect(response).toHaveProperty("count");
+      expect(Array.isArray(response.prompts)).toBe(true);
+      expect(response.prompts.length).toBeGreaterThan(0);
+      expect(response.count).toBe(response.prompts.length);
 
-      logger.info("Prompt count", { count: prompts.length });
+      logger.info("Prompt count", { count: response.count });
 
       // Verify expected prompts exist
-      const ids = prompts.map((p: { id: string }) => p.id);
+      const ids = response.prompts.map((p: { id: string }) => p.id);
       expect(ids).toContain("idea-wizard");
       expect(ids).toContain("readme-reviser");
       expect(ids).toContain("robot-mode-maker");
 
       logger.step("Validating schema");
-      for (const prompt of prompts) {
+      for (const prompt of response.prompts) {
         expectPromptSchema(prompt);
         expect(Array.isArray(prompt.tags)).toBe(true);
       }
@@ -137,11 +145,11 @@ describe("CLI Discovery Flow E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const prompts = JSON.parse(result.stdout);
-      expect(prompts.length).toBeGreaterThan(0);
+      const response = JSON.parse(result.stdout);
+      expect(response.prompts.length).toBeGreaterThan(0);
 
       logger.step("Verifying all results are in ideation category");
-      for (const prompt of prompts) {
+      for (const prompt of response.prompts) {
         expect(prompt.category).toBe("ideation");
       }
 
@@ -164,11 +172,11 @@ describe("CLI Discovery Flow E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const prompts = JSON.parse(result.stdout);
-      expect(prompts.length).toBeGreaterThan(0);
+      const response = JSON.parse(result.stdout);
+      expect(response.prompts.length).toBeGreaterThan(0);
 
       logger.step("Verifying all results have ultrathink tag");
-      for (const prompt of prompts) {
+      for (const prompt of response.prompts) {
         expect(prompt.tags).toContain("ultrathink");
       }
 
@@ -193,22 +201,25 @@ describe("CLI Discovery Flow E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const results = JSON.parse(result.stdout);
-      expect(results.length).toBeGreaterThan(0);
+      // Search now returns { results: [...], query: string, authenticated: boolean }
+      const response = JSON.parse(result.stdout);
+      expect(response).toHaveProperty("results");
+      expect(response).toHaveProperty("query");
+      expect(response.results.length).toBeGreaterThan(0);
 
       logger.step("Validating search results");
-      // idea-wizard should be in results
-      const hasWizard = results.some(
-        (r: { prompt: { id: string } }) => r.prompt.id === "idea-wizard"
+      // idea-wizard should be in results (now flat structure with id directly on result)
+      const hasWizard = response.results.some(
+        (r: { id: string }) => r.id === "idea-wizard"
       );
       expect(hasWizard).toBe(true);
 
-      // Check search result schema
-      const firstResult = results[0];
+      // Check search result schema (flat structure)
+      const firstResult = response.results[0];
       expectSearchResultSchema(firstResult);
 
       logger.info("Top result", {
-        id: firstResult.prompt.id,
+        id: firstResult.id,
         score: firstResult.score,
         matchedFields: firstResult.matchedFields,
       });
@@ -232,8 +243,8 @@ describe("CLI Discovery Flow E2E", () => {
 
       expect(result.success).toBe(true);
 
-      const results = JSON.parse(result.stdout);
-      expect(results).toEqual([]);
+      const response = JSON.parse(result.stdout);
+      expect(response.results).toEqual([]);
 
       logger.summary();
     });
@@ -385,8 +396,8 @@ describe("CLI Discovery Flow E2E", () => {
       });
       expect(listResult.success).toBe(true);
 
-      const allPrompts = JSON.parse(listResult.stdout);
-      logger.info("Found prompts", { count: allPrompts.length });
+      const listResponse = JSON.parse(listResult.stdout);
+      logger.info("Found prompts", { count: listResponse.count });
 
       // Step 2: Search for specific content
       logger.step("Search for documentation prompts");
@@ -397,12 +408,12 @@ describe("CLI Discovery Flow E2E", () => {
       });
       expect(searchResult.success).toBe(true);
 
-      const searchResults = JSON.parse(searchResult.stdout);
-      expect(searchResults.length).toBeGreaterThan(0);
-      logger.info("Search results", { count: searchResults.length });
+      const searchResponse = JSON.parse(searchResult.stdout);
+      expect(searchResponse.results.length).toBeGreaterThan(0);
+      logger.info("Search results", { count: searchResponse.results.length });
 
-      // Step 3: Show the top result
-      const topResultId = searchResults[0].prompt.id;
+      // Step 3: Show the top result (now flat structure with id directly on result)
+      const topResultId = searchResponse.results[0].id;
       logger.step(`Show details for ${topResultId}`);
       const showResult = await spawnCli({
         cmd: ["bun", "run", "jfp.ts", "show", topResultId, "--json"],
