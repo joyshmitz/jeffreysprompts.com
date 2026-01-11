@@ -134,7 +134,8 @@ describe("TestLogger", () => {
         consoleOutput: false,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Wait 60ms and expect at least 50ms to account for timer precision
+      await new Promise((resolve) => setTimeout(resolve, 60));
 
       expect(logger.getDuration()).toBeGreaterThanOrEqual(50);
     });
