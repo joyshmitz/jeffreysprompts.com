@@ -46,14 +46,18 @@ describe("CLI (jfp)", () => {
   });
 
   it("should show a prompt", async () => {
-    const { stdout, stderr, exitCode } = await runJfp(["show", "idea-wizard"]);
-    if (stdout.startsWith("{")) {
-        console.log("DEBUG STDERR:", stderr);
-        console.log("DEBUG STDOUT:", stdout);
-    }
+    const { stdout, exitCode } = await runJfp(["show", "idea-wizard"]);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("The Idea Wizard");
-    expect(stdout).toContain("Category: ideation");
+    // In non-TTY mode (piped), CLI outputs JSON
+    if (stdout.startsWith("{")) {
+      const data = JSON.parse(stdout);
+      expect(data.title).toBe("The Idea Wizard");
+      expect(data.category).toBe("ideation");
+    } else {
+      // TTY mode outputs formatted text
+      expect(stdout).toContain("The Idea Wizard");
+      expect(stdout).toContain("Category: ideation");
+    }
   });
 
   it("should fail showing non-existent prompt", async () => {
@@ -84,8 +88,10 @@ describe("CLI (jfp)", () => {
      const { stdout, exitCode } = await runJfp(["list", "--json"]);
      expect(exitCode).toBe(0);
      const data = JSON.parse(stdout);
-     expect(Array.isArray(data)).toBe(true);
-     expect(data[0]).toHaveProperty("id");
+     // list --json outputs { prompts: [...], count: N }
+     expect(data).toHaveProperty("prompts");
+     expect(Array.isArray(data.prompts)).toBe(true);
+     expect(data.prompts[0]).toHaveProperty("id");
   });
 
   it("should install a prompt to a custom project directory", async () => {
