@@ -232,9 +232,17 @@ export async function isLoggedIn(): Promise<boolean> {
 
 /**
  * Get current user info if logged in
- * Note: Does NOT auto-refresh. Use getAccessToken() for that.
+ * Triggers auto-refresh if token is expired but refresh token is available.
+ * Returns null if:
+ * - Not logged in
+ * - Using JFP_TOKEN env var (no user info available)
+ * - Refresh failed and credentials are expired
  */
 export async function getCurrentUser(): Promise<{ email: string; tier: string; userId: string } | null> {
+  // Trigger auto-refresh if needed (this may update the credentials file)
+  await getAccessToken();
+
+  // Load credentials (possibly refreshed)
   const creds = await loadCredentials();
   if (!creds || isExpired(creds)) {
     return null;

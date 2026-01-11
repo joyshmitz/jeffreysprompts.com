@@ -269,10 +269,11 @@ describe("getAccessToken", () => {
     expect(token).toBe(validCredentials.access_token);
   });
 
-  it("returns null for expired credentials", async () => {
+  it("returns null for expired credentials without refresh token", async () => {
     const expiredCreds = {
       ...validCredentials,
       expires_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
+      refresh_token: undefined, // Explicitly no refresh token - no network call
     };
     await credentials.saveCredentials(expiredCreds);
 
@@ -309,10 +310,11 @@ describe("isLoggedIn", () => {
     expect(result).toBe(true);
   });
 
-  it("returns false when credentials are expired", async () => {
+  it("returns false when credentials are expired without refresh token", async () => {
     const expiredCreds = {
       ...validCredentials,
       expires_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      refresh_token: undefined, // Explicitly no refresh token - no network call
     };
     await credentials.saveCredentials(expiredCreds);
 
@@ -344,10 +346,11 @@ describe("getCurrentUser", () => {
     expect(user!.userId).toBe(validCredentials.user_id);
   });
 
-  it("returns null when credentials are expired", async () => {
+  it("returns null when credentials are expired without refresh token", async () => {
     const expiredCreds = {
       ...validCredentials,
       expires_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      refresh_token: undefined, // Explicitly no refresh token - no network call
     };
     await credentials.saveCredentials(expiredCreds);
 
