@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  # Run all tests before building release artifacts
+  # Run all quality gates before building release artifacts
   pre-release-tests:
     name: Pre-Release Tests
     runs-on: ubuntu-latest
@@ -20,14 +20,40 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Run unit tests
-        run: bun run test && bun run test:cli
+
+      # Lint gates
+      - name: ESLint
+        run: bun run lint
+      - name: Oxlint
+        run: bun run --cwd apps/web lint:ox
+
+      # Data validation gate
+      - name: Validate prompts
+        run: bun run validate
+
+      # Type safety gate
+      - name: Core typecheck
+        run: bun run --cwd packages/core typecheck
+      - name: CLI typecheck
+        run: bun run --cwd packages/cli typecheck
+
+      # Unit test gates
+      - name: Run web tests
+        run: bun run test
+      - name: Run CLI tests
+        run: bun run test:cli
+
+      # Build verification gate
+      - name: Verify web build
+        run: bun run build
+
+      # E2E test gates
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
-      - name: Run E2E tests
-        run: bun run test:e2e:cli && bun run test:e2e:web
-      - name: Run typecheck
-        run: bun run --cwd packages/core typecheck && bun run --cwd packages/cli typecheck
+      - name: Run CLI E2E tests
+        run: bun run test:e2e:cli
+      - name: Run Web E2E tests
+        run: bun run test:e2e:web
 
   build:
     name: Build (${{ matrix.target }})
