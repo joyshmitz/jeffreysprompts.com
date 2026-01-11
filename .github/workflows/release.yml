@@ -104,12 +104,68 @@ jobs:
             chmod +x ${{ matrix.artifact }}
           fi
 
-      - name: Verify binary
+      - name: Smoke test binary
         shell: bash
         run: |
-          if [[ "${{ matrix.target }}" != *"arm"* ]] && [[ "${{ runner.os }}" != "Windows" ]]; then
-            ./${{ matrix.artifact }} --help
+          # Skip smoke tests for cross-compiled binaries (arm64 on x64 runners)
+          if [[ "${{ matrix.target }}" == *"arm"* ]]; then
+            echo "Skipping smoke tests for cross-compiled arm64 binary"
+            exit 0
           fi
+
+          BINARY="./${{ matrix.artifact }}"
+
+          echo "=== Smoke Test: Basic invocation ==="
+          $BINARY --help
+          echo "✓ --help works"
+
+          echo ""
+          echo "=== Smoke Test: Version check ==="
+          $BINARY --version
+          echo "✓ --version works"
+
+          echo ""
+          echo "=== Smoke Test: List prompts (JSON) ==="
+          OUTPUT=$($BINARY list --json)
+          if echo "$OUTPUT" | head -1 | grep -q '^\['; then
+            echo "✓ list --json returns JSON array"
+          else
+            echo "✗ list --json failed"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== Smoke Test: Show prompt (JSON) ==="
+          OUTPUT=$($BINARY show idea-wizard --json)
+          if echo "$OUTPUT" | grep -q '"id": "idea-wizard"'; then
+            echo "✓ show idea-wizard --json returns correct prompt"
+          else
+            echo "✗ show idea-wizard --json failed"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== Smoke Test: Search prompts (JSON) ==="
+          OUTPUT=$($BINARY search wizard --json)
+          if echo "$OUTPUT" | head -1 | grep -q '^\['; then
+            echo "✓ search wizard --json returns JSON array"
+          else
+            echo "✗ search wizard --json failed"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== Smoke Test: Categories (JSON) ==="
+          OUTPUT=$($BINARY categories --json)
+          if echo "$OUTPUT" | head -1 | grep -q '^\['; then
+            echo "✓ categories --json returns JSON array"
+          else
+            echo "✗ categories --json failed"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== All smoke tests passed! ==="
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
