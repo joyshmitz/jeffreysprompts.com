@@ -1,0 +1,218 @@
+/**
+ * Authentication Commands: logout and whoami
+ *
+ * logout - Clear stored credentials and optionally revoke token on server
+ * whoami - Show current user info (email, tier, token expiry)
+ */
+
+import chalk from "chalk";
+import boxen from "boxen";
+import {
+  loadCredentials,
+  clearCredentials,
+  isExpired,
+  getAccessToken,
+  type Credentials,
+} from "../lib/credentials";
+import { apiClient } from "../lib/api-client";
+import { shouldOutputJson } from "../lib/utils";
+
+interface AuthCommandOptions {
+  json?: boolean;
+}
+
+interface LogoutOptions extends AuthCommandOptions {
+  revoke?: boolean;
+}
+
+/**
+ * Show current user information
+ */
+export async function whoamiCommand(options: AuthCommandOptions = {}): Promise<void> {
+  // Check for env var token first
+  const envToken = process.env.JFP_TOKEN;
+  if (envToken) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({
+          authenticated: true,
+          source: "environment",
+          message: "Authenticated via JFP_TOKEN environment variable",
+          note: "User details not available with token-based auth",
+        })
+      );
+    } else {
+      console.log(chalk.green("Authenticated via JFP_TOKEN environment variable"));
+      console.log(chalk.dim("User details not available with token-based auth"));
+    }
+    return;
+  }
+
+  // Load credentials from file
+  const creds = await loadCredentials();
+
+  if (!creds) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({
+          authenticated: false,
+          message: "Not logged in",
+        })
+      );
+    } else {
+      console.log(chalk.yellow("Not logged in"));
+      console.log(chalk.dim("Run 'jfp login' to sign in to JeffreysPrompts Premium"));
+    }
+    process.exit(1);
+  }
+
+  // Check if token is expired
+  const expired = isExpired(creds);
+  const expiresAt = new Date(creds.expires_at);
+  const expiresIn = expired ? "expired" : formatTimeUntil(expiresAt);
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify({
+        authenticated: !expired,
+        email: creds.email,
+        tier: creds.tier,
+        userId: creds.user_id,
+        expiresAt: creds.expires_at,
+        expiresIn: expired ? null : Math.floor((expiresAt.getTime() - Date.now()) / 1000),
+        expired,
+        source: "credentials_file",
+      })
+    );
+
+    if (expired) {
+      process.exit(1);
+    }
+    return;
+  }
+
+  // Human-readable output
+  if (expired) {
+    console.log(chalk.yellow("Session expired"));
+    console.log(chalk.dim(`  Email: ${creds.email}`));
+    console.log(chalk.dim(`  Tier:  ${creds.tier}`));
+    console.log(chalk.red(`  Token expired at ${expiresAt.toLocaleString()}`));
+    console.log(chalk.dim("\nRun 'jfp login' to sign in again"));
+    process.exit(1);
+  }
+
+  console.log(
+    boxen(
+      chalk.green("Logged in\n\n") +
+        `${chalk.dim("Email:")} ${chalk.bold(creds.email)}\n` +
+        `${chalk.dim("Tier:")}  ${chalk.cyan(creds.tier)}\n` +
+        `${chalk.dim("Expires:")} ${expiresIn}`,
+      {
+        padding: 1,
+        borderStyle: "round",
+        borderColor: "green",
+      }
+    )
+  );
+}
+
+/**
+ * Log out: clear credentials and optionally revoke token
+ */
+export async function logoutCommand(options: LogoutOptions = {}): Promise<void> {
+  // Check if logged in via env var
+  const envToken = process.env.JFP_TOKEN;
+  if (envToken) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({
+          success: false,
+          error: "env_token",
+          message: "Cannot logout when using JFP_TOKEN environment variable",
+          hint: "Unset the JFP_TOKEN environment variable to logout",
+        })
+      );
+    } else {
+      console.log(chalk.yellow("Cannot logout when using JFP_TOKEN environment variable"));
+      console.log(chalk.dim("Unset the JFP_TOKEN environment variable to logout"));
+    }
+    process.exit(1);
+  }
+
+  // Load credentials to check if logged in
+  const creds = await loadCredentials();
+
+  if (!creds) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({
+          success: true,
+          message: "Not logged in (nothing to do)",
+        })
+      );
+    } else {
+      console.log(chalk.dim("Not logged in (nothing to do)"));
+    }
+    return;
+  }
+
+  const email = creds.email;
+
+  // Optionally revoke token on server
+  if (options.revoke) {
+    if (!shouldOutputJson(options)) {
+      console.log(chalk.dim("Revoking token on server..."));
+    }
+
+    try {
+      const response = await apiClient.post("/cli/revoke");
+      if (!response.ok) {
+        // Log warning but continue with local logout
+        if (!shouldOutputJson(options)) {
+          console.log(chalk.yellow(`Warning: Could not revoke token on server (${response.error})`));
+        }
+      }
+    } catch {
+      // Network error - continue with local logout
+      if (!shouldOutputJson(options)) {
+        console.log(chalk.yellow("Warning: Could not reach server to revoke token"));
+      }
+    }
+  }
+
+  // Clear local credentials
+  await clearCredentials();
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify({
+        success: true,
+        message: `Logged out from ${email}`,
+        revoked: options.revoke ?? false,
+      })
+    );
+  } else {
+    console.log(chalk.green(`Logged out from ${email}`));
+    if (options.revoke) {
+      console.log(chalk.dim("Token revoked on server"));
+    }
+  }
+}
+
+/**
+ * Format time until expiry in human-readable form
+ */
+function formatTimeUntil(date: Date): string {
+  const diff = date.getTime() - Date.now();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) {
+    return `${days} day${days === 1 ? "" : "s"}, ${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+  if (hours > 0) {
+    return `${hours} hour${hours === 1 ? "" : "s"}, ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  }
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}

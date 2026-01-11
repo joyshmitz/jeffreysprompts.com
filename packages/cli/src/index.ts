@@ -26,6 +26,7 @@ import { helpCommand } from "./commands/help";
 import { serveCommand } from "./commands/serve";
 import { updateCliCommand } from "./commands/update-cli";
 import { loginCommand } from "./commands/login";
+import { logoutCommand, whoamiCommand } from "./commands/auth";
 
 export const cli = cac("jfp");
 
@@ -137,6 +138,17 @@ cli
   .option("--timeout <ms>", "Timeout in milliseconds (default: 120000)")
   .option("--json", "Output JSON")
   .action(loginCommand);
+
+cli
+  .command("logout", "Sign out from JeffreysPrompts Premium")
+  .option("--revoke", "Also revoke token on server")
+  .option("--json", "Output JSON")
+  .action(logoutCommand);
+
+cli
+  .command("whoami", "Show current logged-in user")
+  .option("--json", "Output JSON")
+  .action(whoamiCommand);
 
 cli
   .command("i", "Interactive mode - fzf-style prompt picker")

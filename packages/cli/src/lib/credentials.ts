@@ -5,6 +5,7 @@
  * - XDG Base Directory compliant storage location
  * - Atomic file operations (no partial writes)
  * - Token expiry checking with buffer
+ * - Automatic token refresh when expired
  * - Environment variable override for CI/CD
  */
 
@@ -12,6 +13,9 @@ import { homedir } from "os";
 import { join, dirname } from "path";
 import { readFile, writeFile, mkdir, unlink, rename } from "fs/promises";
 import { existsSync } from "fs";
+
+// Premium API URL for token refresh
+const PREMIUM_URL = process.env.JFP_PREMIUM_URL ?? "https://pro.jeffreysprompts.com";
 
 export interface Credentials {
   access_token: string;
@@ -116,8 +120,66 @@ export async function clearCredentials(): Promise<void> {
 }
 
 /**
+ * Debug logging helper
+ */
+function debugLog(message: string): void {
+  if (process.env.JFP_DEBUG) {
+    console.error(`[jfp] ${message}`);
+  }
+}
+
+/**
+ * Attempt to refresh the access token using the refresh token
+ * Returns new credentials on success, null on failure
+ */
+async function refreshAccessToken(refreshToken: string): Promise<Credentials | null> {
+  debugLog("Access token expired, attempting refresh...");
+
+  try {
+    const response = await fetch(`${PREMIUM_URL}/api/cli/token/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        refresh_token: refreshToken,
+        client_id: "jfp-cli",
+      }),
+    });
+
+    if (!response.ok) {
+      debugLog(`Refresh failed: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      access_token: string;
+      refresh_token?: string;
+      expires_at: string;
+      email: string;
+      tier: "free" | "premium";
+      user_id: string;
+    };
+
+    debugLog(`Refresh successful, new token expires: ${data.expires_at}`);
+
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? refreshToken, // Keep old refresh token if not provided
+      expires_at: data.expires_at,
+      email: data.email,
+      tier: data.tier,
+      user_id: data.user_id,
+    };
+  } catch (err) {
+    // Network error - return null to fail gracefully
+    debugLog(`Refresh error: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
  * Get access token for API calls
- * Returns null if not logged in
+ * Automatically refreshes if token is expired and refresh token is available
+ * Returns null if not logged in or refresh fails
  * Handles environment variable override (for CI/CD)
  */
 export async function getAccessToken(): Promise<string | null> {
@@ -132,12 +194,24 @@ export async function getAccessToken(): Promise<string | null> {
     return null;
   }
 
-  // Force re-login if expired (auto-refresh can be added later)
-  if (isExpired(creds)) {
-    return null;
+  // Return current token if not expired
+  if (!isExpired(creds)) {
+    return creds.access_token;
   }
 
-  return creds.access_token;
+  // Token expired - try to refresh
+  if (creds.refresh_token) {
+    const refreshed = await refreshAccessToken(creds.refresh_token);
+    if (refreshed) {
+      // Save new credentials
+      await saveCredentials(refreshed);
+      return refreshed.access_token;
+    }
+  }
+
+  // No refresh token or refresh failed
+  debugLog("Session expired. Please run 'jfp login' to sign in again.");
+  return null;
 }
 
 /**
@@ -150,6 +224,7 @@ export async function isLoggedIn(): Promise<boolean> {
 
 /**
  * Get current user info if logged in
+ * Note: Does NOT auto-refresh. Use getAccessToken() for that.
  */
 export async function getCurrentUser(): Promise<{ email: string; tier: string; userId: string } | null> {
   const creds = await loadCredentials();
@@ -162,4 +237,29 @@ export async function getCurrentUser(): Promise<{ email: string; tier: string; u
     tier: creds.tier,
     userId: creds.user_id,
   };
+}
+
+/**
+ * Authenticated fetch wrapper
+ * Automatically adds Authorization header with a valid access token
+ * Returns null if not logged in (token unavailable or refresh failed)
+ */
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response | null> {
+  const token = await getAccessToken();
+
+  if (!token) {
+    debugLog("No valid token available for authenticated request");
+    return null;
+  }
+
+  const headers = new Headers(options.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
 }

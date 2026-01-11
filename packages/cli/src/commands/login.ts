@@ -310,19 +310,269 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+// Device code flow constants
+const POLL_INTERVAL = 2_000; // Poll every 2 seconds
+const MAX_POLL_ATTEMPTS = 60; // 2 minutes max
+
+interface DeviceCodeResponse {
+  device_code: string; // Internal code for polling
+  user_code: string; // Code user enters (e.g., "XYZW-1234")
+  verification_url: string; // URL to visit
+  expires_in: number; // Seconds until expiry
+  interval: number; // Recommended poll interval
+}
+
+interface DeviceTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_at: string;
+  email: string;
+  tier: "free" | "premium";
+  user_id: string;
+}
+
+interface DeviceTokenError {
+  error: string;
+  error_description?: string;
+}
+
 /**
- * Remote device code login flow (not yet implemented)
+ * Remote device code login flow
+ * Uses RFC 8628 OAuth 2.0 Device Authorization Grant
  */
 async function loginRemote(options: LoginOptions): Promise<void> {
+  const timeout = options.timeout ?? DEFAULT_TIMEOUT;
+
+  if (!options.json) {
+    console.log(chalk.dim("Initiating device code authentication...\n"));
+  }
+
+  // Request device code from API
+  let deviceCodeResponse: Response;
+  try {
+    deviceCodeResponse = await fetch(`${PREMIUM_URL}/api/cli/device-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: "jfp-cli" }),
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (options.json) {
+      console.log(
+        JSON.stringify({
+          success: false,
+          error: "network_error",
+          message: `Could not reach authentication server: ${errorMessage}`,
+        })
+      );
+    } else {
+      console.log(chalk.red("Could not reach authentication server"));
+      console.log(chalk.dim(errorMessage));
+    }
+    process.exit(1);
+  }
+
+  if (!deviceCodeResponse.ok) {
+    if (options.json) {
+      console.log(
+        JSON.stringify({
+          success: false,
+          error: "device_code_failed",
+          message: "Failed to initiate authentication",
+        })
+      );
+    } else {
+      console.log(chalk.red("Failed to initiate authentication"));
+    }
+    process.exit(1);
+  }
+
+  const { device_code, user_code, verification_url, interval } =
+    (await deviceCodeResponse.json()) as DeviceCodeResponse;
+
+  // Display instructions to user
   if (options.json) {
-    console.log(JSON.stringify({
-      success: false,
-      error: "not_implemented",
-      message: "Remote login not yet implemented. Use local login with a browser.",
-    }));
+    console.log(
+      JSON.stringify({
+        status: "pending",
+        verification_url,
+        user_code: formatUserCode(user_code),
+        message: `Visit ${verification_url} and enter code: ${formatUserCode(user_code)}`,
+      })
+    );
   } else {
-    console.log(chalk.yellow("Remote login not yet implemented."));
-    console.log(chalk.dim("Use local login with a browser, or wait for the remote login feature."));
+    console.log(
+      boxen(
+        `To sign in, visit:\n\n` +
+          `  ${chalk.cyan(verification_url)}\n\n` +
+          `And enter code:\n\n` +
+          `  ${chalk.bold.yellow(formatUserCode(user_code))}`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: "round",
+          title: "Device Authentication",
+          titleAlignment: "center",
+        }
+      )
+    );
+
+    console.log(chalk.dim("\nWaiting for authentication..."));
+    console.log(chalk.dim("(Press Ctrl+C to cancel)\n"));
+  }
+
+  // Poll for token
+  const pollInterval = Math.max((interval ?? 2) * 1000, POLL_INTERVAL);
+  const maxAttempts = Math.min(MAX_POLL_ATTEMPTS, Math.ceil(timeout / pollInterval));
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    await sleep(pollInterval);
+    attempts++;
+
+    try {
+      const tokenResponse = await fetch(`${PREMIUM_URL}/api/cli/device-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device_code,
+          client_id: "jfp-cli",
+        }),
+      });
+
+      if (tokenResponse.ok) {
+        const credentials = (await tokenResponse.json()) as DeviceTokenResponse;
+
+        // Save credentials
+        await saveCredentials({
+          access_token: credentials.access_token,
+          refresh_token: credentials.refresh_token,
+          expires_at: credentials.expires_at,
+          email: credentials.email,
+          tier: credentials.tier,
+          user_id: credentials.user_id,
+        });
+
+        if (options.json) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              email: credentials.email,
+              tier: credentials.tier,
+              message: `Logged in as ${credentials.email}`,
+            })
+          );
+        } else {
+          console.log(
+            boxen(
+              `${chalk.green("✓")} Logged in as ${chalk.bold(credentials.email)}\n` +
+                `Tier: ${chalk.cyan(credentials.tier)}`,
+              { padding: 1, margin: 1, borderStyle: "round", borderColor: "green" }
+            )
+          );
+        }
+
+        return;
+      }
+
+      // Check for specific errors
+      const errorBody = (await tokenResponse.json()) as DeviceTokenError;
+
+      if (errorBody.error === "authorization_pending") {
+        // User hasn't completed auth yet, keep polling
+        if (!options.json) {
+          process.stdout.write(".");
+        }
+        continue;
+      }
+
+      if (errorBody.error === "slow_down") {
+        // API wants us to slow down
+        await sleep(5000);
+        continue;
+      }
+
+      if (errorBody.error === "expired_token") {
+        if (options.json) {
+          console.log(
+            JSON.stringify({
+              success: false,
+              error: "expired_token",
+              message: "Device code expired. Please try again.",
+            })
+          );
+        } else {
+          console.log(chalk.red("\n\nDevice code expired. Please try again."));
+        }
+        process.exit(1);
+      }
+
+      if (errorBody.error === "access_denied") {
+        if (options.json) {
+          console.log(
+            JSON.stringify({
+              success: false,
+              error: "access_denied",
+              message: "Authentication was denied.",
+            })
+          );
+        } else {
+          console.log(chalk.red("\n\nAuthentication was denied."));
+        }
+        process.exit(1);
+      }
+
+      // Unknown error
+      const errorMessage = errorBody.error_description || errorBody.error;
+      if (options.json) {
+        console.log(
+          JSON.stringify({
+            success: false,
+            error: errorBody.error,
+            message: errorMessage,
+          })
+        );
+      } else {
+        console.log(chalk.red("\n\nAuthentication failed:"), errorMessage);
+      }
+      process.exit(1);
+    } catch {
+      // Network error, keep trying
+      if (!options.json) {
+        process.stdout.write("x");
+      }
+    }
+  }
+
+  // Timeout
+  if (options.json) {
+    console.log(
+      JSON.stringify({
+        success: false,
+        error: "timeout",
+        message: "Authentication timed out. Please try again.",
+      })
+    );
+  } else {
+    console.log(chalk.red("\n\nAuthentication timed out. Please try again."));
   }
   process.exit(1);
+}
+
+/**
+ * Format user code for display (e.g., "XYZW1234" -> "XYZW-1234")
+ */
+function formatUserCode(code: string): string {
+  // Format as "XXXX-XXXX" for easier reading
+  if (code.length === 8 && !code.includes("-")) {
+    return `${code.slice(0, 4)}-${code.slice(4)}`;
+  }
+  return code;
+}
+
+/**
+ * Sleep for specified milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
