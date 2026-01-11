@@ -26,7 +26,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
 import { useIsSmallScreen } from "@/hooks/useIsMobile";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/lib/utils";
 
 type ReportContentType = "prompt" | "bundle" | "workflow" | "collection";
@@ -45,26 +44,22 @@ interface ReportDialogProps {
   contentType: ReportContentType;
   contentId: string;
   contentTitle?: string;
-  ownerId?: string;
   triggerLabel?: string;
   triggerVariant?: ButtonProps["variant"];
   triggerSize?: ButtonProps["size"];
   triggerClassName?: string;
   showLabel?: boolean;
-  forceVisible?: boolean;
 }
 
 export function ReportDialog({
   contentType,
   contentId,
   contentTitle,
-  ownerId,
   triggerLabel = "Report",
   triggerVariant = "ghost",
   triggerSize = "icon-sm",
   triggerClassName,
   showLabel = false,
-  forceVisible = false,
 }: ReportDialogProps) {
   const isMobile = useIsSmallScreen();
   const { success, error } = useToast();
@@ -73,11 +68,6 @@ export function ReportDialog({
   const [details, setDetails] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [viewerId] = useLocalStorage<string | null>("jfp_user_id", null);
-  const isAuthenticated = Boolean(viewerId);
-  const isOwner = Boolean(ownerId && viewerId && ownerId === viewerId);
-  const canReport = forceVisible || (isAuthenticated && !isOwner);
 
   const remaining = useMemo(
     () => Math.max(0, MAX_DETAILS_LENGTH - details.length),
@@ -131,8 +121,6 @@ export function ReportDialog({
       setSubmitting(false);
     }
   }, [contentType, contentId, contentTitle, details, error, reason, resetForm, success]);
-
-  if (!canReport) return null;
 
   const form = (
     <div className="space-y-5">

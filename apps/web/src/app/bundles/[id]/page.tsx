@@ -300,7 +300,6 @@ export default async function BundleDetailPage({ params }: PageProps) {
                     contentType="bundle"
                     contentId={bundle.id}
                     contentTitle={bundle.title}
-                    ownerId={bundle.author}
                     triggerVariant="outline"
                     triggerSize="sm"
                     triggerClassName="w-full justify-center"

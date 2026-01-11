@@ -351,7 +351,6 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   contentType="prompt"
                   contentId={prompt.id}
                   contentTitle={prompt.title}
-                  ownerId={prompt.author}
                   triggerVariant="ghost"
                   triggerSize="icon-sm"
                   triggerClassName="h-8 w-8"

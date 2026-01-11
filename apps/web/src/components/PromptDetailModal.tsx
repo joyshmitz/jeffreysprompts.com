@@ -401,7 +401,6 @@ export function PromptDetailModal({
             contentType="prompt"
             contentId={prompt.id}
             contentTitle={prompt.title}
-            ownerId={prompt.author}
             triggerVariant="outline"
             triggerSize="sm"
             triggerClassName="flex-1 sm:flex-none font-medium"

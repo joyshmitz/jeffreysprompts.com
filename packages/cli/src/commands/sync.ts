@@ -213,7 +213,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
       params.set("since", meta.lastSync);
     }
 
-    const endpoint = `/cli/library${params.toString() ? `?${params}` : ""}`;
+    const endpoint = `/cli/sync${params.toString() ? `?${params}` : ""}`;
     const response = await apiClient.get<SyncResponse>(endpoint);
 
     if (!response.ok) {
@@ -271,9 +271,10 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
     }
 
     // Save to local cache
+    const syncedAt = data.last_modified || new Date().toISOString();
     writeLibrary(allPrompts);
     writeMeta({
-      lastSync: new Date().toISOString(),
+      lastSync: syncedAt,
       promptCount: allPrompts.length,
       version: "1.0.0",
     });
@@ -286,7 +287,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
         newPrompts: data.prompts.length,
         totalPrompts: allPrompts.length,
         force: options.force ?? false,
-        syncedAt: new Date().toISOString(),
+        syncedAt,
       });
     } else {
       if (options.force) {
@@ -294,7 +295,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
       } else if (data.prompts.length === 0) {
         console.log(chalk.dim("\nLibrary is already up to date"));
       } else {
-        console.log(chalk.green(`\nSynced ${data.prompts.length} new prompts (${allPrompts.length} total)`));
+        console.log(chalk.green(`\nSynced ${data.prompts.length} prompts (${allPrompts.length} total)`));
       }
       console.log(chalk.dim(`Location: ${getLibraryDir()}`));
     }

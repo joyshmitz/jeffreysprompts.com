@@ -324,7 +324,6 @@ export function PromptContent({ prompt }: PromptContentProps) {
               contentType="prompt"
               contentId={prompt.id}
               contentTitle={prompt.title}
-              ownerId={prompt.author}
               triggerVariant="outline"
               triggerSize="sm"
               triggerClassName="gap-2"
