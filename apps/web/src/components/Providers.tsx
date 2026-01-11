@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
 import { AlertTriangle } from "lucide-react";
 import { BasketProvider } from "@/contexts/basket-context";
@@ -8,6 +10,8 @@ import { ToastProvider, Toaster } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
+import { useKeyboardShortcuts, type KeyboardShortcut } from "@/hooks/useKeyboardShortcuts";
+import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
 
 // Lazy load SpotlightSearch - it's only needed when user presses Cmd+K
 // This reduces initial bundle size significantly (~100KB+ of search/semantic code)
@@ -23,6 +27,96 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   // Register service worker for PWA offline support
   useServiceWorker();
+  const router = useRouter();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  const openSpotlight = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("jfp:open-spotlight"));
+    }
+  }, []);
+
+  const shortcuts = useMemo<KeyboardShortcut[]>(
+    () => [
+      {
+        id: "search",
+        description: "Open search",
+        keys: "cmd+k",
+        handler: openSpotlight,
+        global: true,
+        category: "Search",
+      },
+      {
+        id: "search-focus",
+        description: "Open search",
+        keys: "/",
+        handler: openSpotlight,
+        category: "Search",
+      },
+      {
+        id: "shortcuts-help",
+        description: "Show keyboard shortcuts",
+        keys: "?",
+        handler: () => setShortcutsOpen(true),
+        category: "Help",
+      },
+      {
+        id: "shortcuts-help-mod",
+        description: "Show keyboard shortcuts",
+        keys: "cmd+/",
+        handler: () => setShortcutsOpen(true),
+        global: true,
+        category: "Help",
+      },
+      {
+        id: "shortcuts-close",
+        description: "Close keyboard shortcuts",
+        keys: "escape",
+        handler: () => setShortcutsOpen(false),
+        global: true,
+        category: "Help",
+      },
+      {
+        id: "new-prompt",
+        description: "Create new prompt",
+        keys: "cmd+n",
+        handler: () => router.push("/contribute"),
+        global: true,
+        category: "Actions",
+      },
+      {
+        id: "go-home",
+        description: "Go to home",
+        keys: "g h",
+        handler: () => router.push("/"),
+        category: "Navigation",
+      },
+      {
+        id: "go-bundles",
+        description: "Go to bundles",
+        keys: "g b",
+        handler: () => router.push("/bundles"),
+        category: "Navigation",
+      },
+      {
+        id: "go-workflows",
+        description: "Go to workflows",
+        keys: "g w",
+        handler: () => router.push("/workflows"),
+        category: "Navigation",
+      },
+      {
+        id: "go-contribute",
+        description: "Go to contribute",
+        keys: "g c",
+        handler: () => router.push("/contribute"),
+        category: "Navigation",
+      },
+    ],
+    [openSpotlight, router]
+  );
+
+  useKeyboardShortcuts(shortcuts);
 
   const spotlightFallback = (
     <div className="mx-auto flex max-w-sm items-center justify-center gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive">
@@ -52,6 +146,11 @@ export function Providers({ children }: ProvidersProps) {
           <ErrorBoundary fallback={spotlightFallback}>
             <SpotlightSearch />
           </ErrorBoundary>
+          <KeyboardShortcutsModal
+            isOpen={shortcutsOpen}
+            onClose={() => setShortcutsOpen(false)}
+            shortcuts={shortcuts}
+          />
           <Toaster />
         </BasketProvider>
       </ToastProvider>

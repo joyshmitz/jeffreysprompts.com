@@ -39,6 +39,7 @@ function parseKeys(keys: string): {
   key: string;
   sequence?: string[];
 } {
+  const isMac = typeof navigator !== "undefined" && navigator.platform?.includes("Mac");
   const normalized = keys.toLowerCase().trim();
 
   // Check for sequence (e.g., "g h")
@@ -69,7 +70,15 @@ function parseKeys(keys: string): {
       case "cmd":
       case "meta":
       case "command":
-        meta = true;
+        if (part === "cmd" || part === "command") {
+          if (isMac) {
+            meta = true;
+          } else {
+            ctrl = true;
+          }
+        } else {
+          meta = true;
+        }
         break;
       case "shift":
         shift = true;

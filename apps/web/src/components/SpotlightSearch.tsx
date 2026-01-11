@@ -296,6 +296,13 @@ export function SpotlightSearch({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  // Allow other components to open SpotlightSearch
+  React.useEffect(() => {
+    const handleOpen = () => setIsOpen(true)
+    window.addEventListener("jfp:open-spotlight", handleOpen as EventListener)
+    return () => window.removeEventListener("jfp:open-spotlight", handleOpen as EventListener)
+  }, [])
+
   // Focus input when opening
   React.useEffect(() => {
     if (isOpen) {
