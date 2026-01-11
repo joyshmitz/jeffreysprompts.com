@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import {
   ArrowLeft,
   Download,
-  Copy,
   Sparkles,
   Rocket,
   Code,
