@@ -149,11 +149,12 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.ico')
   ) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
+      caches.match(request).then(async (cachedResponse) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(request).then((response) => {
+        try {
+          const response = await fetch(request);
           if (response.ok) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -161,7 +162,12 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return response;
-        });
+        } catch {
+          return new Response('Offline', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        }
       })
     );
     return;
@@ -188,7 +194,14 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           // Fallback to cached home page
-          return caches.match('/');
+          const fallback = await caches.match('/');
+          if (fallback) {
+            return fallback;
+          }
+          return new Response('<h1>Offline</h1>', {
+            status: 503,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          });
         })
     );
     return;
@@ -196,7 +209,16 @@ self.addEventListener('fetch', (event) => {
 
   // Default: network with cache fallback
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    fetch(request).catch(async () => {
+      const cachedResponse = await caches.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return new Response('Offline', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    })
   );
 });
 
