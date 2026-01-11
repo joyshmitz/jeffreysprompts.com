@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Copy, ShoppingBag, Search, Sparkles } from "lucide-react";
+import { Plus, Copy, ShoppingBag, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/useHaptic";
 
@@ -242,7 +242,8 @@ export function FloatingActionButton({
             animate={{ rotate: isExpanded ? 45 : 0 }}
             transition={springConfig}
           >
-            {icon || (isExpanded ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />)}
+            {/* Plus rotates 45° to become × when expanded (don't swap icons - rotation handles it) */}
+            {icon || <Plus className="w-6 h-6" />}
           </motion.div>
         </motion.button>
       </motion.div>
