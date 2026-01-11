@@ -30,6 +30,13 @@ import { logoutCommand, whoamiCommand } from "./commands/auth";
 import { notesCommand } from "./commands/notes";
 import { saveCommand } from "./commands/save";
 import { syncCommand } from "./commands/sync";
+import {
+  configListCommand,
+  configGetCommand,
+  configSetCommand,
+  configResetCommand,
+  configPathCommand,
+} from "./commands/config";
 import { collectionsCommand, collectionShowCommand } from "./commands/collections";
 
 export const cli = cac("jfp");
@@ -235,6 +242,37 @@ cli
   .option("--force", "Force reinstall even if up to date")
   .option("--json", "Output JSON")
   .action(updateCliCommand);
+
+cli
+  .command("config [action] [key] [value]", "Manage CLI configuration")
+  .option("--json", "Output JSON")
+  .action((action: string | undefined, key: string | undefined, value: string | undefined, options: { json?: boolean }) => {
+    switch (action) {
+      case "list":
+      case undefined:
+        return configListCommand(options);
+      case "get":
+        if (!key) {
+          console.error("Usage: jfp config get <key>");
+          process.exit(1);
+        }
+        return configGetCommand(key, options);
+      case "set":
+        if (!key || value === undefined) {
+          console.error("Usage: jfp config set <key> <value>");
+          process.exit(1);
+        }
+        return configSetCommand(key, value, options);
+      case "reset":
+        return configResetCommand(options);
+      case "path":
+        return configPathCommand(options);
+      default:
+        console.error(`Unknown config action: ${action}`);
+        console.log("Available: list, get, set, reset, path");
+        process.exit(1);
+    }
+  });
 
 cli
   .command("help", "Show comprehensive documentation")
