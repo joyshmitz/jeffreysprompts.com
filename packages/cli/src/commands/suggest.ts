@@ -4,7 +4,7 @@ import { shouldOutputJson } from "../lib/utils";
 
 interface SuggestOptions {
   json?: boolean;
-  limit?: number;
+  limit?: number | string;
   semantic?: boolean;
 }
 
@@ -31,7 +31,15 @@ interface SuggestOutput {
  * Returns scored results with explanations of why they match.
  */
 export async function suggestCommand(task: string, options: SuggestOptions) {
-  const limit = options.limit ?? 3;
+  const limit = options.limit !== undefined ? Number(options.limit) : 3;
+  if (!Number.isFinite(limit) || limit <= 0) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: "invalid_limit", message: "Provide a positive number for --limit." }));
+    } else {
+      console.error(chalk.red("Invalid --limit value. Provide a positive number."));
+    }
+    process.exit(1);
+  }
 
   if (!task.trim()) {
     if (shouldOutputJson(options)) {
