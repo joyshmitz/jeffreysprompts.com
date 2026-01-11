@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { trackEvent } from "@/lib/analytics"
 import { searchPrompts, semanticRerank, type SearchResult, type RankedResult } from "@jeffreysprompts/core/search"
-import { featuredPrompts, type Prompt, type PromptCategory } from "@jeffreysprompts/core/prompts"
+import { featuredPrompts, prompts, type Prompt, type PromptCategory } from "@jeffreysprompts/core/prompts"
 import { Badge } from "./ui/badge"
 import { useToast } from "@/components/ui/toast"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
@@ -165,6 +165,26 @@ export function SpotlightSearch({
     if (!debouncedQuery.trim() && !selectedCategory) {
       setResults([])
       setIsReranking(false)
+      return
+    }
+
+    if (!debouncedQuery.trim() && selectedCategory) {
+      const categoryResults: SearchResult[] = prompts
+        .filter((prompt) => prompt.category === selectedCategory)
+        .map((prompt) => ({
+          prompt,
+          score: 1,
+          matchedFields: ["category"],
+        }))
+      setResults(categoryResults)
+      setIsReranking(false)
+      trackEvent("search", {
+        queryLength: 0,
+        resultCount: categoryResults.length,
+        source: "spotlight",
+        semantic: false,
+      })
+      setSelectedIndex(0)
       return
     }
 

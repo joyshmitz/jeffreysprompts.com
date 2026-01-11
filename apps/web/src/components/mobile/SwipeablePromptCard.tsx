@@ -68,6 +68,30 @@ export function SwipeablePromptCard({
   const lastTapTime = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tapCount = useRef(0);
+  const actionTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      // Clear long-press timer
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+      // Clear all action timers
+      actionTimers.current.forEach((timer) => clearTimeout(timer));
+      actionTimers.current.clear();
+    };
+  }, []);
+
+  // Helper to create tracked timeouts that auto-cleanup
+  const safeTimeout = useCallback((callback: () => void, delay: number) => {
+    const timer = setTimeout(() => {
+      actionTimers.current.delete(timer);
+      callback();
+    }, delay);
+    actionTimers.current.add(timer);
+    return timer;
+  }, []);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -87,12 +111,12 @@ export function SwipeablePromptCard({
       trackEvent("prompt_copy", { id: prompt.id, source: "swipe" });
       onCopy?.(prompt);
       setActionTriggered("copy");
-      setTimeout(() => setActionTriggered(null), 1500);
+      safeTimeout(() => setActionTriggered(null), 1500);
     } catch {
       haptic.error();
       error("Failed to copy", "Please try again");
     }
-  }, [prompt, onCopy, haptic, success, error]);
+  }, [prompt, onCopy, haptic, success, error, safeTimeout]);
 
   const handleAddToBasket = useCallback(() => {
     if (inBasket) return;
@@ -100,8 +124,8 @@ export function SwipeablePromptCard({
     haptic.success();
     success("Added to basket", prompt.title, 3000);
     setActionTriggered("basket");
-    setTimeout(() => setActionTriggered(null), 1500);
-  }, [prompt, inBasket, addItem, haptic, success]);
+    safeTimeout(() => setActionTriggered(null), 1500);
+  }, [prompt, inBasket, addItem, haptic, success, safeTimeout]);
 
   // Handle double-tap to save/favorite
   const handleDoubleTap = useCallback(() => {
@@ -109,11 +133,11 @@ export function SwipeablePromptCard({
     haptic.success();
     onSave?.(prompt);
     setActionTriggered("save");
-    setTimeout(() => {
+    safeTimeout(() => {
       setShowHeartAnimation(false);
       setActionTriggered(null);
     }, 1000);
-  }, [prompt, onSave, haptic]);
+  }, [prompt, onSave, haptic, safeTimeout]);
 
   // Handle long-press to show quick actions
   const handleLongPress = useCallback(() => {
@@ -341,7 +365,10 @@ export function SwipeablePromptCard({
           handlers.onTouchMove(e);
           handleTouchMove();
         }}
-        onTouchCancel={handlers.onTouchCancel}
+        onTouchCancel={() => {
+          handlers.onTouchCancel();
+          handleTouchEnd();
+        }}
       >
         <PromptCard
           prompt={prompt}
