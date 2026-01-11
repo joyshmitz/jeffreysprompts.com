@@ -419,6 +419,43 @@ test.describe("Prompt Detail Modal - Mobile Bottom Sheet", () => {
       expect(height).toBeGreaterThanOrEqual(32);
     });
   });
+
+  test("dragging the sheet down closes it", async ({ page, logger }) => {
+    await logger.step("navigate to homepage", async () => {
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("open prompt modal by clicking card", async () => {
+      await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
+      const promptCard = page.locator("h3").filter({ hasText: "The Idea Wizard" }).first();
+      await promptCard.click();
+    });
+
+    const dialog = page.getByRole("dialog");
+    await logger.step("verify bottom sheet visible", async () => {
+      await expect(dialog).toBeVisible({ timeout: 2000 });
+    });
+
+    await logger.step("drag sheet downward to dismiss", async () => {
+      const box = await dialog.boundingBox();
+      if (!box) {
+        throw new Error("Bottom sheet dialog not found for drag gesture");
+      }
+      const startX = box.x + box.width / 2;
+      const startY = box.y + 20;
+      const endY = startY + 220;
+
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX, endY, { steps: 12 });
+      await page.mouse.up();
+    });
+
+    await logger.step("verify sheet closed", async () => {
+      await expect(dialog).not.toBeVisible({ timeout: 3000 });
+    });
+  });
 });
 
 test.describe("Prompt Detail - Featured Prompts", () => {

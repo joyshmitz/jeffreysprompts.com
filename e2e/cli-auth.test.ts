@@ -460,7 +460,7 @@ describe("E2E Auth: Token Persistence", () => {
     // Parse the last complete JSON object
     const lines = stdout.trim().split("\n");
     const lastJsonLine = lines[lines.length - 1];
-    const result = parseJson<{ success: boolean; email: string }>(lastJsonLine);
+    const result = parseJson<{ authenticated: boolean; email: string }>(lastJsonLine);
 
     if (exitCode !== 0) {
       log("test", "Login failed", { stdout, exitCode });
@@ -468,7 +468,7 @@ describe("E2E Auth: Token Persistence", () => {
 
     expect(exitCode).toBe(0);
     expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
+    expect(result!.authenticated).toBe(true);
 
     // Verify credentials were saved
     const creds = readCredentialsFile();
@@ -529,9 +529,9 @@ describe("E2E Auth: Token Persistence", () => {
 
     expect(exitCode).toBe(0);
 
-    const result = parseJson<{ success: boolean }>(stdout);
+    const result = parseJson<{ logged_out: boolean }>(stdout);
     expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
+    expect(result!.logged_out).toBe(true);
 
     // Verify credentials were cleared
     expect(credentialsFileExists()).toBe(false);
@@ -557,12 +557,16 @@ describe("E2E Auth: Token Persistence", () => {
     expect(exitCode).toBe(1); // Should fail for expired
 
     const result = parseJson<{
+      error: boolean;
+      code: string;
       authenticated: boolean;
       expired: boolean;
-      email: string;
+      email?: string;
     }>(stdout);
 
     expect(result).not.toBeNull();
+    expect(result!.error).toBe(true);
+    expect(result!.code).toBe("session_expired");
     expect(result!.authenticated).toBe(false);
     expect(result!.expired).toBe(true);
 
@@ -654,7 +658,7 @@ describe("E2E Auth: Device Code Flow", () => {
 
     expect(exitCode).toBe(1);
 
-    const result = parseJson<{ success: boolean; error: string }>(stdout);
+    const result = parseJson<{ error: boolean; code: string }>(stdout);
     // First output is the pending status with verification URL
     // We need to check if access_denied appears anywhere
     expect(stdout).toContain("access_denied");
@@ -713,10 +717,10 @@ describe("E2E Auth: Device Code Flow", () => {
     // Parse final result
     const lines = stdout.trim().split("\n");
     const lastJsonLine = lines[lines.length - 1];
-    const result = parseJson<{ success: boolean }>(lastJsonLine);
+    const result = parseJson<{ authenticated: boolean }>(lastJsonLine);
 
     expect(result).not.toBeNull();
-    expect(result!.success).toBe(true);
+    expect(result!.authenticated).toBe(true);
   }, 25000); // Increase test timeout
 });
 
@@ -775,8 +779,9 @@ describe("E2E Auth: Environment Variable Auth", () => {
 
     expect(exitCode).toBe(1);
 
-    const result = parseJson<{ error: string }>(stdout);
-    expect(result!.error).toBe("env_token");
+    const result = parseJson<{ error: boolean; code: string }>(stdout);
+    expect(result!.error).toBe(true);
+    expect(result!.code).toBe("env_token");
 
     log("test", "Logout correctly blocked with env token");
   });
@@ -791,7 +796,7 @@ describe("E2E Auth: Full Integration Flow", () => {
     const whoami1 = await runCli("whoami --json");
     expect(whoami1.exitCode).toBe(1);
 
-    const notLoggedIn = parseJson<{ authenticated: boolean }>(whoami1.stdout);
+    const notLoggedIn = parseJson<{ authenticated: boolean; error?: boolean; code?: string }>(whoami1.stdout);
     expect(notLoggedIn!.authenticated).toBe(false);
 
     // Step 2: Create credentials (simulating login success)
@@ -829,15 +834,15 @@ describe("E2E Auth: Full Integration Flow", () => {
     const logout = await runCli("logout --json");
     expect(logout.exitCode).toBe(0);
 
-    const logoutResult = parseJson<{ success: boolean }>(logout.stdout);
-    expect(logoutResult!.success).toBe(true);
+    const logoutResult = parseJson<{ logged_out: boolean }>(logout.stdout);
+    expect(logoutResult!.logged_out).toBe(true);
 
     // Step 6: Verify logged out
     log("test", "Step 6: Verify logged out");
     const whoami3 = await runCli("whoami --json");
     expect(whoami3.exitCode).toBe(1);
 
-    const loggedOut = parseJson<{ authenticated: boolean }>(whoami3.stdout);
+    const loggedOut = parseJson<{ authenticated: boolean; error?: boolean; code?: string }>(whoami3.stdout);
     expect(loggedOut!.authenticated).toBe(false);
 
     log("test", "Complete auth flow successful");
@@ -863,8 +868,8 @@ describe("E2E Auth: Full Integration Flow", () => {
 
     expect(exitCode).toBe(0);
 
-    const result = parseJson<{ success: boolean; revoked: boolean }>(stdout);
-    expect(result!.success).toBe(true);
+    const result = parseJson<{ logged_out: boolean; revoked: boolean }>(stdout);
+    expect(result!.logged_out).toBe(true);
     expect(result!.revoked).toBe(true);
 
     // Verify revoke endpoint was called
@@ -894,13 +899,13 @@ describe("E2E Auth: Full Integration Flow", () => {
 
     // Should not fail, but should indicate already logged in
     const result = parseJson<{
-      success: boolean;
-      error: string;
+      error: boolean;
+      code: string;
       email: string;
     }>(stdout);
 
-    expect(result!.success).toBe(false);
-    expect(result!.error).toBe("already_logged_in");
+    expect(result!.error).toBe(true);
+    expect(result!.code).toBe("already_logged_in");
     expect(result!.email).toBe("existing@example.com");
 
     log("test", "Duplicate login correctly prevented");
@@ -919,9 +924,9 @@ describe("E2E Auth: Error Handling", () => {
 
     expect(exitCode).toBe(1);
 
-    const result = parseJson<{ success: boolean; error: string }>(stdout);
-    expect(result!.success).toBe(false);
-    expect(result!.error).toBe("network_error");
+    const result = parseJson<{ error: boolean; code: string }>(stdout);
+    expect(result!.error).toBe(true);
+    expect(result!.code).toBe("network_error");
 
     log("test", "Network error handled correctly");
   });
@@ -933,8 +938,8 @@ describe("E2E Auth: Error Handling", () => {
 
     expect(exitCode).toBe(0);
 
-    const result = parseJson<{ success: boolean; message: string }>(stdout);
-    expect(result!.success).toBe(true);
+    const result = parseJson<{ logged_out: boolean; message: string }>(stdout);
+    expect(result!.logged_out).toBe(true);
     expect(result!.message).toContain("nothing to do");
 
     log("test", "Logout no-op handled correctly");
@@ -952,7 +957,7 @@ describe("E2E Auth: Error Handling", () => {
 
     expect(exitCode).toBe(1);
 
-    const result = parseJson<{ authenticated: boolean }>(stdout);
+    const result = parseJson<{ authenticated: boolean; error?: boolean; code?: string }>(stdout);
     expect(result!.authenticated).toBe(false);
 
     log("test", "Corrupt credentials handled gracefully");
