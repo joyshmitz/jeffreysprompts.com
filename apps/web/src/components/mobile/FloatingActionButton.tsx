@@ -39,8 +39,7 @@ const defaultActions: FABAction[] = [
     icon: <Search className="w-5 h-5" />,
     label: "Search",
     onClick: () => {
-      // Trigger ⌘K search
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+      window.dispatchEvent(new Event("jfp:open-spotlight"));
     },
     color: "bg-sky-500",
   },
