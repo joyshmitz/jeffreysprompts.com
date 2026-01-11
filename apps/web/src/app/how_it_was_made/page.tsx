@@ -1,13 +1,15 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock, MessageSquare, Wrench, Code2, ArrowRight } from "lucide-react";
-import { StatsDashboard } from "@/components/transcript/stats-dashboard";
-import { TranscriptTimeline } from "@/components/transcript/timeline";
+import { ArrowRight, Sparkles } from "lucide-react";
+import { EnhancedHero } from "@/components/transcript/enhanced-hero";
+import { EnhancedStats } from "@/components/transcript/enhanced-stats";
+import { EnhancedTimeline } from "@/components/transcript/enhanced-timeline";
 import { InsightCard } from "@/components/transcript/insight-card";
 import { MultiModelFeedback } from "@/components/transcript/multi-model-feedback";
 import { getAnnotations, getAnnotationsByType } from "@/data/annotations";
 import type { ProcessedTranscript, TranscriptHighlight } from "@/lib/transcript/types";
+import { cn } from "@/lib/utils";
 // Import the processed transcript data
 import processedTranscriptData from "@/data/processed-transcript.json";
 
@@ -32,75 +34,93 @@ function HeroSection() {
   const { stats, duration } = transcript.meta;
 
   return (
-    <section className="relative overflow-hidden">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-blue-500/10 to-emerald-500/10" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-500/20 via-transparent to-transparent" />
-
-      <div className="relative mx-auto max-w-4xl px-4 py-16 sm:py-24 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm font-medium mb-6">
-          <Clock className="w-4 h-4" />
-          <span>{duration} of live coding</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-          Built in a{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-blue-600 dark:from-violet-400 dark:to-blue-400">
-            Single Day
-          </span>
-        </h1>
-
-        <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto mb-8">
-          The complete, unedited Claude Code session transcript that designed, planned, and
-          implemented this entire site — from first prompt to final deploy.
-        </p>
-
-        {/* Quick stats */}
-        <div className="flex flex-wrap justify-center gap-6 text-sm">
-          <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-            <MessageSquare className="w-4 h-4 text-violet-500" />
-            <span>{stats.userMessages + stats.assistantMessages} messages</span>
-          </div>
-          <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-            <Wrench className="w-4 h-4 text-amber-500" />
-            <span>{stats.toolCalls.toLocaleString()} tool calls</span>
-          </div>
-          <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-            <Code2 className="w-4 h-4 text-pink-500" />
-            <span>{stats.linesWritten.toLocaleString()} lines</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <EnhancedHero
+      duration={duration}
+      messageCount={stats.userMessages + stats.assistantMessages}
+      linesWritten={stats.linesWritten}
+      toolCalls={stats.toolCalls}
+    />
   );
 }
 
 function IntroductionSection() {
+  const cards = [
+    {
+      title: "Transparency",
+      description:
+        "AI-assisted development shouldn't be a black box. By sharing the complete transcript, you can see exactly how the prompts, decisions, and iterations led to this final result. Nothing is hidden or cherry-picked.",
+      gradient: "from-blue-500 to-cyan-400",
+    },
+    {
+      title: "Education",
+      description:
+        "Learn prompt engineering from hundreds of real examples. See how to guide an AI coding agent through complex tasks, handle errors, iterate on designs, and make architectural decisions collaboratively.",
+      gradient: "from-violet-500 to-purple-400",
+    },
+    {
+      title: "Meta-Demonstration",
+      description:
+        "The prompts on this site helped build this site. It's a recursive demonstration of the very techniques we're sharing. The Idea Wizard generated improvements, the Robot-Mode Maker informed the CLI design.",
+      gradient: "from-pink-500 to-rose-400",
+    },
+  ];
+
   return (
-    <section className="mx-auto max-w-3xl px-4 py-12">
-      <div className="prose prose-lg dark:prose-invert mx-auto">
-        <h2>Why Share This?</h2>
-
-        <h3>Transparency</h3>
-        <p>
-          AI-assisted development shouldn&apos;t be a black box. By sharing the complete transcript,
-          you can see exactly how the prompts, decisions, and iterations led to this final result.
-          Nothing is hidden or cherry-picked.
+    <section className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
+      <div className="text-center mb-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+          Why Share This?
+        </h2>
+        <p className="text-zinc-600 dark:text-zinc-400 max-w-lg mx-auto">
+          Complete transparency in AI-assisted development
         </p>
+      </div>
 
-        <h3>Education</h3>
-        <p>
-          Learn prompt engineering from hundreds of real examples. See how to guide an AI coding
-          agent through complex tasks, handle errors, iterate on designs, and make architectural
-          decisions collaboratively.
-        </p>
+      <div className="grid sm:grid-cols-3 gap-6">
+        {cards.map((card) => (
+          <div
+            key={card.title}
+            className={cn(
+              "group relative rounded-2xl p-6",
+              "bg-white/80 dark:bg-zinc-900/80",
+              "backdrop-blur-xl",
+              "border border-zinc-200/50 dark:border-zinc-700/50",
+              "hover:border-zinc-300 dark:hover:border-zinc-600",
+              "hover:shadow-xl",
+              "transition-all duration-300"
+            )}
+          >
+            {/* Gradient accent */}
+            <div
+              className={cn(
+                "absolute top-0 left-4 right-4 h-1 rounded-b-full",
+                "bg-gradient-to-r",
+                card.gradient,
+                "opacity-0 group-hover:opacity-100 transition-opacity"
+              )}
+            />
 
-        <h3>Meta-Demonstration</h3>
-        <p>
-          The prompts on this site helped build this site. It&apos;s a recursive demonstration of
-          the very techniques we&apos;re sharing. The Idea Wizard generated improvements, the
-          Robot-Mode Maker informed the CLI design, and the README Reviser shaped the documentation.
-        </p>
+            <div
+              className={cn(
+                "w-10 h-10 rounded-xl mb-4",
+                "bg-gradient-to-br",
+                card.gradient,
+                "flex items-center justify-center",
+                "shadow-lg",
+                "transition-transform duration-300 group-hover:scale-110"
+              )}
+            >
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+              {card.title}
+            </h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              {card.description}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -108,11 +128,8 @@ function IntroductionSection() {
 
 function StatsSection() {
   return (
-    <section className="mx-auto max-w-5xl px-4 py-8">
-      <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 text-center">
-        Session Statistics
-      </h2>
-      <StatsDashboard transcript={transcript} />
+    <section id="stats" className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
+      <EnhancedStats transcript={transcript} />
     </section>
   );
 }
@@ -131,13 +148,15 @@ function InsightsSection() {
   }
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
-      <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 text-center">
-        Key Insights
-      </h2>
-      <p className="text-zinc-600 dark:text-zinc-400 text-center mb-8">
-        Notable moments from the development session
-      </p>
+    <section className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
+      <div className="text-center mb-12">
+        <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+          Key Insights
+        </h2>
+        <p className="text-zinc-600 dark:text-zinc-400 max-w-lg mx-auto">
+          Notable moments and decisions from the development session
+        </p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {allHighlights.map((highlight, index) => (
@@ -151,36 +170,8 @@ function InsightsSection() {
 function TimelineSection() {
   const { sections, messages } = transcript;
 
-  if (messages.length === 0) {
-    return (
-      <section className="mx-auto max-w-4xl px-4 py-12">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 text-center">
-          Session Timeline
-        </h2>
-        <p className="text-zinc-600 dark:text-zinc-400 text-center mb-8">
-          The complete conversation, organized by development phase
-        </p>
-
-        {/* Placeholder for when transcript is available */}
-        <div className="rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 p-12 text-center">
-          <Wrench className="w-12 h-12 mx-auto text-zinc-400 dark:text-zinc-600 mb-4" />
-          <p className="text-zinc-600 dark:text-zinc-400">
-            Full transcript coming soon. Check back for the complete message-by-message breakdown.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="mx-auto max-w-4xl px-4 py-12">
-      <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 text-center">
-        Session Timeline
-      </h2>
-      <p className="text-zinc-600 dark:text-zinc-400 text-center mb-8">
-        The complete conversation, organized by development phase
-      </p>
-
+    <section className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
       <Suspense
         fallback={
           <div className="animate-pulse space-y-4">
@@ -193,7 +184,7 @@ function TimelineSection() {
           </div>
         }
       >
-        <TranscriptTimeline messages={messages} sections={sections} />
+        <EnhancedTimeline messages={messages} sections={sections} />
       </Suspense>
     </section>
   );
@@ -201,29 +192,60 @@ function TimelineSection() {
 
 function CTASection() {
   return (
-    <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-        Ready to Try These Prompts?
-      </h2>
-      <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-        The same prompts that built this site are available for you to use. Browse, copy, or install
-        them as Claude Code skills.
-      </p>
+    <section className="relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-purple-500/5 to-blue-500/5" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-violet-500/10 via-transparent to-transparent" />
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-medium transition-colors"
-        >
-          Browse Prompts
-          <ArrowRight className="w-4 h-4" />
-        </Link>
-        <Link
-          href="/bundles"
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-medium transition-colors"
-        >
-          View Bundles
-        </Link>
+      <div className="relative mx-auto max-w-3xl px-4 py-20 sm:py-28 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100 dark:bg-violet-900/30 mb-6">
+          <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+          <span className="text-sm font-medium text-violet-700 dark:text-violet-300">
+            Ready to build?
+          </span>
+        </div>
+
+        <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+          Try These Prompts Yourself
+        </h2>
+        <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-10 max-w-xl mx-auto">
+          The same prompts that built this site are available for you. Browse, copy, or install
+          them as Claude Code skills.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link
+            href="/"
+            className={cn(
+              "group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl",
+              "bg-zinc-900 dark:bg-white",
+              "text-white dark:text-zinc-900",
+              "font-medium text-lg",
+              "shadow-lg shadow-zinc-900/20 dark:shadow-white/10",
+              "hover:shadow-xl hover:scale-[1.02]",
+              "transition-all duration-200"
+            )}
+          >
+            Browse Prompts
+            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <Link
+            href="/bundles"
+            className={cn(
+              "inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl",
+              "bg-white/60 dark:bg-zinc-800/60",
+              "backdrop-blur-md",
+              "border border-zinc-200 dark:border-zinc-700",
+              "text-zinc-700 dark:text-zinc-300",
+              "font-medium text-lg",
+              "hover:bg-white dark:hover:bg-zinc-800",
+              "hover:shadow-md",
+              "transition-all duration-200"
+            )}
+          >
+            View Bundles
+          </Link>
+        </div>
       </div>
     </section>
   );
