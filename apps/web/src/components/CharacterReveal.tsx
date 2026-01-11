@@ -96,11 +96,6 @@ export function CharacterReveal({
     return text.split(" ").map((word) => word.split(""));
   }, [text]);
 
-  // Calculate total character count for proper stagger indexing
-  const totalChars = useMemo(() => {
-    return words.reduce((acc, word) => acc + word.length, 0) + words.length - 1;
-  }, [words]);
-
   const containerVariants: Variants = {
     hidden: {},
     visible: {

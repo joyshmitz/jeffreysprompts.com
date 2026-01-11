@@ -323,16 +323,25 @@ export function SwipeablePromptCard({
 
       {/* Card */}
       <motion.div
-        {...handlers}
         animate={controls}
         className="relative z-10"
         style={{
           // Only enable touch manipulation when not swiping
           touchAction: state.isSwiping ? "none" : "pan-y",
         }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
+        onTouchStart={(e) => {
+          handlers.onTouchStart(e);
+          handleTouchStart();
+        }}
+        onTouchEnd={() => {
+          handlers.onTouchEnd();
+          handleTouchEnd();
+        }}
+        onTouchMove={(e) => {
+          handlers.onTouchMove(e);
+          handleTouchMove();
+        }}
+        onTouchCancel={handlers.onTouchCancel}
       >
         <PromptCard
           prompt={prompt}
