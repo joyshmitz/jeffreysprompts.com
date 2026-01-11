@@ -14,7 +14,7 @@
  * @module components/PromptDetailModal
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   Copy,
   Check,
@@ -38,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
+import { ReportDialog } from "@/components/reporting/ReportDialog";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,7 @@ export function PromptDetailModal({
   const { success, error } = useToast();
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState("");
+  const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleClose = useCallback(() => {
     setCopied(false);
     setContext("");
@@ -153,7 +155,13 @@ export function PromptDetailModal({
       if (prompt) {
         trackEvent("prompt_copy", { id: prompt.id, source: "modal" });
       }
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedResetTimer.current) {
+        clearTimeout(copiedResetTimer.current);
+      }
+      copiedResetTimer.current = setTimeout(() => {
+        setCopied(false);
+        copiedResetTimer.current = null;
+      }, 2000);
     } catch {
       error("Failed to copy", "Please try again");
     }
@@ -195,6 +203,14 @@ export function PromptDetailModal({
       trackEvent("prompt_view", { id: prompt.id, source: "modal" });
     }
   }, [open, prompt]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedResetTimer.current) {
+        clearTimeout(copiedResetTimer.current);
+      }
+    };
+  }, []);
 
   if (!prompt) return null;
 
@@ -380,6 +396,18 @@ export function PromptDetailModal({
           <Download className="w-4 h-4 mr-2" />
           Download
         </Button>
+        {prompt && (
+          <ReportDialog
+            contentType="prompt"
+            contentId={prompt.id}
+            contentTitle={prompt.title}
+            ownerId={prompt.author}
+            triggerVariant="outline"
+            triggerSize="sm"
+            triggerClassName="flex-1 sm:flex-none font-medium"
+            showLabel
+          />
+        )}
       </div>
     </div>
   );

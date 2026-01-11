@@ -22,6 +22,7 @@ import {
 } from "@jeffreysprompts/core/prompts/bundles";
 import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/ui/copy-button";
+import { ReportDialog } from "@/components/reporting/ReportDialog";
 
 // ============================================================================
 // Icon Mapping
@@ -293,6 +294,18 @@ export default async function BundleDetailPage({ params }: PageProps) {
                   <span className="font-medium text-zinc-900 dark:text-white">
                     {bundle.updatedAt}
                   </span>
+                </div>
+                <div className="mt-4">
+                  <ReportDialog
+                    contentType="bundle"
+                    contentId={bundle.id}
+                    contentTitle={bundle.title}
+                    ownerId={bundle.author}
+                    triggerVariant="outline"
+                    triggerSize="sm"
+                    triggerClassName="w-full justify-center"
+                    showLabel
+                  />
                 </div>
               </div>
             </div>

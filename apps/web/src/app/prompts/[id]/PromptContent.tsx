@@ -9,7 +9,7 @@
  * - Copy, install, download buttons
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Copy,
@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
+import { ReportDialog } from "@/components/reporting/ReportDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { RelatedPrompts } from "@/components/RelatedPrompts";
 import { ChangelogAccordion } from "@/components/ChangelogAccordion";
@@ -71,6 +72,7 @@ export function PromptContent({ prompt }: PromptContentProps) {
   const { success, error } = useToast();
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState("");
+  const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Store variable values in localStorage
   const [variableValues, setVariableValues] = useLocalStorage<VariableValues>(
@@ -108,13 +110,27 @@ export function PromptContent({ prompt }: PromptContentProps) {
     trackEvent("prompt_view", { id: prompt.id, source: "prompt_page" });
   }, [prompt.id]);
 
+  useEffect(() => {
+    return () => {
+      if (copiedResetTimer.current) {
+        clearTimeout(copiedResetTimer.current);
+      }
+    };
+  }, []);
+
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(renderedContent);
       setCopied(true);
       success("Copied to clipboard");
       trackEvent("prompt_copy", { id: prompt.id, source: "prompt_page" });
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedResetTimer.current) {
+        clearTimeout(copiedResetTimer.current);
+      }
+      copiedResetTimer.current = setTimeout(() => {
+        setCopied(false);
+        copiedResetTimer.current = null;
+      }, 2000);
     } catch {
       error("Failed to copy to clipboard");
     }
@@ -304,6 +320,16 @@ export function PromptContent({ prompt }: PromptContentProps) {
               <Download className="h-4 w-4" />
               Download
             </Button>
+            <ReportDialog
+              contentType="prompt"
+              contentId={prompt.id}
+              contentTitle={prompt.title}
+              ownerId={prompt.author}
+              triggerVariant="outline"
+              triggerSize="sm"
+              triggerClassName="gap-2"
+              showLabel
+            />
           </div>
         </CardHeader>
         <CardContent>

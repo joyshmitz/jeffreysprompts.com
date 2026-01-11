@@ -13,7 +13,7 @@
  * - Preview expansion on hover
  */
 
-import { useState, useCallback, useRef, type MouseEvent } from "react";
+import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
 import {
   motion,
   useMotionTemplate,
@@ -37,6 +37,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { ReportDialog } from "@/components/reporting/ReportDialog";
 import { cn } from "@/lib/utils";
 import { useBasket } from "@/hooks/use-basket";
 import { trackEvent } from "@/lib/analytics";
@@ -77,6 +78,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
   const [copied, setCopied] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const cardRef = useRef<HTMLDivElement>(null);
+  const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { success, error } = useToast();
   const { isInBasket, addItem, removeItem } = useBasket();
   const inBasket = isInBasket(prompt.id);
@@ -107,6 +109,14 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
     mouseY.set(50);
   }, [mouseX, mouseY]);
 
+  useEffect(() => {
+    return () => {
+      if (copiedResetTimer.current) {
+        clearTimeout(copiedResetTimer.current);
+      }
+    };
+  }, []);
+
   const handleCopy = useCallback(
     async (e: MouseEvent) => {
       e.stopPropagation();
@@ -116,7 +126,13 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
         success("Copied prompt", prompt.title, 3000);
         trackEvent("prompt_copy", { id: prompt.id, source: "card" });
         onCopy?.(prompt);
-        setTimeout(() => setCopied(false), 2000);
+        if (copiedResetTimer.current) {
+          clearTimeout(copiedResetTimer.current);
+        }
+        copiedResetTimer.current = setTimeout(() => {
+          setCopied(false);
+          copiedResetTimer.current = null;
+        }, 2000);
       } catch {
         error("Failed to copy", "Please try again");
       }
@@ -329,6 +345,17 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   <span className="hidden sm:inline">View</span>
                   <ChevronRight className="w-3.5 h-3.5 sm:ml-0.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Button>
+
+                {/* Report button */}
+                <ReportDialog
+                  contentType="prompt"
+                  contentId={prompt.id}
+                  contentTitle={prompt.title}
+                  ownerId={prompt.author}
+                  triggerVariant="ghost"
+                  triggerSize="icon-sm"
+                  triggerClassName="h-8 w-8"
+                />
               </div>
             </div>
           </div>
