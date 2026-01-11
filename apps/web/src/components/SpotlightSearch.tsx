@@ -6,10 +6,17 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { trackEvent } from "@/lib/analytics"
 import { searchPrompts, semanticRerank, type SearchResult, type RankedResult } from "@jeffreysprompts/core/search"
-import { featuredPrompts, type Prompt } from "@jeffreysprompts/core/prompts"
+import { featuredPrompts, type Prompt, type PromptCategory } from "@jeffreysprompts/core/prompts"
 import { Badge } from "./ui/badge"
 import { useToast } from "@/components/ui/toast"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const CATEGORIES: PromptCategory[] = ["ideation", "documentation", "automation", "refactoring", "testing", "debugging", "workflow", "communication"]
+const MAX_RECENT_SEARCHES = 5
 
 // ============================================================================
 // Types
@@ -76,6 +83,18 @@ const CheckIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const ClockIcon = ({ className }: { className?: string }) => (
+  <svg className={cn("size-4", className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>
+)
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg className={cn("size-4", className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+  </svg>
+)
+
 // ============================================================================
 // Debounce Hook
 // ============================================================================
@@ -105,20 +124,45 @@ export function SpotlightSearch({
   const [results, setResults] = React.useState<SearchResult[]>([])
   const [copied, setCopied] = React.useState<string | null>(null)
   const [isReranking, setIsReranking] = React.useState(false)
+  const [selectedCategory, setSelectedCategory] = React.useState<PromptCategory | null>(null)
+  const [isMobile, setIsMobile] = React.useState(false)
   const { success, error } = useToast()
 
-  // Persist semantic mode preference
+  // Persist semantic mode preference and recent searches
   const [semanticMode, setSemanticMode] = useLocalStorage("jfp-semantic-search", false)
+  const [recentSearches, setRecentSearches] = useLocalStorage<string[]>("jfp-recent-searches", [])
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
+
+  // Detect mobile viewport
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  // Save search to recent searches
+  const saveRecentSearch = React.useCallback((searchQuery: string) => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return
+    setRecentSearches(prev => {
+      const filtered = prev.filter(s => s.toLowerCase() !== searchQuery.toLowerCase())
+      return [searchQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES)
+    })
+  }, [setRecentSearches])
+
+  // Clear recent searches
+  const clearRecentSearches = React.useCallback(() => {
+    setRecentSearches([])
+  }, [setRecentSearches])
 
   // Debounce search query
   const debouncedQuery = useDebouncedValue(query, 150)
 
   // Search when query changes
   React.useEffect(() => {
-    if (!debouncedQuery.trim()) {
+    if (!debouncedQuery.trim() && !selectedCategory) {
       setResults([])
       setIsReranking(false)
       return
@@ -129,7 +173,14 @@ export function SpotlightSearch({
     async function performSearch() {
       // Get more results if we'll be reranking
       const limit = semanticMode ? 20 : 10
-      const searchResults = searchPrompts(debouncedQuery, { limit })
+      const searchOptions: Parameters<typeof searchPrompts>[1] = { limit }
+
+      // Add category filter if selected
+      if (selectedCategory) {
+        searchOptions.category = selectedCategory
+      }
+
+      const searchResults = searchPrompts(debouncedQuery || "", searchOptions)
 
       if (cancelled) return
 
@@ -210,7 +261,7 @@ export function SpotlightSearch({
       cancelled = true
       setIsReranking(false)
     }
-  }, [debouncedQuery, semanticMode])
+  }, [debouncedQuery, semanticMode, selectedCategory])
 
   // Global keyboard shortcut (Cmd+K / Ctrl+K)
   React.useEffect(() => {
@@ -237,6 +288,7 @@ export function SpotlightSearch({
       setResults([])
       setSelectedIndex(0)
       setCopied(null)
+      setSelectedCategory(null)
     }
   }, [isOpen])
 
@@ -256,6 +308,11 @@ export function SpotlightSearch({
     async (result: SearchResult) => {
       const promptId = result.prompt.id
 
+      // Save search query to recent searches
+      if (query.trim()) {
+        saveRecentSearch(query.trim())
+      }
+
       if (copyOnSelect) {
         try {
           await navigator.clipboard.writeText(result.prompt.content)
@@ -274,7 +331,7 @@ export function SpotlightSearch({
 
       onSelect?.(promptId)
     },
-    [copyOnSelect, onSelect, success, error]
+    [copyOnSelect, onSelect, success, error, query, saveRecentSearch]
   )
 
   // Handle keyboard navigation
@@ -355,20 +412,29 @@ export function SpotlightSearch({
             aria-modal="true"
             aria-label="Search prompts"
             className={cn(
-              "fixed left-1/2 top-[12%] z-50",
-              "w-[calc(100%-2rem)] max-w-xl",
-              "bg-card text-card-foreground",
-              "border border-border/50 rounded-2xl",
-              "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)]",
-              "overflow-hidden"
+              "fixed z-50 bg-card text-card-foreground overflow-hidden",
+              // Mobile: full screen with flex layout
+              isMobile ? [
+                "inset-0 flex flex-col",
+                "pt-[env(safe-area-inset-top)]",
+                "pb-[env(safe-area-inset-bottom)]",
+              ] : [
+                "left-1/2 top-[12%]",
+                "w-[calc(100%-2rem)] max-w-xl",
+                "border border-border/50 rounded-2xl",
+                "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)]",
+              ]
             )}
-            initial={{ opacity: 0, scale: 0.96, x: "-50%" }}
-            animate={{ opacity: 1, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, scale: 0.96, x: "-50%" }}
+            initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, scale: 0.96, x: "-50%" }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, x: "-50%" }}
+            exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, scale: 0.96, x: "-50%" }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
           >
             {/* Search Input */}
-            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border/50">
+            <div className={cn(
+              "flex items-center gap-3 px-4 border-b border-border/50",
+              isMobile ? "py-4" : "py-3.5"
+            )}>
               <SearchIcon className="text-muted-foreground/70 shrink-0" aria-hidden="true" />
               <input
                 ref={inputRef}
@@ -406,9 +472,55 @@ export function SpotlightSearch({
               >
                 <SparklesIcon className={cn("size-4", isReranking && "animate-pulse")} />
               </button>
-              <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground/70 bg-muted/50 rounded-md font-mono">
-                esc
-              </kbd>
+              {/* Mobile: close button / Desktop: esc hint */}
+              {isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="shrink-0 size-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label="Close search"
+                >
+                  <XIcon className="size-5" />
+                </button>
+              ) : (
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground/70 bg-muted/50 rounded-md font-mono">
+                  esc
+                </kbd>
+              )}
+            </div>
+
+            {/* Category pills - horizontal scroll on mobile */}
+            <div className={cn(
+              "flex gap-2 px-4 py-2.5 border-b border-border/50 bg-muted/20",
+              "overflow-x-auto scrollbar-none"
+            )}>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(null)}
+                className={cn(
+                  "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                  !selectedCategory
+                    ? "bg-indigo-600 text-white"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                )}
+              >
+                All
+              </button>
+              {CATEGORIES.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-colors",
+                    selectedCategory === category
+                      ? "bg-indigo-600 text-white"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  )}
+                >
+                  {category}
+                </button>
+              ))}
             </div>
 
             {/* Results List */}
@@ -418,10 +530,44 @@ export function SpotlightSearch({
               role="listbox"
               aria-label="Search results"
               className={cn(
-                "max-h-[60vh] overflow-y-auto",
-                "overscroll-contain"
+                "overflow-y-auto overscroll-contain",
+                isMobile ? "flex-1" : "max-h-[60vh]"
               )}
             >
+              {/* Recent searches - shown when no query and no category selected */}
+              {!query.trim() && !selectedCategory && recentSearches.length > 0 && (
+                <div className="py-2">
+                  <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ClockIcon className="size-3.5 text-muted-foreground/60" />
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearRecentSearches}
+                      className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {recentSearches.map((recentQuery) => (
+                    <button
+                      key={recentQuery}
+                      onClick={() => setQuery(recentQuery)}
+                      className={cn(
+                        "w-full px-4 py-2.5 text-left",
+                        "flex items-center gap-3",
+                        "transition-colors duration-150",
+                        "hover:bg-muted/50"
+                      )}
+                    >
+                      <ClockIcon className="size-4 text-muted-foreground/40 shrink-0" />
+                      <span className="text-sm text-foreground truncate">{recentQuery}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* No results state */}
               {results.length === 0 && query && (
                 <div className="px-4 py-10 text-center" role="status">
@@ -431,7 +577,7 @@ export function SpotlightSearch({
               )}
 
               {/* Featured prompts in empty state */}
-              {showFeatured && (
+              {showFeatured && !selectedCategory && (
                 <div className="py-2">
                   <div className="px-4 py-2 flex items-center gap-2">
                     <StarIcon className="size-3.5 text-amber-500" />
