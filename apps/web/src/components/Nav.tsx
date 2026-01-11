@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Github, Menu, X, Sparkles, ShoppingBasket } from "lucide-react";
+import { Github, Menu, X, Sparkles, ShoppingBasket, Crown } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "./theme-toggle";
 import { BasketSidebar } from "./BasketSidebar";
 import { Button } from "./ui/button";
 import { useBasket } from "@/hooks/use-basket";
 import { cn } from "@/lib/utils";
+
+// Pro site URL - use env var if available, otherwise default
+const PRO_URL = process.env.NEXT_PUBLIC_PRO_URL ?? "https://pro.jeffreysprompts.com";
 
 const navLinks = [
   { href: "/", label: "Prompts" },
@@ -49,7 +52,27 @@ export function Nav() {
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Pro links - desktop only */}
+          <a
+            href={`${PRO_URL}/login`}
+            className="hidden lg:inline-flex text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            rel="noopener noreferrer"
+          >
+            Login
+          </a>
+          <Button
+            variant="default"
+            size="sm"
+            asChild
+            className="hidden lg:inline-flex gap-1.5 h-8 px-3"
+          >
+            <a href={PRO_URL} rel="noopener noreferrer">
+              <Crown className="h-3.5 w-3.5" />
+              Go Pro
+            </a>
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -98,7 +121,7 @@ export function Nav() {
       <div
         className={cn(
           "md:hidden overflow-hidden transition-all duration-300 ease-in-out",
-          mobileMenuOpen ? "max-h-96" : "max-h-0"
+          mobileMenuOpen ? "max-h-[500px]" : "max-h-0"
         )}
       >
         <nav className="container mx-auto px-4 py-2 border-t border-border/40" aria-label="Mobile navigation">
@@ -112,6 +135,27 @@ export function Nav() {
               {link.label}
             </Link>
           ))}
+
+          {/* Pro links in mobile menu */}
+          <div className="border-t border-border/40 mt-2 pt-2">
+            <a
+              href={`${PRO_URL}/login`}
+              className="block min-h-[44px] py-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground touch-manipulation"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Login
+            </a>
+            <a
+              href={PRO_URL}
+              className="flex items-center gap-2 min-h-[44px] py-3 text-sm font-medium text-primary transition-colors hover:text-primary/80 touch-manipulation"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Crown className="h-4 w-4" />
+              Go Pro
+            </a>
+          </div>
         </nav>
       </div>
 
