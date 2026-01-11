@@ -1,6 +1,6 @@
 ---
 name: idea-wizard
-description: Generate 30 improvement ideas, rigorously evaluate each, distill to the very best 5
+description: "Generate 30 improvement ideas, rigorously evaluate each, distill to the very best 5"
 version: 1.0.0
 author: Jeffrey Emanuel
 category: ideation

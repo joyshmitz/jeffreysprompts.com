@@ -218,7 +218,7 @@ export function PromptDetailModal({
           )}
           {prompt.estimatedTokens && (
             <span className="text-[11px] text-muted-foreground/70 font-medium">
-              ~{prompt.estimatedTokens} tokens
+              {prompt.estimatedTokens} tokens
             </span>
           )}
         </div>

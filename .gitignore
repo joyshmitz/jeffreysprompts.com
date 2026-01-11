@@ -115,3 +115,4 @@ apps/web/public/registry.manifest.json
 # bv (beads viewer) local config and caches
 .bv/
 a.out
+coverage/
