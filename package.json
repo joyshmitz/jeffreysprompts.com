@@ -20,6 +20,8 @@
     "test:e2e:web": "bunx playwright test --config e2e/playwright.config.ts",
     "test:e2e:web:ui": "bunx playwright test --config e2e/playwright.config.ts --ui",
     "test:coverage": "bun run --cwd apps/web test:coverage",
+    "coverage:all": "bun run test:coverage && bun run test:cli:coverage",
+    "coverage:merge": "bun run scripts/merge-coverage.ts",
     "jfp": "bun run jfp.ts",
     "build:cli": "./scripts/build-cli.sh",
     "build:releases": "./scripts/build-releases.sh",
