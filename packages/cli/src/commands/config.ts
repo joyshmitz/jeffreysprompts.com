@@ -47,7 +47,8 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
-    if (!(part in current) || typeof current[part] !== "object") {
+    // Check for null explicitly since typeof null === "object"
+    if (!(part in current) || current[part] === null || typeof current[part] !== "object") {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
@@ -109,7 +110,7 @@ export async function configListCommand(options: ConfigOptions = {}): Promise<vo
   }
 
   const flattened = flattenConfig(config as unknown as Record<string, unknown>);
-  const maxKeyLength = Math.max(...flattened.map((f) => f.key.length));
+  const maxKeyLength = flattened.length > 0 ? Math.max(...flattened.map((f) => f.key.length)) : 0;
 
   let content = chalk.bold.cyan("CLI Configuration") + "\n\n";
 
@@ -152,7 +153,7 @@ export async function configGetCommand(key: ConfigPath, options: ConfigOptions =
   }
 
   if (shouldOutputJson(options)) {
-    writeJson({ key, value: value as Record<string, unknown> });
+    writeJson({ key, value });
   } else {
     if (typeof value === "object") {
       console.log(JSON.stringify(value, null, 2));

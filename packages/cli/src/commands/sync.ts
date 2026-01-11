@@ -260,9 +260,14 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
       allPrompts = data.prompts;
     } else {
       const existing = readLibrary();
+      // Create a map of server prompts for efficient lookup
+      const serverPromptMap = new Map(data.prompts.map((p) => [p.id, p]));
+      // Update existing prompts with server versions, keep others unchanged
+      const mergedExisting = existing.map((p) => serverPromptMap.get(p.id) ?? p);
+      // Add any new prompts that weren't in existing
       const existingIds = new Set(existing.map((p) => p.id));
       const newPrompts = data.prompts.filter((p) => !existingIds.has(p.id));
-      allPrompts = [...existing, ...newPrompts];
+      allPrompts = [...mergedExisting, ...newPrompts];
     }
 
     // Save to local cache

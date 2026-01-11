@@ -227,7 +227,8 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
     personalError = error;
   }
 
-  if (personalError === "auth_expired") {
+  const authExpired = personalError === "auth_expired";
+  if (authExpired && (searchMine || searchSaved || searchAllExplicit)) {
     if (shouldOutputJson(options)) {
       writeJsonError("not_authenticated", "Session expired. Please run 'jfp login' again.");
     } else {
@@ -252,8 +253,11 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
       authenticated: loggedIn,
     };
 
-    if (personalError && personalError !== "auth_expired") {
+    if (personalError && !authExpired) {
       output.warning = `Personal search failed: ${personalError}`;
+    }
+    if (authExpired) {
+      output.warning = "Personal search unavailable (session expired). Showing local results only.";
     }
 
     console.log(JSON.stringify(output, null, 2));
@@ -261,7 +265,9 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
   }
 
   // Human-readable output
-  if (personalError && personalError !== "auth_expired") {
+  if (authExpired) {
+    console.log(chalk.yellow("Warning: Personal search unavailable (session expired). Showing local results only.\n"));
+  } else if (personalError) {
     console.log(chalk.yellow(`Warning: Personal search unavailable (${personalError})\n`));
   }
 
