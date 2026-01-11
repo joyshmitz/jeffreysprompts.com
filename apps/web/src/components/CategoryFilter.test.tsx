@@ -13,17 +13,17 @@ import { describe, expect, it, vi } from "vitest";
 import { CategoryFilter } from "./CategoryFilter";
 import type { PromptCategory } from "@jeffreysprompts/core/prompts/types";
 
-const mockCategories: PromptCategory[] = ["ideation", "writing", "coding"];
+const mockCategories: PromptCategory[] = ["ideation", "documentation", "automation"];
 
 const mockCounts: Record<PromptCategory, number> = {
   ideation: 5,
-  writing: 10,
-  coding: 15,
-  metaprompting: 0,
-  analysis: 0,
-  refinement: 0,
-  research: 0,
-  learning: 0,
+  documentation: 10,
+  automation: 15,
+  refactoring: 0,
+  testing: 0,
+  debugging: 0,
+  workflow: 0,
+  communication: 0,
 };
 
 describe("CategoryFilter", () => {
@@ -40,8 +40,8 @@ describe("CategoryFilter", () => {
 
       expect(screen.getByText("All")).toBeInTheDocument();
       expect(screen.getByText("ideation")).toBeInTheDocument();
-      expect(screen.getByText("writing")).toBeInTheDocument();
-      expect(screen.getByText("coding")).toBeInTheDocument();
+      expect(screen.getByText("documentation")).toBeInTheDocument();
+      expect(screen.getByText("automation")).toBeInTheDocument();
     });
 
     it("renders with counts when provided", () => {
@@ -137,12 +137,12 @@ describe("CategoryFilter", () => {
       render(
         <CategoryFilter
           categories={mockCategories}
-          selected="coding"
+          selected="automation"
           onChange={onChange}
         />
       );
 
-      const codingButton = screen.getByText("coding").closest("button");
+      const codingButton = screen.getByText("automation").closest("button");
       expect(codingButton).toHaveAttribute("aria-pressed", "true");
 
       const allButton = screen.getByText("All").closest("button");
@@ -190,8 +190,8 @@ describe("CategoryFilter", () => {
         />
       );
 
-      await user.click(screen.getByText("coding"));
-      expect(onChange).toHaveBeenCalledWith("coding");
+      await user.click(screen.getByText("automation"));
+      expect(onChange).toHaveBeenCalledWith("automation");
     });
 
     it("calls onChange with null when clear button is clicked", async () => {
@@ -200,7 +200,7 @@ describe("CategoryFilter", () => {
       render(
         <CategoryFilter
           categories={mockCategories}
-          selected="writing"
+          selected="documentation"
           onChange={onChange}
         />
       );
@@ -220,11 +220,11 @@ describe("CategoryFilter", () => {
         />
       );
 
-      await user.click(screen.getByText("writing"));
-      expect(onChange).toHaveBeenCalledWith("writing");
+      await user.click(screen.getByText("documentation"));
+      expect(onChange).toHaveBeenCalledWith("documentation");
 
-      await user.click(screen.getByText("coding"));
-      expect(onChange).toHaveBeenCalledWith("coding");
+      await user.click(screen.getByText("automation"));
+      expect(onChange).toHaveBeenCalledWith("automation");
     });
   });
 
@@ -260,24 +260,24 @@ describe("CategoryFilter", () => {
       const onChange = vi.fn();
       const countsWithZeros: Record<PromptCategory, number> = {
         ideation: 0,
-        writing: 0,
-        coding: 5,
-        metaprompting: 0,
-        analysis: 0,
-        refinement: 0,
-        research: 0,
-        learning: 0,
+        documentation: 0,
+        automation: 5,
+        refactoring: 0,
+        testing: 0,
+        debugging: 0,
+        workflow: 0,
+        communication: 0,
       };
       render(
         <CategoryFilter
-          categories={["ideation", "coding"]}
+          categories={["ideation", "automation"]}
           selected={null}
           onChange={onChange}
           counts={countsWithZeros}
         />
       );
 
-      // Total is 5 (shown twice - once in All, once in coding)
+      // Total is 5 (shown twice - once in All, once in automation)
       expect(screen.getAllByText("5")).toHaveLength(2);
       // Zero is shown for ideation
       expect(screen.getByText("0")).toBeInTheDocument();
