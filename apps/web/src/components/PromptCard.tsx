@@ -161,6 +161,8 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
       className="h-full"
     >
       <Card
+        data-testid="prompt-card"
+        data-featured={prompt.featured ? "true" : undefined}
         className={cn(
           "group relative flex flex-col h-full cursor-pointer overflow-hidden",
           // Base styles - clean, neutral
