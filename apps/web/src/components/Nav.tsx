@@ -12,13 +12,12 @@ import { useBasket } from "@/hooks/use-basket";
 // Pro site URL - use env var if available, otherwise default
 const PRO_URL = process.env.NEXT_PUBLIC_PRO_URL ?? "https://pro.jeffreysprompts.com";
 
+// Simplified nav - only essential links. Workflows + How It Was Made moved to footer.
 const navLinks = [
-  { href: "/", label: "Prompts" },
+  { href: "/", label: "Browse" },
   { href: "/bundles", label: "Bundles" },
   { href: "/pricing", label: "Pricing" },
   { href: "/contribute", label: "Contribute" },
-  { href: "/workflows", label: "Workflows" },
-  { href: "/how_it_was_made", label: "How It Was Made" },
 ];
 
 export function Nav() {
@@ -34,7 +33,7 @@ export function Nav() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <nav className="container mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <nav className="container mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link
           href="/"

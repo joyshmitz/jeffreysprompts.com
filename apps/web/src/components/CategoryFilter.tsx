@@ -39,17 +39,17 @@ export function CategoryFilter({
         aria-pressed={selected === null}
         onClick={() => handleSelect(null)}
         className={cn(
-          "inline-flex items-center rounded-full px-4 py-2 min-h-[44px] text-xs font-medium",
-          "transition-colors duration-150 ease-out",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation",
+          "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium",
+          "transition-colors",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white",
           selected === null
-            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-            : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+            ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
+            : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
         )}
       >
         All
         {counts && (
-          <span className={cn("ml-1.5 text-[11px]", selected === null ? "text-indigo-200" : "text-zinc-400")}>
+          <span className={cn("ml-1.5 text-xs", selected === null ? "opacity-70" : "text-neutral-400")}>
             {Object.values(counts).reduce((a, b) => a + b, 0)}
           </span>
         )}
@@ -62,17 +62,17 @@ export function CategoryFilter({
           aria-pressed={selected === category}
           onClick={() => handleSelect(category)}
           className={cn(
-            "inline-flex items-center rounded-full px-4 py-2 min-h-[44px] text-xs font-medium capitalize",
-            "transition-colors duration-150 ease-out",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation",
+            "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium capitalize",
+            "transition-colors",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white",
             selected === category
-              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-              : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+              ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
+              : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
           )}
         >
           {category}
           {counts?.[category] !== undefined && (
-            <span className={cn("ml-1.5 text-[11px]", selected === category ? "text-indigo-200" : "text-zinc-400")}>
+            <span className={cn("ml-1.5 text-xs", selected === category ? "opacity-70" : "text-neutral-400")}>
               {counts[category]}
             </span>
           )}

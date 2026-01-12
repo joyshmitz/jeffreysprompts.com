@@ -74,10 +74,11 @@ html.theme-transitioning *::after {
    ============================================================================ */
 
 /* ============================================================================
-   ANIMATION KEYFRAMES - COMPREHENSIVE MOTION LIBRARY
+   ANIMATION KEYFRAMES - MINIMAL MOTION LIBRARY (Stripe/Linear inspired)
+   Only essential animations for a clean, professional feel
    ============================================================================ */
 
-/* --- FADE ANIMATIONS --- */
+/* --- FADE --- */
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -89,53 +90,13 @@ html.theme-transitioning *::after {
 }
 
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fade-in-down {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fade-in-left {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fade-in-right {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fade-in-scale {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes fade-in-scale-up {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* --- SLIDE ANIMATIONS --- */
-@keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(-30px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(30px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
+/* --- SLIDE --- */
 @keyframes slide-in-up {
   from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-
-@keyframes slide-in-down {
-  from { transform: translateY(-100%); }
   to { transform: translateY(0); }
 }
 
@@ -144,79 +105,16 @@ html.theme-transitioning *::after {
   to { transform: translateY(100%); }
 }
 
-@keyframes slide-out-up {
-  from { transform: translateY(0); }
-  to { transform: translateY(-100%); }
-}
-
-/* --- SCALE ANIMATIONS --- */
+/* --- SCALE --- */
 @keyframes scale-in {
-  from { transform: scale(0); opacity: 0; }
+  from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 
-@keyframes scale-out {
-  from { transform: scale(1); opacity: 1; }
-  to { transform: scale(0.95); opacity: 0; }
-}
-
-@keyframes scale-in-center {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-@keyframes pop-in {
-  0% { transform: scale(0.5); opacity: 0; }
-  70% { transform: scale(1.05); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes pop-out {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0; }
-}
-
-/* --- SPRING ANIMATIONS --- */
-@keyframes spring-bounce {
-  0% { transform: scale(0.9); }
-  50% { transform: scale(1.05); }
-  75% { transform: scale(0.97); }
-  100% { transform: scale(1); }
-}
-
-@keyframes spring-rotate {
-  0% { transform: rotate(-12deg); }
-  50% { transform: rotate(6deg); }
-  75% { transform: rotate(-3deg); }
-  100% { transform: rotate(0deg); }
-}
-
-@keyframes spring-slide-up {
-  0% { transform: translateY(30px); opacity: 0; }
-  60% { transform: translateY(-5px); opacity: 1; }
-  80% { transform: translateY(2px); }
-  100% { transform: translateY(0); }
-}
-
-/* --- SHIMMER & LOADING --- */
+/* --- LOADING --- */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
-}
-
-@keyframes shimmer-sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-@keyframes skeleton-wave {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@keyframes progress-indeterminate {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
 }
 
 @keyframes spin {
@@ -224,174 +122,30 @@ html.theme-transitioning *::after {
   to { transform: rotate(360deg); }
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* --- GLOW & PULSE --- */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 var(--glow-color, oklch(0.7 0.18 195 / 0.4)); }
-  50% { box-shadow: 0 0 24px 6px var(--glow-color, oklch(0.7 0.18 195 / 0.25)); }
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
-}
-
-@keyframes pulse-dot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.7; }
-}
-
-@keyframes glow-pulse {
-  0%, 100% {
-    filter: drop-shadow(0 0 2px var(--glow-color, oklch(0.7 0.18 195 / 0.5)));
-  }
-  50% {
-    filter: drop-shadow(0 0 12px var(--glow-color, oklch(0.7 0.18 195 / 0.8)));
-  }
-}
-
-@keyframes border-glow {
-  0%, 100% { border-color: oklch(0.58 0.19 195 / 0.3); }
-  50% { border-color: oklch(0.58 0.19 195 / 0.8); }
-}
-
-/* --- FLOAT & BOUNCE --- */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-@keyframes float-slow {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-4px) rotate(1deg); }
-  50% { transform: translateY(-8px) rotate(0deg); }
-  75% { transform: translateY(-4px) rotate(-1deg); }
-}
-
-@keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-
-/* --- SEARCH HIGHLIGHT --- */
-@keyframes highlight-flash {
-  0% { background-color: oklch(0.58 0.19 195 / 0.15); }
-  100% { background-color: transparent; }
-}
-
-@keyframes highlight-fade {
-  0% { opacity: 1; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0; }
-}
-
-@keyframes bounce-in {
-  0% { transform: scale(0.3); opacity: 0; }
-  50% { transform: scale(1.05); }
-  70% { transform: scale(0.9); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-5deg); }
-  75% { transform: rotate(5deg); }
-}
-
-/* --- DRAW & PATH --- */
-@keyframes draw-check {
-  0% { stroke-dashoffset: 30; }
-  100% { stroke-dashoffset: 0; }
-}
-
-@keyframes draw-line {
-  from { stroke-dashoffset: 1000; }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes draw-circle {
-  0% { stroke-dasharray: 0 283; }
-  100% { stroke-dasharray: 283 283; }
-}
-
-/* --- GRADIENT & BACKGROUND --- */
-@keyframes gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-@keyframes gradient-rotate {
-  0% { --gradient-angle: 0deg; }
-  100% { --gradient-angle: 360deg; }
-}
-
-@keyframes bg-pan {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 100% 50%; }
-}
-
-@keyframes mesh-animate {
-  0%, 100% {
-    background-position: 0% 0%, 100% 100%, 50% 50%;
-  }
-  25% {
-    background-position: 100% 0%, 0% 100%, 50% 0%;
-  }
-  50% {
-    background-position: 100% 100%, 0% 0%, 100% 50%;
-  }
-  75% {
-    background-position: 0% 100%, 100% 0%, 0% 50%;
-  }
-}
-
-/* --- RIPPLE & CLICK --- */
-@keyframes ripple {
-  0% { transform: scale(0); opacity: 0.5; }
-  100% { transform: scale(4); opacity: 0; }
-}
-
-@keyframes click-scale {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.95); }
-  100% { transform: scale(1); }
-}
-
-/* --- TOAST & NOTIFICATION --- */
-@keyframes toast-in {
-  0% { transform: translateY(100%) scale(0.9); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-@keyframes toast-out {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(100%) scale(0.9); opacity: 0; }
-}
-
-@keyframes notification-badge {
-  0% { transform: scale(0) rotate(-45deg); }
-  50% { transform: scale(1.2) rotate(10deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-/* --- MODAL & DIALOG --- */
+/* --- MODAL & TOAST --- */
 @keyframes modal-in {
-  0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+  0% { opacity: 0; transform: scale(0.96) translateY(8px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes modal-out {
   0% { opacity: 1; transform: scale(1) translateY(0); }
-  100% { opacity: 0; transform: scale(0.95) translateY(10px); }
+  100% { opacity: 0; transform: scale(0.96) translateY(8px); }
+}
+
+@keyframes toast-in {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
 }
 
 @keyframes backdrop-in {
-  0% { opacity: 0; backdrop-filter: blur(0); }
-  100% { opacity: 1; backdrop-filter: blur(8px); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 /* --- BOTTOM SHEET --- */
@@ -403,152 +157,6 @@ html.theme-transitioning *::after {
 @keyframes sheet-down {
   from { transform: translateY(0); }
   to { transform: translateY(100%); }
-}
-
-/* --- TYPEWRITER & TEXT --- */
-@keyframes typewriter {
-  from { width: 0; }
-  to { width: 100%; }
-}
-
-@keyframes blink-caret {
-  0%, 100% { border-color: transparent; }
-  50% { border-color: currentColor; }
-}
-
-@keyframes text-reveal {
-  0% { clip-path: inset(0 100% 0 0); }
-  100% { clip-path: inset(0 0 0 0); }
-}
-
-/* --- CONFETTI & CELEBRATION --- */
-@keyframes confetti-fall {
-  0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
-
-@keyframes confetti-spin {
-  0% { transform: rotateX(0) rotateY(0); }
-  100% { transform: rotateX(360deg) rotateY(360deg); }
-}
-
-@keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-/* --- SKELETON MORPHING --- */
-@keyframes skeleton-morph {
-  0% { opacity: 0.4; }
-  50% { opacity: 0.7; }
-  100% { opacity: 0.4; }
-}
-
-@keyframes content-reveal {
-  0% { opacity: 0; filter: blur(4px); }
-  100% { opacity: 1; filter: blur(0); }
-}
-
-/* --- SCROLL REVEAL ANIMATIONS (Linear/Stripe-style) --- */
-@keyframes reveal-up {
-  from {
-    opacity: 0;
-    transform: translateY(40px) scale(0.98);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes reveal-scale {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
-  60% {
-    transform: scale(1.02);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes reveal-slide-right {
-  from {
-    opacity: 0;
-    transform: translateX(-60px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes reveal-slide-left {
-  from {
-    opacity: 0;
-    transform: translateX(60px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes reveal-blur {
-  from {
-    opacity: 0;
-    filter: blur(12px);
-    transform: scale(1.05);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: scale(1);
-  }
-}
-
-/* --- HERO ORB FLOATING ANIMATIONS --- */
-@keyframes orb-float-1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.05); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
-}
-
-@keyframes orb-float-2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-40px, 20px) scale(0.95); }
-  66% { transform: translate(25px, -35px) scale(1.05); }
-}
-
-@keyframes orb-float-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(15px, 25px) scale(1.03); }
-  50% { transform: translate(-25px, -15px) scale(0.97); }
-  75% { transform: translate(20px, -20px) scale(1.02); }
-}
-
-/* --- ICON MICRO-INTERACTIONS --- */
-@keyframes icon-bounce {
-  0%, 100% { transform: translateY(0); }
-  25% { transform: translateY(-3px); }
-  50% { transform: translateY(0); }
-  75% { transform: translateY(-2px); }
-}
-
-@keyframes icon-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-8deg); }
-  75% { transform: rotate(8deg); }
-}
-
-@keyframes icon-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.15); opacity: 0.8; }
 }
 
 /* ============================================================================
@@ -696,22 +304,35 @@ html.theme-transitioning *::after {
 :root {
   --radius: 0.75rem;
 
-  /* Typography - fluid font sizes (refined scale) */
-  --font-size-xs: clamp(0.6875rem, 0.65rem + 0.1vw, 0.75rem);
-  --font-size-sm: clamp(0.8125rem, 0.775rem + 0.15vw, 0.875rem);
-  --font-size-base: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);
-  --font-size-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.125rem);
-  --font-size-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
-  --font-size-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 2rem);
-  --font-size-3xl: clamp(1.875rem, 1.65rem + 1.1vw, 2.5rem);
-  --font-size-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 3.5rem);
-  --font-size-5xl: clamp(3rem, 2.5rem + 2.5vw, 4.5rem);
-  --font-size-6xl: clamp(3.75rem, 3rem + 3.75vw, 6rem);
+  /* Typography - Fixed 5-size scale (Stripe/Linear inspired)
+     Simplified for consistency and clarity */
+  --font-size-xs: 0.75rem;      /* 12px - badges, metadata */
+  --font-size-sm: 0.875rem;     /* 14px - secondary text */
+  --font-size-base: 1rem;       /* 16px - body text */
+  --font-size-lg: 1.125rem;     /* 18px - card titles */
+  --font-size-xl: 1.5rem;       /* 24px - section headings */
+  --font-size-2xl: 2rem;        /* 32px - page titles (mobile) */
+  --font-size-3xl: 2.5rem;      /* 40px - page titles (desktop) */
+  --font-size-4xl: 3rem;        /* 48px - hero (mobile) */
+  --font-size-5xl: 3.5rem;      /* 56px - hero (desktop) */
+  --font-size-6xl: 4rem;        /* 64px - extra large hero */
 
-  /* Spacing - fluid section spacing */
-  --space-section-y: clamp(3rem, 6vw, 5rem);
-  --space-section-y-lg: clamp(4rem, 8vw, 7rem);
-  --space-container-x: clamp(1rem, 5vw, 2rem);
+  /* Spacing - 4px base grid (Stripe/Linear inspired) */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+  --space-24: 6rem;     /* 96px */
+
+  /* Section spacing */
+  --space-section-y: 4rem;
+  --space-section-y-lg: 6rem;
+  --space-container-x: 1.5rem;
 
   /* Container widths */
   --container-narrow: 42rem;
@@ -871,9 +492,9 @@ html.theme-transitioning *::after {
   --secondary-foreground: oklch(0.92 0.008 260);
   --secondary-hover: oklch(0.22 0.022 260);
 
-  /* Muted */
+  /* Muted - improved contrast for WCAG AA */
   --muted: oklch(0.15 0.018 260);
-  --muted-foreground: oklch(0.60 0.008 260);
+  --muted-foreground: oklch(0.68 0.008 260);
 
   /* Accent - Warm Amber */
   --accent: oklch(0.80 0.14 75);
@@ -884,18 +505,18 @@ html.theme-transitioning *::after {
   --destructive: oklch(0.65 0.20 25);
   --destructive-foreground: oklch(0.99 0.01 25);
 
-  /* Borders and inputs */
-  --border: oklch(1 0 0 / 0.10);
-  --border-hover: oklch(1 0 0 / 0.18);
-  --input: oklch(1 0 0 / 0.08);
+  /* Borders and inputs - improved visibility */
+  --border: oklch(1 0 0 / 0.14);
+  --border-hover: oklch(1 0 0 / 0.22);
+  --input: oklch(1 0 0 / 0.10);
   --input-focus: oklch(0.72 0.18 195);
   --ring: oklch(0.72 0.18 195);
 
-  /* Text hierarchy */
+  /* Text hierarchy - improved contrast for WCAG AA */
   --text-primary: oklch(0.96 0.008 260);
-  --text-secondary: oklch(0.70 0.006 260);
-  --text-tertiary: oklch(0.55 0.005 260);
-  --text-disabled: oklch(0.40 0.004 260);
+  --text-secondary: oklch(0.75 0.006 260);
+  --text-tertiary: oklch(0.62 0.005 260);
+  --text-disabled: oklch(0.45 0.004 260);
 
   /* Charts */
   --chart-1: oklch(0.72 0.18 195);
@@ -1221,10 +842,10 @@ html.theme-transitioning *::after {
 
 @layer utilities {
   /* ========================================================================
-     ANIMATION UTILITIES - COMPREHENSIVE LIBRARY
+     ANIMATION UTILITIES - MINIMAL LIBRARY (Stripe/Linear inspired)
      ======================================================================== */
 
-  /* --- Fade Animations --- */
+  /* --- Fade --- */
   .animate-fade-in {
     animation: fade-in var(--duration-normal) var(--ease-out) both;
   }
@@ -1237,95 +858,21 @@ html.theme-transitioning *::after {
     animation: fade-in-up var(--duration-normal) var(--ease-out) both;
   }
 
-  .animate-fade-in-down {
-    animation: fade-in-down var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-fade-in-left {
-    animation: fade-in-left var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-fade-in-right {
-    animation: fade-in-right var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-fade-in-scale {
-    animation: fade-in-scale var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-fade-in-scale-up {
-    animation: fade-in-scale-up var(--duration-normal) var(--ease-out) both;
-  }
-
-  /* --- Slide Animations --- */
-  .animate-slide-in-right {
-    animation: slide-in-right var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-slide-in-left {
-    animation: slide-in-left var(--duration-normal) var(--ease-out) both;
-  }
-
+  /* --- Slide --- */
   .animate-slide-in-up {
     animation: slide-in-up var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-slide-in-down {
-    animation: slide-in-down var(--duration-normal) var(--ease-out) both;
-  }
-
-  .animate-slide-out-up {
-    animation: slide-out-up var(--duration-normal) var(--ease-out) both;
   }
 
   .animate-slide-out-down {
     animation: slide-out-down var(--duration-normal) var(--ease-out) both;
   }
 
-  /* --- Scale & Pop Animations --- */
+  /* --- Scale --- */
   .animate-scale-in {
-    animation: scale-in var(--duration-normal) var(--ease-spring) both;
+    animation: scale-in var(--duration-normal) var(--ease-out) both;
   }
 
-  .animate-scale-out {
-    animation: scale-out var(--duration-fast) var(--ease-out) both;
-  }
-
-  .animate-pop-in {
-    animation: pop-in var(--duration-normal) var(--ease-spring) both;
-  }
-
-  .animate-pop-out {
-    animation: pop-out var(--duration-fast) var(--ease-out) both;
-  }
-
-  .animate-bounce-in {
-    animation: bounce-in var(--duration-slow) var(--ease-out) both;
-  }
-
-  /* --- Search Highlight Animations --- */
-  .animate-highlight-flash {
-    animation: highlight-flash 3s var(--ease-out) both;
-  }
-
-  .animate-highlight-fade {
-    animation: highlight-fade 3s var(--ease-out) both;
-  }
-
-  /* --- Spring Animations --- */
-  .animate-spring-bounce {
-    animation: spring-bounce var(--duration-normal) var(--ease-spring) both;
-  }
-
-  .animate-spring-rotate {
-    animation: spring-rotate var(--duration-normal) var(--ease-spring) both;
-  }
-
-  .animate-spring-slide-up {
-    animation: spring-slide-up var(--duration-slow) var(--ease-out) both;
-  }
-
-  /* --- Loading & Shimmer --- */
+  /* --- Loading --- */
   .animate-shimmer {
     animation: shimmer 2s linear infinite;
     background: linear-gradient(
@@ -1337,80 +884,8 @@ html.theme-transitioning *::after {
     background-size: 200% 100%;
   }
 
-  .animate-skeleton-wave {
-    animation: skeleton-wave 1.5s ease-in-out infinite;
-    background: linear-gradient(
-      90deg,
-      var(--skeleton-base) 25%,
-      var(--skeleton-shine) 50%,
-      var(--skeleton-base) 75%
-    );
-    background-size: 200% 100%;
-  }
-
   .animate-spin {
     animation: spin 1s linear infinite;
-  }
-
-  .animate-spin-slow {
-    animation: spin-slow 3s linear infinite;
-  }
-
-  /* --- Pulse & Glow --- */
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  .animate-pulse-ring {
-    animation: pulse-ring 1.5s ease-out infinite;
-  }
-
-  .animate-pulse-dot {
-    animation: pulse-dot 1.5s ease-in-out infinite;
-  }
-
-  .animate-glow-pulse {
-    animation: glow-pulse 2s ease-in-out infinite;
-  }
-
-  .animate-border-glow {
-    animation: border-glow 2s ease-in-out infinite;
-  }
-
-  /* --- Float & Bounce --- */
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  .animate-float-slow {
-    animation: float-slow 6s ease-in-out infinite;
-  }
-
-  .animate-bounce-subtle {
-    animation: bounce-subtle 2s ease-in-out infinite;
-  }
-
-  .animate-wiggle {
-    animation: wiggle 0.5s ease-in-out;
-  }
-
-  /* --- Gradient & Background --- */
-  .animate-gradient {
-    animation: gradient-shift 8s ease infinite;
-    background-size: 200% 200%;
-  }
-
-  .animate-gradient-fast {
-    animation: gradient-shift 3s ease infinite;
-    background-size: 200% 200%;
-  }
-
-  .animate-mesh {
-    animation: mesh-animate 20s ease infinite;
-  }
-
-  .animate-bg-pan {
-    animation: bg-pan 3s ease infinite alternate;
   }
 
   /* --- Modal & Dialog --- */
@@ -1435,134 +910,14 @@ html.theme-transitioning *::after {
     animation: sheet-down var(--duration-normal) var(--ease-out) both;
   }
 
-  /* --- Toast & Notification --- */
+  /* --- Toast --- */
   .animate-toast-in {
-    animation: toast-in var(--duration-normal) var(--ease-spring) both;
+    animation: toast-in var(--duration-normal) var(--ease-out) both;
   }
 
   .animate-toast-out {
     animation: toast-out var(--duration-fast) var(--ease-out) both;
   }
-
-  .animate-notification-badge {
-    animation: notification-badge var(--duration-normal) var(--ease-spring) both;
-  }
-
-  /* --- Text & Content --- */
-  .animate-text-reveal {
-    animation: text-reveal var(--duration-slow) var(--ease-out) both;
-  }
-
-  .animate-content-reveal {
-    animation: content-reveal var(--duration-normal) var(--ease-out) both;
-  }
-
-  /* --- Scroll Reveal (Linear/Stripe-style) --- */
-  .animate-reveal-up {
-    animation: reveal-up 0.6s var(--ease-out) both;
-  }
-
-  .animate-reveal-scale {
-    animation: reveal-scale 0.5s var(--ease-spring) both;
-  }
-
-  .animate-reveal-slide-right {
-    animation: reveal-slide-right 0.5s var(--ease-out) both;
-  }
-
-  .animate-reveal-slide-left {
-    animation: reveal-slide-left 0.5s var(--ease-out) both;
-  }
-
-  .animate-reveal-blur {
-    animation: reveal-blur 0.6s var(--ease-out) both;
-  }
-
-  /* --- Hero Orb Floating --- */
-  .animate-orb-float-1 {
-    animation: orb-float-1 20s ease-in-out infinite;
-  }
-
-  .animate-orb-float-2 {
-    animation: orb-float-2 25s ease-in-out infinite;
-  }
-
-  .animate-orb-float-3 {
-    animation: orb-float-3 30s ease-in-out infinite;
-  }
-
-  /* --- Icon Micro-interactions (apply via group-hover) --- */
-  .group:hover .icon-bounce-hover {
-    animation: icon-bounce 0.5s var(--ease-spring);
-  }
-
-  .group:hover .icon-wiggle-hover {
-    animation: icon-wiggle 0.4s var(--ease-spring);
-  }
-
-  .group:hover .icon-pulse-hover {
-    animation: icon-pulse 0.4s var(--ease-spring);
-  }
-
-  .group:hover .icon-scale-hover {
-    transform: scale(1.15);
-    transition: transform 0.2s var(--ease-spring);
-  }
-
-  .group:hover .icon-rotate-hover {
-    transform: rotate(12deg);
-    transition: transform 0.3s var(--ease-spring);
-  }
-
-  /* --- Draw & Path --- */
-  .animate-draw-check {
-    animation: draw-check var(--duration-normal) var(--ease-out) both;
-    stroke-dasharray: 30;
-  }
-
-  .animate-draw-line {
-    animation: draw-line 1s var(--ease-out) both;
-  }
-
-  /* --- Click & Ripple --- */
-  .animate-click-scale {
-    animation: click-scale var(--duration-fast) var(--ease-out);
-  }
-
-  .animate-ripple {
-    animation: ripple 0.6s var(--ease-out) forwards;
-  }
-
-  /* --- Celebration --- */
-  .animate-sparkle {
-    animation: sparkle 1s ease-in-out infinite;
-  }
-
-  .animate-confetti {
-    animation: confetti-fall 3s linear forwards, confetti-spin 1s linear infinite;
-  }
-
-  /* ========================================================================
-     STAGGER DELAYS - Orchestrated Animations
-     ======================================================================== */
-
-  .stagger-1 { animation-delay: 50ms; }
-  .stagger-2 { animation-delay: 100ms; }
-  .stagger-3 { animation-delay: 150ms; }
-  .stagger-4 { animation-delay: 200ms; }
-  .stagger-5 { animation-delay: 250ms; }
-  .stagger-6 { animation-delay: 300ms; }
-  .stagger-7 { animation-delay: 350ms; }
-  .stagger-8 { animation-delay: 400ms; }
-  .stagger-9 { animation-delay: 450ms; }
-  .stagger-10 { animation-delay: 500ms; }
-
-  /* Longer staggers for dramatic reveals */
-  .stagger-slow-1 { animation-delay: 100ms; }
-  .stagger-slow-2 { animation-delay: 200ms; }
-  .stagger-slow-3 { animation-delay: 300ms; }
-  .stagger-slow-4 { animation-delay: 400ms; }
-  .stagger-slow-5 { animation-delay: 500ms; }
 
   /* ========================================================================
      GLASS & FROSTED EFFECTS
@@ -2147,7 +1502,7 @@ html.theme-transitioning *::after {
      MOBILE UTILITIES
      ======================================================================== */
 
-  /* Safe area insets for mobile */
+  /* Safe area insets for mobile - with sensible minimums */
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
@@ -2162,6 +1517,15 @@ html.theme-transitioning *::after {
 
   .safe-area-inset-right {
     padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* Safe areas with minimum padding for consistent spacing */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+  }
+
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 1rem);
   }
 
   /* Hide scrollbar but keep functionality */

@@ -79,18 +79,18 @@ export function TagFilter({
               aria-pressed={isSelected}
               onClick={() => handleToggle(tag)}
               className={cn(
-                "inline-flex items-center rounded-full px-3 py-2 min-h-[44px] text-xs font-medium",
-                "transition-colors duration-150 ease-out",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation",
+                "inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium",
+                "transition-colors",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white",
                 isSelected
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-                  : "border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-200"
+                  ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
+                  : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
               )}
             >
               {isSelected && <Check className="w-3 h-3 mr-1.5" aria-hidden="true" />}
               {tag}
               {counts?.[tag] !== undefined && (
-                <span className={cn("ml-1.5 text-[11px]", isSelected ? "text-indigo-200" : "text-zinc-400")}>
+                <span className={cn("ml-1.5 text-xs", isSelected ? "opacity-70" : "text-neutral-400")}>
                   {counts[tag]}
                 </span>
               )}
