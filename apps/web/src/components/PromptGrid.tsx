@@ -34,8 +34,8 @@ export function PromptGrid({
   if (prompts.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="text-zinc-400 dark:text-zinc-500 mb-2">No prompts found</div>
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">
+        <div className="text-neutral-400 dark:text-neutral-500 mb-2">No prompts found</div>
+        <p className="text-sm text-neutral-400 dark:text-neutral-500">
           Try adjusting your search or filters
         </p>
       </div>
@@ -70,7 +70,7 @@ export function PromptGrid({
 
 function PromptCardSkeleton() {
   return (
-    <div className="flex flex-col h-full border rounded-lg p-6 bg-white dark:bg-zinc-900/50">
+    <div className="flex flex-col h-full border rounded-lg p-6 bg-white dark:bg-neutral-900/50">
       <div className="flex items-center justify-between mb-4">
         <Skeleton className="h-5 w-20" />
         <Skeleton className="h-5 w-16" />
