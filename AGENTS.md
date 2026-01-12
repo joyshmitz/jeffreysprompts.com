@@ -868,7 +868,9 @@ This matrix documents dependencies between the public CLI (`jfp`) in this repo a
 
 ```
 Production: https://pro.jeffreysprompts.com/api
-Configurable via: JFP_PREMIUM_API_URL environment variable
+Configurable via:
+  - JFP_PREMIUM_API_URL (for API calls, default: https://pro.jeffreysprompts.com/api)
+  - JFP_PREMIUM_URL (for auth/login, default: https://pro.jeffreysprompts.com)
 ```
 
 ### Authentication Flow
