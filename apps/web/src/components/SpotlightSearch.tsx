@@ -677,8 +677,8 @@ export function SpotlightSearch({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={cn(
-                        "font-medium truncate",
-                        index === selectedIndex ? "text-neutral-900 dark:text-white font-semibold" : "text-foreground"
+                        "truncate",
+                        index === selectedIndex ? "text-neutral-900 dark:text-white font-semibold" : "text-foreground font-medium"
                       )}>
                         {result.prompt.title}
                       </span>
