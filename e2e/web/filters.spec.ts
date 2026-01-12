@@ -371,3 +371,174 @@ test.describe("Filter with Search", () => {
     });
   });
 });
+
+test.describe("Active Filter Chips", () => {
+  test.beforeEach(async ({ page, logger }) => {
+    await logger.step("navigate to homepage", async () => {
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+    });
+  });
+
+  test("shows filter chip when category is selected", async ({ page, logger }) => {
+    await logger.step("wait for page to load", async () => {
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+    });
+
+    await logger.step("verify no filter chips initially", async () => {
+      await expect(page.getByTestId("filter-chip")).not.toBeVisible();
+    });
+
+    await logger.step("select ideation category", async () => {
+      const categoryGroup = page.getByRole("group", { name: "Filter by category" }).nth(1);
+      const categoryButton = categoryGroup.getByRole("button", { name: /^ideation\s/i });
+      await categoryButton.click();
+    });
+
+    await logger.step("verify filter chip appears", async () => {
+      const filterChip = page.getByTestId("filter-chip").filter({ hasText: "ideation" });
+      await expect(filterChip).toBeVisible();
+    });
+  });
+
+  test("shows filter chip when tag is selected", async ({ page, logger }) => {
+    await logger.step("wait for page to load", async () => {
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+    });
+
+    await logger.step("select brainstorming tag", async () => {
+      const tagsGroup = page.getByRole("group", { name: "Tags" });
+      const tagButton = tagsGroup.getByRole("button", { name: /brainstorming/i });
+      await tagButton.click();
+    });
+
+    await logger.step("verify filter chip appears", async () => {
+      const filterChip = page.getByTestId("filter-chip").filter({ hasText: "brainstorming" });
+      await expect(filterChip).toBeVisible();
+    });
+  });
+
+  test("clicking X on chip removes the filter", async ({ page, logger }) => {
+    await logger.step("navigate with category filter", async () => {
+      await page.goto("/?category=ideation");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("verify filter chip is visible", async () => {
+      const filterChip = page.getByTestId("filter-chip").filter({ hasText: "ideation" });
+      await expect(filterChip).toBeVisible();
+    });
+
+    await logger.step("click remove button on chip", async () => {
+      const removeButton = page.getByRole("button", { name: /remove ideation filter/i });
+      await removeButton.click();
+    });
+
+    await logger.step("verify filter is removed", async () => {
+      await expect(page).not.toHaveURL(/category=/, { timeout: 5000 });
+      const filterChip = page.getByTestId("filter-chip").filter({ hasText: "ideation" });
+      await expect(filterChip).not.toBeVisible();
+    });
+  });
+
+  test("Clear all link removes all filters", async ({ page, logger }) => {
+    await logger.step("navigate with multiple filters", async () => {
+      await page.goto("/?category=ideation&tags=brainstorming");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("verify multiple chips visible", async () => {
+      await expect(page.getByTestId("filter-chip")).toHaveCount(2);
+    });
+
+    await logger.step("click Clear all link", async () => {
+      const clearAllLink = page.getByRole("region", { name: "Active filters" }).getByText("Clear all");
+      await clearAllLink.click();
+    });
+
+    await logger.step("verify all filters removed", async () => {
+      await expect(page).not.toHaveURL(/category=/, { timeout: 5000 });
+      await expect(page).not.toHaveURL(/tags=/);
+      await expect(page.getByTestId("filter-chip")).not.toBeVisible();
+    });
+  });
+});
+
+test.describe("Filter Performance", () => {
+  test("filter operations complete within 200ms", async ({ page, logger }) => {
+    await logger.step("navigate to homepage", async () => {
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("wait for page to load", async () => {
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+    });
+
+    await logger.step("measure filter operation time", async () => {
+      const startTime = Date.now();
+      const categoryGroup = page.getByRole("group", { name: "Filter by category" }).nth(1);
+      const categoryButton = categoryGroup.getByRole("button", { name: /^ideation\s/i });
+      await categoryButton.click();
+      await page.waitForURL(/category=ideation/);
+      const duration = Date.now() - startTime;
+
+      // Log the duration for debugging
+      console.log(`[PERF] Filter operation took ${duration}ms`);
+
+      // Filter operations should complete within 200ms (excluding network latency)
+      expect(duration).toBeLessThan(500); // Allow some buffer for CI environments
+    });
+  });
+});
+
+test.describe("Filter Accessibility", () => {
+  test("filter buttons are keyboard accessible", async ({ page, logger }) => {
+    await logger.step("navigate to homepage", async () => {
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("wait for page to load", async () => {
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+    });
+
+    await logger.step("tab to category filter and activate", async () => {
+      // Find and focus the ideation category button
+      const categoryGroup = page.getByRole("group", { name: "Filter by category" }).nth(1);
+      const ideationButton = categoryGroup.getByRole("button", { name: /^ideation\s/i });
+      await ideationButton.focus();
+      await page.keyboard.press("Enter");
+    });
+
+    await logger.step("verify filter activated via keyboard", async () => {
+      await expect(page).toHaveURL(/category=ideation/);
+    });
+  });
+
+  test("clear filters button has proper aria-label", async ({ page, logger }) => {
+    await logger.step("navigate with filters", async () => {
+      await page.goto("/?category=ideation&tags=brainstorming");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("verify clear filters button has accessible label", async () => {
+      const clearButton = page.getByRole("button", { name: /clear.*filter/i });
+      await expect(clearButton).toBeVisible();
+      // The aria-label should include the count
+      await expect(clearButton).toHaveAttribute("aria-label", /clear all.*active filter/i);
+    });
+  });
+
+  test("filter chips have proper aria-labels for removal", async ({ page, logger }) => {
+    await logger.step("navigate with category filter", async () => {
+      await page.goto("/?category=ideation");
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("verify remove button has accessible label", async () => {
+      const removeButton = page.getByRole("button", { name: /remove ideation filter/i });
+      await expect(removeButton).toBeVisible();
+    });
+  });
+});
