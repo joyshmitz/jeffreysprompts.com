@@ -90,9 +90,10 @@ function touchItem(store: FeaturedStore, itemId: string) {
   store.order = [itemId, ...store.order.filter((id) => id !== itemId)];
 }
 
-function isCurrentlyActive(item: FeaturedContent): boolean {
-  if (!item.isActive) return false;
-
+/**
+ * Check if item is within its scheduled time window (ignores isActive flag).
+ */
+function isWithinTimeWindow(item: FeaturedContent): boolean {
   const now = Date.now();
   const startAt = new Date(item.startAt).getTime();
   if (Number.isNaN(startAt) || startAt > now) return false;
@@ -103,6 +104,14 @@ function isCurrentlyActive(item: FeaturedContent): boolean {
   }
 
   return true;
+}
+
+/**
+ * Check if item is currently active (isActive flag AND within time window).
+ */
+function isCurrentlyActive(item: FeaturedContent): boolean {
+  if (!item.isActive) return false;
+  return isWithinTimeWindow(item);
 }
 
 export function createFeaturedContent(input: {
@@ -189,8 +198,10 @@ export function listFeaturedContent(filters?: {
     .map((id) => store.items.get(id))
     .filter((item): item is FeaturedContent => Boolean(item))
     .filter((item) => {
+      // Filter by isActive flag (manual deactivation)
       if (!filters?.includeInactive && !item.isActive) return false;
-      if (!filters?.includeExpired && !isCurrentlyActive(item)) return false;
+      // Filter by time window (expired/not-yet-started)
+      if (!filters?.includeExpired && !isWithinTimeWindow(item)) return false;
       if (filters?.featureType && filters.featureType !== "all" && item.featureType !== filters.featureType) {
         return false;
       }
