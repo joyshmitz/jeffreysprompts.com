@@ -12,3 +12,4 @@ export { CliRunner, createCliRunner, type CommandResult, type CliRunnerOptions }
 export { PlaywrightLogger, test, expect, type StepOptions } from "./playwright-logger";
 export * from "./theme-helpers";
 export * from "./mobile-helpers";
+export * from "./consent-helpers";

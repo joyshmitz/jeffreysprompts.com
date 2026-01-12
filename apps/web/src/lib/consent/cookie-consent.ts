@@ -21,7 +21,7 @@ export interface CookieConsent extends CookiePreferences {
 }
 
 export function getPrivacySignals(): PrivacySignals {
-  if (typeof navigator === "undefined") {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
     return { dnt: false, gpc: false };
   }
 
