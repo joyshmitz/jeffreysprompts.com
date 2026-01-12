@@ -101,6 +101,14 @@ export function readOfflineLibrary(): SyncedPrompt[] {
 }
 
 /**
+ * Find a prompt by ID in the offline library cache
+ */
+export function getOfflinePromptById(id: string): SyncedPrompt | null {
+  const prompts = readOfflineLibrary();
+  return prompts.find((prompt) => prompt.id === id) ?? null;
+}
+
+/**
  * Format the age of the last sync for display
  */
 export function formatSyncAge(isoDate: string | undefined | null): string {

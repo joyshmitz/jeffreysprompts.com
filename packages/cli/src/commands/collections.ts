@@ -7,13 +7,17 @@
  * - jfp collections <name> --add <prompt-id>: Add prompt to collection
  */
 
+import { writeFileSync } from "fs";
 import Table from "cli-table3";
 import boxen from "boxen";
 import chalk from "chalk";
 import { apiClient, requiresPremium, isAuthError } from "../lib/api-client";
 import { isLoggedIn, loadCredentials } from "../lib/credentials";
-import { shouldOutputJson } from "../lib/utils";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
+import { getOfflinePromptById, normalizePromptCategory } from "../lib/offline";
+import { isSafeSkillId, shouldOutputJson } from "../lib/utils";
+import { getPrompt, type Prompt } from "@jeffreysprompts/core/prompts";
+import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
+import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
 
 export interface CollectionItem {
   id: string;
@@ -40,6 +44,20 @@ interface CollectionsListOptions {
 interface CollectionShowOptions {
   json?: boolean;
   add?: string; // Prompt ID to add to collection
+  export?: boolean;
+  format?: "skill" | "md";
+  stdout?: boolean;
+}
+
+interface CollectionCreateOptions {
+  json?: boolean;
+  description?: string;
+}
+
+interface CollectionExportOptions {
+  json?: boolean;
+  format?: "skill" | "md";
+  stdout?: boolean;
 }
 
 function writeJson(payload: Record<string, unknown>): void {
@@ -48,6 +66,78 @@ function writeJson(payload: Record<string, unknown>): void {
 
 function writeJsonError(code: string, message: string, extra: Record<string, unknown> = {}): void {
   writeJson({ error: true, code, message, ...extra });
+}
+
+interface PromptPayload {
+  id: string;
+  title?: string;
+  description?: string;
+  content?: string;
+  category?: string;
+  tags?: string[];
+  author?: string;
+  version?: string;
+  created?: string;
+  created_at?: string;
+  saved_at?: string;
+  updated_at?: string;
+  whenToUse?: string[];
+  when_to_use?: string[];
+  tips?: string[];
+  examples?: string[];
+}
+
+function extractPromptPayload(payload: unknown): PromptPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  if (typeof data.prompt === "object" && data.prompt !== null) {
+    return data.prompt as PromptPayload;
+  }
+  if (typeof data.id === "string") {
+    return data as PromptPayload;
+  }
+  return null;
+}
+
+function buildPromptForExport(payload: PromptPayload): Prompt | null {
+  if (!payload.content || typeof payload.content !== "string") return null;
+  const created =
+    payload.created ||
+    payload.created_at ||
+    payload.saved_at ||
+    payload.updated_at ||
+    new Date().toISOString();
+
+  return {
+    id: payload.id,
+    title: payload.title ?? payload.id,
+    description: payload.description ?? "",
+    content: payload.content,
+    category: normalizePromptCategory(payload.category),
+    tags: Array.isArray(payload.tags) ? payload.tags : [],
+    author: payload.author ?? "",
+    version: payload.version ?? "1.0.0",
+    created,
+    whenToUse: payload.whenToUse ?? payload.when_to_use,
+    tips: payload.tips,
+    examples: payload.examples,
+  };
+}
+
+function buildPromptFromOffline(id: string): Prompt | null {
+  const offlinePrompt = getOfflinePromptById(id);
+  if (!offlinePrompt) return null;
+  return {
+    id: offlinePrompt.id,
+    title: offlinePrompt.title ?? offlinePrompt.id,
+    description: offlinePrompt.description ?? "",
+    content: offlinePrompt.content,
+    category: normalizePromptCategory(offlinePrompt.category),
+    tags: offlinePrompt.tags ?? [],
+    author: "",
+    version: "1.0.0",
+    created: offlinePrompt.saved_at,
+  };
 }
 
 /**
@@ -92,6 +182,57 @@ async function requirePremium(options: { json?: boolean }): Promise<boolean> {
   }
 
   return true;
+}
+
+async function resolvePromptForExport(
+  promptId: string,
+  options: CollectionExportOptions
+): Promise<{ prompt?: Prompt; source?: string; error?: string }> {
+  const localPrompt = getPrompt(promptId);
+  if (localPrompt) {
+    return { prompt: localPrompt, source: "local" };
+  }
+
+  const offlinePrompt = buildPromptFromOffline(promptId);
+  if (offlinePrompt) {
+    return { prompt: offlinePrompt, source: "offline" };
+  }
+
+  const response = await apiClient.get<unknown>(`/cli/prompts/${encodeURIComponent(promptId)}`);
+
+  if (!response.ok) {
+    if (isAuthError(response)) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("auth_expired", "Session expired. Please run 'jfp login' again.");
+      } else {
+        console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
+      }
+      process.exit(1);
+    }
+
+    if (requiresPremium(response)) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("premium_required", "Exporting collections requires a premium subscription");
+      } else {
+        console.log(chalk.yellow("Exporting collections requires a premium subscription"));
+      }
+      process.exit(1);
+    }
+
+    return { error: response.error || "Failed to load prompt content" };
+  }
+
+  const payload = extractPromptPayload(response.data);
+  if (!payload) {
+    return { error: "Invalid prompt response" };
+  }
+
+  const prompt = buildPromptForExport(payload);
+  if (!prompt) {
+    return { error: "Prompt content missing" };
+  }
+
+  return { prompt, source: "api" };
 }
 
 /**
@@ -175,18 +316,23 @@ export async function collectionShowCommand(
     return addToCollection(name, options.add, options);
   }
 
+  // Handle --export flag
+  if (options.export) {
+    return exportCollectionCommand(name, options);
+  }
+
   // Fetch collection details
   const response = await apiClient.get<CollectionDetail>(`/cli/collections/${encodeURIComponent(name)}`);
 
   if (!response.ok) {
     if (response.status === 404) {
-    if (shouldOutputJson(options)) {
-      writeJsonError("not_found", `Collection not found: ${name}`);
-    } else {
-      console.log(chalk.red(`Collection not found: ${name}`));
-      console.log(chalk.dim("Use 'jfp collections' to list your collections"));
-    }
-    process.exit(1);
+      if (shouldOutputJson(options)) {
+        writeJsonError("not_found", `Collection not found: ${name}`);
+      } else {
+        console.log(chalk.red(`Collection not found: ${name}`));
+        console.log(chalk.dim("Use 'jfp collections' to list your collections"));
+      }
+      process.exit(1);
     }
 
     if (isAuthError(response)) {
@@ -250,6 +396,217 @@ export async function collectionShowCommand(
   );
 
   console.log(chalk.dim("\nAdd a prompt: jfp collections " + name + " --add <prompt-id>"));
+  console.log(chalk.dim("Export prompts: jfp collections " + name + " --export"));
+}
+
+/**
+ * Create a new collection
+ */
+export async function collectionCreateCommand(
+  name: string,
+  options: CollectionCreateOptions
+): Promise<void> {
+  await requireAuth(options);
+  await requirePremium(options);
+
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("missing_argument", "Collection name is required");
+    } else {
+      console.log(chalk.red("Collection name is required"));
+      console.log(chalk.dim("Usage: jfp collections create <name>"));
+    }
+    process.exit(1);
+  }
+
+  const response = await apiClient.post<CollectionItem | { collection: CollectionItem }>(
+    "/cli/collections",
+    { name: trimmedName, description: options.description }
+  );
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("already_exists", `Collection already exists: ${trimmedName}`);
+      } else {
+        console.log(chalk.yellow(`Collection already exists: ${trimmedName}`));
+      }
+      process.exit(1);
+    }
+
+    if (isAuthError(response)) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("auth_expired", "Session expired. Please run 'jfp login' again.");
+      } else {
+        console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
+      }
+      process.exit(1);
+    }
+
+    if (requiresPremium(response)) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("premium_required", "Collections require a premium subscription");
+      } else {
+        console.log(chalk.yellow("Collections require a premium subscription"));
+      }
+      process.exit(1);
+    }
+
+    if (shouldOutputJson(options)) {
+      writeJsonError("api_error", response.error || "Failed to create collection");
+    } else {
+      console.log(chalk.red("Failed to create collection: " + (response.error || "Unknown error")));
+    }
+    process.exit(1);
+  }
+
+  const data = response.data as CollectionItem | { collection: CollectionItem };
+  const collection = (data as { collection?: CollectionItem }).collection ?? (data as CollectionItem);
+
+  if (shouldOutputJson(options)) {
+    writeJson({
+      created: true,
+      collection,
+    });
+    return;
+  }
+
+  console.log(chalk.green(`Created collection "${collection.name}"`));
+  console.log(chalk.dim(`Add prompts with: jfp collections add ${collection.name} <prompt-id>`));
+}
+
+/**
+ * Add a prompt to a collection (explicit command form)
+ */
+export async function collectionAddCommand(
+  name: string,
+  promptId: string,
+  options: CollectionShowOptions
+): Promise<void> {
+  await requireAuth(options);
+  await requirePremium(options);
+  return addToCollection(name, promptId, options);
+}
+
+/**
+ * Export prompts from a collection
+ */
+export async function exportCollectionCommand(
+  name: string,
+  options: CollectionExportOptions
+): Promise<void> {
+  await requireAuth(options);
+  await requirePremium(options);
+
+  const response = await apiClient.get<CollectionDetail>(`/cli/collections/${encodeURIComponent(name)}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("not_found", `Collection not found: ${name}`);
+      } else {
+        console.log(chalk.red(`Collection not found: ${name}`));
+      }
+      process.exit(1);
+    }
+
+    if (isAuthError(response)) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("auth_expired", "Session expired. Please run 'jfp login' again.");
+      } else {
+        console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
+      }
+      process.exit(1);
+    }
+
+    if (shouldOutputJson(options)) {
+      writeJsonError("api_error", response.error || "Failed to fetch collection");
+    } else {
+      console.log(chalk.red("Failed to fetch collection: " + (response.error || "Unknown error")));
+    }
+    process.exit(1);
+  }
+
+  const collection = response.data!;
+  const promptIds = collection.prompts?.map((prompt) => prompt.id) ?? [];
+
+  if (promptIds.length === 0) {
+    if (shouldOutputJson(options)) {
+      writeJson({ exported: [], failed: [], count: 0, collection: collection.name });
+    } else {
+      console.log(chalk.dim(`Collection "${collection.name}" is empty.`));
+    }
+    return;
+  }
+
+  const format: "skill" | "md" = options.format === "md" ? "md" : "skill";
+  const exported: Array<{ id: string; file?: string; source?: string }> = [];
+  const failed: Array<{ id: string; error: string }> = [];
+
+  for (const promptId of promptIds) {
+    const resolved = await resolvePromptForExport(promptId, options);
+    if (!resolved.prompt) {
+      failed.push({ id: promptId, error: resolved.error || "Failed to resolve prompt" });
+      continue;
+    }
+
+    const content =
+      format === "skill"
+        ? generateSkillMd(resolved.prompt)
+        : generatePromptMarkdown(resolved.prompt);
+
+    if (options.stdout) {
+      console.log(content);
+      if (promptIds.length > 1) {
+        console.log("\n---\n");
+      }
+      exported.push({ id: resolved.prompt.id, source: resolved.source });
+      continue;
+    }
+
+    if (!isSafeSkillId(resolved.prompt.id)) {
+      failed.push({ id: resolved.prompt.id, error: "Unsafe prompt id for filename" });
+      continue;
+    }
+
+    const ext = format === "skill" ? "-SKILL.md" : ".md";
+    const filename = `${resolved.prompt.id}${ext}`;
+
+    try {
+      writeFileSync(filename, content);
+      exported.push({ id: resolved.prompt.id, file: filename, source: resolved.source });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      failed.push({ id: resolved.prompt.id, error: message });
+      if (!shouldOutputJson(options)) {
+        console.error(chalk.red(`Failed to write ${filename}: ${message}`));
+      }
+    }
+  }
+
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({
+      success: failed.length === 0,
+      collection: collection.name,
+      exported,
+      failed: failed.length > 0 ? failed : undefined,
+    }, null, 2));
+    if (failed.length > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (!options.stdout) {
+    if (exported.length > 0) {
+      console.log(chalk.green(`Exported ${exported.length} prompt(s) from "${collection.name}".`));
+    }
+    if (failed.length > 0) {
+      console.log(chalk.red(`Failed to export ${failed.length} prompt(s).`));
+      process.exit(1);
+    }
+  }
 }
 
 /**
@@ -260,17 +617,9 @@ async function addToCollection(
   promptId: string,
   options: CollectionShowOptions
 ): Promise<void> {
-  // First verify the prompt exists in the local registry
+  // Try to resolve prompt details from local registry (may not include premium prompts)
   const prompt = getPrompt(promptId);
-  if (!prompt) {
-    if (shouldOutputJson(options)) {
-      writeJsonError("not_found", `Prompt not found: ${promptId}`);
-    } else {
-      console.log(chalk.red(`Prompt not found: ${promptId}`));
-      console.log(chalk.dim("Use 'jfp list' to see available prompts"));
-    }
-    process.exit(1);
-  }
+  const promptTitle = prompt?.title ?? promptId;
 
   const response = await apiClient.post<{ success: boolean; collection: string; promptId: string }>(
     `/cli/collections/${encodeURIComponent(collectionName)}/prompts`,
@@ -297,11 +646,11 @@ async function addToCollection(
           already_exists: true,
           collection: collectionName,
           prompt_id: promptId,
-          prompt_title: prompt.title,
-          message: `Prompt "${prompt.title}" is already in collection "${collectionName}"`,
+          prompt_title: prompt?.title ?? null,
+          message: `Prompt "${promptTitle}" is already in collection "${collectionName}"`,
         });
       } else {
-        console.log(chalk.yellow(`Prompt "${prompt.title}" is already in collection "${collectionName}"`));
+        console.log(chalk.yellow(`Prompt "${promptTitle}" is already in collection "${collectionName}"`));
       }
       return;
     }
@@ -337,10 +686,10 @@ async function addToCollection(
       added: true,
       collection: collectionName,
       prompt_id: promptId,
-      prompt_title: prompt.title,
-      message: `Added "${prompt.title}" to collection "${collectionName}"`,
+      prompt_title: prompt?.title ?? null,
+      message: `Added "${promptTitle}" to collection "${collectionName}"`,
     });
   } else {
-    console.log(chalk.green(`Added "${prompt.title}" to collection "${collectionName}"`));
+    console.log(chalk.green(`Added "${promptTitle}" to collection "${collectionName}"`));
   }
 }
