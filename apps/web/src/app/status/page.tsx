@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getStatusSummary } from "@/lib/status";
+import { getStatusSummary, getResolvedIncidents } from "@/lib/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -64,7 +64,10 @@ function OverallStatus({ status, message }: { status: string; message: string })
 }
 
 export default async function StatusPage() {
-  const summary = await getStatusSummary();
+  const [summary, recentIncidents] = await Promise.all([
+    getStatusSummary(),
+    Promise.resolve(getResolvedIncidents(5)),
+  ]);
 
   return (
     <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -197,11 +200,38 @@ export default async function StatusPage() {
               View full history
             </Link>
           </div>
-          <Card>
-            <CardContent className="py-6">
-              <p className="text-center text-neutral-500">No recent incidents to display.</p>
-            </CardContent>
-          </Card>
+          {recentIncidents.length === 0 ? (
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-center text-neutral-500">No recent incidents to display.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {recentIncidents.map((incident) => (
+                <Card key={incident.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">{incident.title}</h3>
+                        <p className="text-sm text-neutral-500 mt-1">
+                          Resolved {new Date(incident.resolvedAt ?? incident.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                        Resolved
+                      </Badge>
+                    </div>
+                    {incident.updates.length > 0 && (
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">
+                        {incident.updates[incident.updates.length - 1].message}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
 
         <footer className="mt-12 pt-6 border-t border-neutral-200 dark:border-neutral-800 text-center">

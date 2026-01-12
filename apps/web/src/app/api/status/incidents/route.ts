@@ -9,7 +9,8 @@ import {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const status = searchParams.get("status") ?? "all";
-  const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20", 10));
+  const parsedLimit = parseInt(searchParams.get("limit") ?? "20", 10);
+  const limit = Number.isFinite(parsedLimit) ? Math.min(100, Math.max(1, parsedLimit)) : 20;
   const id = searchParams.get("id");
 
   // Get single incident by ID
