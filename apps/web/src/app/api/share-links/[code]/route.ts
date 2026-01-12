@@ -38,8 +38,13 @@ export async function GET(
   }
 
   const password = request.nextUrl.searchParams.get("password") ?? "";
-  if (link.passwordHash && !verifyPassword(password, link.passwordHash)) {
-    return NextResponse.json({ error: "Password required." }, { status: 401 });
+  if (link.passwordHash) {
+    if (!password) {
+      return NextResponse.json({ error: "Password required." }, { status: 401 });
+    }
+    if (!verifyPassword(password, link.passwordHash)) {
+      return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
+    }
   }
 
   let content: unknown = null;
