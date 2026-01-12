@@ -85,7 +85,7 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
         "group relative flex flex-col h-full",
         "hover:shadow-lg hover:border-violet-200 dark:hover:border-violet-800",
         "transition-all duration-200 ease-out",
-        "bg-white dark:bg-zinc-900/50"
+        "bg-white dark:bg-neutral-900/50"
       )}
       style={{
         animationDelay: index * 50 + "ms",
@@ -108,13 +108,13 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
             {bundle.promptIds.length} prompts
           </Badge>
         </div>
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
+        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
           {bundle.title}
         </h3>
       </CardHeader>
 
       <CardContent className="flex-1 pb-3">
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mb-3">
+        <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2 mb-3">
           {bundle.description}
         </p>
 
@@ -123,33 +123,33 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
           {bundle.promptIds.slice(0, 3).map((id) => (
             <span
               key={id}
-              className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full font-mono"
+              className="text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full font-mono"
             >
               {id}
             </span>
           ))}
           {bundle.promptIds.length > 3 && (
-            <span className="text-xs text-zinc-400 px-1">
+            <span className="text-xs text-neutral-400 px-1">
               +{bundle.promptIds.length - 3} more
             </span>
           )}
         </div>
       </CardContent>
 
-      <CardFooter className="pt-3 border-t dark:border-zinc-800">
+      <CardFooter className="pt-3 border-t border-neutral-200 dark:border-neutral-800">
         <div className="w-full">
           {/* Workflow preview */}
           {bundle.workflow && (
-            <div className="text-xs bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg overflow-hidden h-16 relative mb-3">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-zinc-50 dark:to-zinc-800/50 pointer-events-none" />
-              <p className="whitespace-pre-wrap text-zinc-600 dark:text-zinc-400 text-[11px] leading-relaxed">
+            <div className="text-xs bg-neutral-50 dark:bg-neutral-800/50 p-3 rounded-lg overflow-hidden h-16 relative mb-3">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-neutral-50 dark:to-neutral-800/50 pointer-events-none" />
+              <p className="whitespace-pre-wrap text-neutral-600 dark:text-neutral-400 text-xs leading-relaxed">
                 {bundle.workflow.slice(0, 150)}...
               </p>
             </div>
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-neutral-400">
               v{bundle.version}
             </span>
             <div className="flex items-center gap-2">
