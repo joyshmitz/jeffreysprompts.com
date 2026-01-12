@@ -13,3 +13,4 @@ export { PlaywrightLogger, test, expect, type StepOptions } from "./playwright-l
 export * from "./theme-helpers";
 export * from "./mobile-helpers";
 export * from "./consent-helpers";
+export * from "./moderation-helpers";

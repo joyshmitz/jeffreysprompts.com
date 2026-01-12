@@ -79,7 +79,7 @@ export const spamTestData = {
       This is a limited offer!
       AAAAAAAAAAAAAAAAAAAA
     `,
-    category: "general" as const,
+    category: "other" as const,
     priority: "low" as const,
   },
 
@@ -92,7 +92,7 @@ export const spamTestData = {
       I found this great crypto opportunity!
       Visit https://example.com for more info.
     `,
-    category: "general" as const,
+    category: "other" as const,
     priority: "low" as const,
   },
 
@@ -102,8 +102,8 @@ export const spamTestData = {
     email: "real@example.com",
     subject: "Question about prompts",
     message: "I have a question about how to use the idea wizard prompt. Can you help?",
-    category: "general" as const,
-    priority: "medium" as const,
+    category: "other" as const,
+    priority: "normal" as const,
   },
 
   /** Content with excessive caps */
@@ -112,7 +112,7 @@ export const spamTestData = {
     email: "caps@test.com",
     subject: "THIS IS ALL CAPS",
     message: "THIS ENTIRE MESSAGE IS WRITTEN IN CAPITAL LETTERS AND IS QUITE LONG TO TRIGGER THE DETECTOR SINCE SHORT MESSAGES ARE EXEMPT",
-    category: "general" as const,
+    category: "other" as const,
     priority: "low" as const,
   },
 
@@ -122,7 +122,7 @@ export const spamTestData = {
     email: "repeat@test.com",
     subject: "Test with repeated chars",
     message: "Pleaseeeeeeee help me with this issueeeeeeee I'm having trooooooouble",
-    category: "general" as const,
+    category: "other" as const,
     priority: "low" as const,
   },
 

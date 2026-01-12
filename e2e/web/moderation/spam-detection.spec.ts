@@ -39,7 +39,7 @@ test.describe("Spam Detection - Hard Block Scenarios", () => {
       email: "test@example.com",
       subject: "Free money opportunity",
       message: "Get free money guaranteed! Click here: https://spam1.com https://spam2.com https://spam3.com Buy now!",
-      category: "general",
+      category: "other",
       priority: "low",
     };
 
@@ -85,8 +85,8 @@ test.describe("Spam Detection - Review Threshold", () => {
       email: "crypto@test.com",
       subject: "Question about bitcoin prompts",
       message: "I was wondering if there are any prompts related to bitcoin trading strategies.",
-      category: "general",
-      priority: "medium",
+      category: "other",
+      priority: "normal",
     };
 
     const response = await logger.step("submit single-term content", async () => {
@@ -143,7 +143,7 @@ test.describe("Spam Detection - Legitimate Content", () => {
       email: "feedback@test.com",
       subject: "Feature suggestion",
       message: "I found this interesting article about prompt engineering: https://example.com/article - would be great to see similar prompts added!",
-      category: "feature-request",
+      category: "feature",
       priority: "low",
     };
 
@@ -204,7 +204,7 @@ test.describe("Spam Detection - Specific Patterns", () => {
         email: "termtest@example.com",
         subject: "Testing detection",
         message: `I want to know about ${term}. Is this something you support?`,
-        category: "general",
+        category: "other",
         priority: "low",
       };
 
@@ -227,7 +227,7 @@ test.describe("Spam Detection - Combined Patterns", () => {
       email: "spam@spam.com",
       subject: "FREE MONEY CLICK HERE NOW",
       message: "GET FREE MONEY GUARANTEED! BUY NOW! CLICK HERE! https://spam1.com https://spam2.com https://spam3.com THIS IS A LIMITED OFFER WINNER!",
-      category: "general",
+      category: "other",
       priority: "low",
     };
 
@@ -271,7 +271,7 @@ test.describe("Spam Detection - Edge Cases", () => {
       email: "empty@test.com",
       subject: "Empty message test",
       message: "",
-      category: "general",
+      category: "other",
       priority: "low",
     };
 
@@ -295,8 +295,8 @@ test.describe("Spam Detection - Edge Cases", () => {
       email: "long@test.com",
       subject: "Detailed question",
       message: longMessage,
-      category: "general",
-      priority: "medium",
+      category: "other",
+      priority: "normal",
     };
 
     const response = await logger.step("submit long message", async () => {
@@ -321,7 +321,7 @@ test.describe("Spam Detection - Edge Cases", () => {
       email: "unicode@test.com",
       subject: "Question with emojis",
       message: "Hello! I love this tool. Can you help me with something?",
-      category: "general",
+      category: "other",
       priority: "low",
     };
 
