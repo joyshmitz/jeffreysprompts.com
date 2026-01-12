@@ -12,7 +12,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Copy,
   Check,
@@ -66,6 +66,8 @@ const difficultyConfig: Record<
 
 export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardProps) {
   const [copied, setCopied] = useState(false);
+  const [copyFlash, setCopyFlash] = useState(false);
+  const [basketFlash, setBasketFlash] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { success, error } = useToast();
@@ -86,9 +88,20 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
       try {
         await navigator.clipboard.writeText(prompt.content);
         setCopied(true);
+        setCopyFlash(true);
+
+        // Haptic feedback for mobile devices
+        if ("vibrate" in navigator) {
+          navigator.vibrate(50);
+        }
+
         success("Copied prompt", prompt.title, 3000);
         trackEvent("prompt_copy", { id: prompt.id, source: "card" });
         onCopy?.(prompt);
+
+        // Reset flash quickly
+        setTimeout(() => setCopyFlash(false), 300);
+
         if (copiedResetTimer.current) {
           clearTimeout(copiedResetTimer.current);
         }
@@ -112,8 +125,18 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
       e.stopPropagation();
       if (!inBasket) {
         addItem(prompt.id);
+        setBasketFlash(true);
+
+        // Haptic feedback for mobile devices
+        if ("vibrate" in navigator) {
+          navigator.vibrate(50);
+        }
+
         success("Added to basket", prompt.title, 3000);
         trackEvent("basket_add", { id: prompt.id, source: "card" });
+
+        // Reset flash quickly
+        setTimeout(() => setBasketFlash(false), 300);
       }
     },
     [prompt, inBasket, addItem, success]
@@ -244,37 +267,75 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-8 w-8 p-0",
+                    "h-8 w-8 p-0 relative overflow-hidden",
                     "hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                    inBasket && "text-emerald-600 dark:text-emerald-400"
+                    inBasket && "text-emerald-600 dark:text-emerald-400",
+                    basketFlash && "bg-emerald-100 dark:bg-emerald-900/30"
                   )}
                   onClick={handleAddToBasket}
                   disabled={inBasket}
                   aria-label={inBasket ? "Already in basket" : "Add to basket"}
                 >
-                  {inBasket ? (
-                    <Check className="w-4 h-4" aria-hidden="true" />
-                  ) : (
-                    <ShoppingBasket className="w-4 h-4" aria-hidden="true" />
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    {inBasket ? (
+                      <motion.div
+                        key="check"
+                        initial={prefersReducedMotion ? {} : { scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={prefersReducedMotion ? {} : { scale: 0, rotate: 180 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                      >
+                        <Check className="w-4 h-4" aria-hidden="true" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="basket"
+                        initial={prefersReducedMotion ? {} : { scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={prefersReducedMotion ? {} : { scale: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <ShoppingBasket className="w-4 h-4" aria-hidden="true" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-8 w-8 p-0",
+                    "h-8 w-8 p-0 relative overflow-hidden",
                     "hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                    copied && "text-emerald-600 dark:text-emerald-400"
+                    copied && "text-emerald-600 dark:text-emerald-400",
+                    copyFlash && "bg-emerald-100 dark:bg-emerald-900/30"
                   )}
                   onClick={handleCopy}
                   aria-label={copied ? "Copied to clipboard" : "Copy prompt to clipboard"}
                 >
-                  {copied ? (
-                    <Check className="w-4 h-4" aria-hidden="true" />
-                  ) : (
-                    <Copy className="w-4 h-4" aria-hidden="true" />
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    {copied ? (
+                      <motion.div
+                        key="check"
+                        initial={prefersReducedMotion ? {} : { scale: 0, rotate: -180 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        exit={prefersReducedMotion ? {} : { scale: 0, rotate: 180 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                      >
+                        <Check className="w-4 h-4" aria-hidden="true" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="copy"
+                        initial={prefersReducedMotion ? {} : { scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={prefersReducedMotion ? {} : { scale: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Copy className="w-4 h-4" aria-hidden="true" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Button>
 
                 <Button

@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Copy,
   Check,
@@ -87,8 +88,10 @@ export function PromptDetailModal({
   const isMobile = useIsMobile();
   const { success, error } = useToast();
   const [copied, setCopied] = useState(false);
+  const [copyFlash, setCopyFlash] = useState(false);
   const [context, setContext] = useState("");
   const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReducedMotion = useReducedMotion();
   const handleClose = useCallback(() => {
     setCopied(false);
     setContext("");
@@ -151,10 +154,21 @@ export function PromptDetailModal({
     try {
       await navigator.clipboard.writeText(renderedContent);
       setCopied(true);
+      setCopyFlash(true);
+
+      // Haptic feedback for mobile devices
+      if ("vibrate" in navigator) {
+        navigator.vibrate(50);
+      }
+
       success("Copied to clipboard", prompt?.title ?? "Prompt");
       if (prompt) {
         trackEvent("prompt_copy", { id: prompt.id, source: "modal" });
       }
+
+      // Reset flash quickly
+      setTimeout(() => setCopyFlash(false), 300);
+
       if (copiedResetTimer.current) {
         clearTimeout(copiedResetTimer.current);
       }
@@ -364,21 +378,44 @@ export function PromptDetailModal({
         <Button
           onClick={handleCopy}
           className={cn(
-            "flex-1 sm:flex-none font-medium",
-            copied && "bg-emerald-600 hover:bg-emerald-700"
+            "flex-1 sm:flex-none font-medium transition-colors",
+            copied && "bg-emerald-600 hover:bg-emerald-700",
+            copyFlash && "bg-emerald-500"
           )}
         >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 mr-2" />
-              Copied
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 mr-2" />
-              Copy Prompt
-            </>
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {copied ? (
+              <motion.span
+                key="copied"
+                initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center"
+              >
+                <motion.span
+                  initial={prefersReducedMotion ? {} : { rotate: -180, scale: 0 }}
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                </motion.span>
+                Copied
+              </motion.span>
+            ) : (
+              <motion.span
+                key="copy"
+                initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Prompt
+              </motion.span>
+            )}
+          </AnimatePresence>
         </Button>
         <Button
           variant="outline"
