@@ -191,7 +191,7 @@ async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
           return;
         }
 
-        if (!token || !email || !rawTier || !userId) {
+        if (!token || !email || !userId) {
           res.writeHead(400, { "Content-Type": "text/html" });
           res.end(errorPage("Invalid callback parameters"));
           rejectToken(new Error("Invalid callback parameters"));
@@ -369,8 +369,28 @@ async function loginRemote(options: LoginOptions): Promise<void> {
     process.exit(1);
   }
 
-  const { device_code, user_code, verification_url, interval } =
-    (await deviceCodeResponse.json()) as DeviceCodeResponse;
+  let devicePayload: DeviceCodeResponse;
+  try {
+    devicePayload = (await deviceCodeResponse.json()) as DeviceCodeResponse;
+  } catch {
+    if (jsonOutput) {
+      writeJsonError("device_code_failed", "Invalid device code response");
+    } else {
+      console.log(chalk.red("Failed to parse authentication response"));
+    }
+    process.exit(1);
+  }
+
+  const { device_code, user_code, verification_url, interval } = devicePayload;
+
+  if (!device_code || !user_code || !verification_url) {
+    if (jsonOutput) {
+      writeJsonError("device_code_failed", "Missing device code fields in response");
+    } else {
+      console.log(chalk.red("Authentication server returned an invalid response"));
+    }
+    process.exit(1);
+  }
 
   // Display instructions to user
   if (jsonOutput) {

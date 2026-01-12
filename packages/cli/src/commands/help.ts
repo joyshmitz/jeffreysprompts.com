@@ -68,6 +68,15 @@ function getHelpData() {
         { name: "status", description: "Show cache status", options: ["--json"] },
         { name: "refresh", description: "Force cache refresh", options: ["--json"] },
       ],
+      premium: [
+        { name: "login", description: "Sign in to JeffreysPrompts Premium", options: ["--json"] },
+        { name: "logout", description: "Sign out from JeffreysPrompts Premium", options: ["--revoke", "--json"] },
+        { name: "whoami", description: "Show current logged-in user", options: ["--json"] },
+        { name: "save <prompt-id>", description: "Save prompt to premium account", options: ["--json"] },
+        { name: "sync", description: "Sync premium library for offline access", options: ["--force", "--status", "--json"] },
+        { name: "notes <prompt-id>", description: "Manage personal notes on prompts", options: ["--add", "--delete", "--json"] },
+        { name: "collections", description: "Manage prompt collections", options: ["--add", "--export", "--format", "--stdout", "--json"] },
+      ],
       utilities: [
         { name: "open <id>", description: "Open prompt in browser", options: [] },
         { name: "doctor", description: "Check environment for issues", options: ["--json"] },
@@ -147,6 +156,17 @@ JeffreysPrompts CLI v${version}
   sections.push(chalk.yellow("  Registry"));
   sections.push(formatCommand("status", "Show cache status"));
   sections.push(formatCommand("refresh", "Force cache refresh"));
+  sections.push("");
+
+  // Premium
+  sections.push(chalk.yellow("  Premium"));
+  sections.push(formatCommand("login", "Sign in to JeffreysPrompts Premium"));
+  sections.push(formatCommand("logout", "Sign out from JeffreysPrompts Premium"));
+  sections.push(formatCommand("whoami", "Show current logged-in user"));
+  sections.push(formatCommand("save <id>", "Save prompt to premium account"));
+  sections.push(formatCommand("sync", "Sync premium library for offline access"));
+  sections.push(formatCommand("notes <id>", "Manage personal notes on prompts"));
+  sections.push(formatCommand("collections", "Manage prompt collections"));
   sections.push("");
 
   // Utilities

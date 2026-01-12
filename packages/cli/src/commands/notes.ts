@@ -14,7 +14,6 @@ import boxen from "boxen";
 import { apiClient, isAuthError, requiresPremium } from "../lib/api-client";
 import { getAccessToken } from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
 
 export interface NotesOptions {
   add?: string;
@@ -61,18 +60,6 @@ export async function notesCommand(promptId: string, options: NotesOptions = {})
     } else {
       console.log(chalk.yellow("You must be logged in to manage notes"));
       console.log(chalk.dim("Run 'jfp login' to sign in"));
-    }
-    process.exit(1);
-  }
-
-  // Validate prompt exists (check local registry first)
-  const prompt = getPrompt(promptId);
-  if (!prompt) {
-    if (shouldOutputJson(options)) {
-      writeJsonError("prompt_not_found", `Prompt not found: ${promptId}`);
-    } else {
-      console.log(chalk.red(`Prompt not found: ${promptId}`));
-      console.log(chalk.dim("Use 'jfp search <query>' to find prompts"));
     }
     process.exit(1);
   }
