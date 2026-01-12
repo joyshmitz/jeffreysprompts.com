@@ -9,6 +9,7 @@ import { getActiveIncidents, getUpcomingMaintenance, getActiveMaintenance } from
 import type {
   ComponentStatus,
   ComponentStatusLevel,
+  Incident,
   SystemStatusLevel,
   StatusSummary,
 } from "./types";
@@ -30,9 +31,22 @@ function mapHealthToStatus(
 }
 
 /** Derive overall system status from components and incidents */
+function getIncidentStatus(activeIncidents: Incident[]): SystemStatusLevel | null {
+  if (activeIncidents.some((incident) => incident.impact === "critical")) {
+    return "major_outage";
+  }
+  if (activeIncidents.some((incident) => incident.impact === "major")) {
+    return "partial_outage";
+  }
+  if (activeIncidents.some((incident) => incident.impact === "minor")) {
+    return "degraded";
+  }
+  return null;
+}
+
 function deriveSystemStatus(
   components: ComponentStatus[],
-  activeIncidentCount: number
+  activeIncidents: Incident[]
 ): SystemStatusLevel {
   // Check for maintenance
   if (components.some((c) => c.status === "maintenance")) {
@@ -49,8 +63,17 @@ function deriveSystemStatus(
     return "partial_outage";
   }
 
+  const incidentStatus = getIncidentStatus(activeIncidents);
+  if (incidentStatus) {
+    return incidentStatus;
+  }
+
   // Check for degraded
-  if (components.some((c) => c.status === "degraded") || activeIncidentCount > 0) {
+  if (components.some((c) => c.status === "degraded")) {
+    return "degraded";
+  }
+
+  if (activeIncidents.length > 0) {
     return "degraded";
   }
 
@@ -121,7 +144,7 @@ export async function getStatusSummary(): Promise<StatusSummary> {
     Promise.resolve(getUpcomingMaintenance()),
   ]);
 
-  const status = deriveSystemStatus(components, activeIncidents.length);
+  const status = deriveSystemStatus(components, activeIncidents);
   const message = getStatusMessage(status);
 
   return {
