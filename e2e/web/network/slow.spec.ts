@@ -1,4 +1,4 @@
-import { test, expect } from "../lib/playwright-logger";
+import { test, expect } from "../../lib/playwright-logger";
 
 /**
  * Slow Network E2E Tests
@@ -73,7 +73,7 @@ test.describe("Slow Network - Search Behavior", () => {
     await logger.step("navigate and wait for initial content", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("setup slow search response", async () => {
@@ -130,7 +130,7 @@ test.describe("Slow Network - User Experience", () => {
     await logger.step("navigate and wait for initial content", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("setup slow API for subsequent requests", async () => {

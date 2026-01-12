@@ -1,4 +1,4 @@
-import { test, expect } from "../lib/playwright-logger";
+import { test, expect } from "../../lib/playwright-logger";
 
 /**
  * Offline Mode E2E Tests
@@ -22,7 +22,7 @@ test.describe("Offline Mode - Indicator Visibility", () => {
 
   test("should show offline indicator when disconnected", async ({ page, context, logger }) => {
     await logger.step("wait for prompts to load (confirming online)", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("verify offline indicator is initially hidden", async () => {
@@ -55,7 +55,7 @@ test.describe("Offline Mode - Indicator Visibility", () => {
 
   test("should hide offline indicator when reconnected", async ({ page, context, logger }) => {
     await logger.step("wait for page to load", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline", async () => {
@@ -91,7 +91,7 @@ test.describe("Offline Mode - Banner Dismissal", () => {
 
   test("offline banner can be dismissed with X button", async ({ page, context, logger }) => {
     await logger.step("wait for page to load", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline", async () => {
@@ -122,7 +122,7 @@ test.describe("Offline Mode - Banner Dismissal", () => {
 
   test("dismissed banner re-appears on new offline event", async ({ page, context, logger }) => {
     await logger.step("wait for page to load", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("first offline event", async () => {
@@ -165,7 +165,7 @@ test.describe("Offline Mode - Page Behavior", () => {
     await logger.step("navigate and wait for content", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("count visible prompt cards", async () => {
@@ -182,7 +182,7 @@ test.describe("Offline Mode - Page Behavior", () => {
 
     await logger.step("verify content is still visible", async () => {
       // Content should remain visible (already loaded)
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible();
     });
   });
 });

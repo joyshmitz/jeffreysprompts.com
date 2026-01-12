@@ -1,4 +1,4 @@
-import { test, expect } from "../lib/playwright-logger";
+import { test, expect } from "../../lib/playwright-logger";
 
 /**
  * Network Failure E2E Tests
@@ -49,7 +49,7 @@ test.describe("Network Failures - API Request Handling", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("intercept search API to fail", async () => {
@@ -151,7 +151,7 @@ test.describe("Network Failures - User Actions", () => {
     await logger.step("navigate and wait for content", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline (simulating poor connectivity)", async () => {

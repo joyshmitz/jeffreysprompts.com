@@ -1,4 +1,4 @@
-import { test, expect } from "../lib/playwright-logger";
+import { test, expect } from "../../lib/playwright-logger";
 
 /**
  * Network Reconnection E2E Tests
@@ -16,7 +16,7 @@ test.describe("Reconnection - Indicator State", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline", async () => {
@@ -41,7 +41,7 @@ test.describe("Reconnection - Indicator State", () => {
 
     await logger.step("verify page is functional", async () => {
       // Content should still be visible
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible();
     });
   });
 
@@ -49,7 +49,7 @@ test.describe("Reconnection - Indicator State", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     for (let cycle = 1; cycle <= 3; cycle++) {
@@ -60,7 +60,7 @@ test.describe("Reconnection - Indicator State", () => {
 
       await logger.step(`cycle ${cycle}: verify offline handling`, async () => {
         // Page should remain functional
-        const contentVisible = await page.getByRole("heading", { name: "The Idea Wizard" }).isVisible();
+        const contentVisible = await page.getByRole("heading", { name: "The Idea Wizard" }).first().isVisible();
         expect(contentVisible).toBe(true);
       });
 
@@ -84,7 +84,7 @@ test.describe("Reconnection - Content Behavior", () => {
     await logger.step("navigate and load content", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("count initial prompts", async () => {
@@ -100,7 +100,7 @@ test.describe("Reconnection - Content Behavior", () => {
     });
 
     await logger.step("verify content still visible offline", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible();
     });
 
     await logger.step("go back online", async () => {
@@ -109,7 +109,7 @@ test.describe("Reconnection - Content Behavior", () => {
     });
 
     await logger.step("verify content still visible after reconnection", async () => {
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible();
     });
   });
 
@@ -117,7 +117,7 @@ test.describe("Reconnection - Content Behavior", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline then online", async () => {
@@ -157,7 +157,7 @@ test.describe("Reconnection - User Actions", () => {
       await page.evaluate(() => localStorage.clear());
       await page.reload();
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("add item to basket while online", async () => {
@@ -198,7 +198,7 @@ test.describe("Reconnection - User Actions", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline then online", async () => {
@@ -224,7 +224,7 @@ test.describe("Reconnection - Message Display", () => {
     await logger.step("navigate to homepage", async () => {
       await page.goto("/");
       await page.waitForLoadState("networkidle");
-      await expect(page.getByRole("heading", { name: "The Idea Wizard" })).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("heading", { name: "The Idea Wizard" }).first()).toBeVisible({ timeout: 10000 });
     });
 
     await logger.step("go offline", async () => {
