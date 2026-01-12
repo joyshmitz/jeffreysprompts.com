@@ -4,12 +4,16 @@ import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { AnalyticsProps, GaEvent } from "@/lib/analytics";
 import { trackGaEvent, trackPageView } from "@/lib/analytics";
+import { useCookieConsent } from "@/hooks/use-cookie-consent";
 
 const SCROLL_THRESHOLDS = [25, 50, 75, 100];
 
 export function AnalyticsProvider() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { consent, privacySignals } = useCookieConsent();
+  const hasAnalyticsConsent =
+    consent?.analytics === true && !privacySignals.dnt && !privacySignals.gpc;
 
   const url = useMemo(() => {
     const query = searchParams?.toString();
@@ -20,10 +24,20 @@ export function AnalyticsProvider() {
   const scrollTrackedRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
+    if (!hasAnalyticsConsent) return;
     startTimeRef.current = Date.now();
     scrollTrackedRef.current = new Set();
 
-    trackPageView(url);
+    const gaReadyHandler = () => trackPageView(url);
+
+    if (typeof window !== "undefined") {
+      const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+      if (typeof gtag === "function") {
+        trackPageView(url);
+      } else {
+        window.addEventListener("jfp:ga-ready", gaReadyHandler, { once: true });
+      }
+    }
 
     if (pathname === "/pricing") {
       trackGaEvent("view_pricing", { page_path: url });
@@ -64,6 +78,9 @@ export function AnalyticsProvider() {
     handleScroll();
 
     return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("jfp:ga-ready", gaReadyHandler);
+      }
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("click", handleClick, { capture: true });
 
@@ -72,7 +89,7 @@ export function AnalyticsProvider() {
         trackGaEvent("time_on_page", { duration_ms: durationMs, page_path: url });
       }
     };
-  }, [pathname, url]);
+  }, [pathname, url, hasAnalyticsConsent]);
 
   return null;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { hasAnalyticsConsent } from "@/lib/consent/cookie-consent";
+
 export type AnalyticsEvent =
   | "prompt_view"
   | "prompt_copy"
@@ -7,6 +9,7 @@ export type AnalyticsEvent =
   | "export"
   | "skill_install"
   | "basket_add"
+  | "basket_clear"
   | "filter_apply";
 
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
@@ -49,6 +52,15 @@ function getDoNotTrack(): boolean {
   return dnt === "1" || dnt === "yes" || dnt === "true";
 }
 
+function getGlobalPrivacyControl(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+}
+
+function shouldBlockTracking(): boolean {
+  return getDoNotTrack() || getGlobalPrivacyControl();
+}
+
 function sanitizeProps(props?: AnalyticsProps): AnalyticsProps | undefined {
   if (!props) return undefined;
   const entries = Object.entries(props).filter(([, value]) => value !== undefined);
@@ -58,7 +70,8 @@ function sanitizeProps(props?: AnalyticsProps): AnalyticsProps | undefined {
 
 export function trackEvent(name: AnalyticsEvent, props?: AnalyticsProps): void {
   if (typeof window === "undefined") return;
-  if (getDoNotTrack()) return;
+  if (!hasAnalyticsConsent()) return;
+  if (shouldBlockTracking()) return;
 
   const plausible = (window as Window & { plausible?: (event: string, options?: { props?: AnalyticsProps }) => void })
     .plausible;
@@ -71,7 +84,8 @@ export function trackEvent(name: AnalyticsEvent, props?: AnalyticsProps): void {
 
 export function trackGaEvent(name: GaEvent, props?: AnalyticsProps): void {
   if (typeof window === "undefined") return;
-  if (getDoNotTrack()) return;
+  if (!hasAnalyticsConsent()) return;
+  if (shouldBlockTracking()) return;
   if (!GA_MEASUREMENT_ID) return;
 
   const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
@@ -82,7 +96,8 @@ export function trackGaEvent(name: GaEvent, props?: AnalyticsProps): void {
 
 export function trackPageView(url: string): void {
   if (typeof window === "undefined") return;
-  if (getDoNotTrack()) return;
+  if (!hasAnalyticsConsent()) return;
+  if (shouldBlockTracking()) return;
   if (!GA_MEASUREMENT_ID) return;
 
   const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
