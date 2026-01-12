@@ -386,4 +386,4 @@ The CLI integrates with the premium backend through these beads:
 | Sync endpoints | jeffreysprompts_premium-67o |
 | Skills API | jeffreysprompts_premium-6x3 |
 
-See `CLI_DEPENDENCIES.md` for the complete dependency matrix.
+See `AGENTS.md` (section "CLI Cross-Repo Dependency Matrix") for the complete dependency matrix.
