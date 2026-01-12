@@ -37,7 +37,19 @@ import {
   configResetCommand,
   configPathCommand,
 } from "./commands/config";
-import { collectionsCommand, collectionShowCommand } from "./commands/collections";
+import {
+  collectionsCommand,
+  collectionShowCommand,
+  collectionCreateCommand,
+  collectionAddCommand,
+  exportCollectionCommand,
+} from "./commands/collections";
+import {
+  skillsListCommand,
+  skillsInstallCommand,
+  skillsExportCommand,
+  skillsCreateCommand,
+} from "./commands/skills";
 
 export const cli = cac("jfp");
 
@@ -187,14 +199,144 @@ cli
   .action(notesCommand);
 
 cli
-  .command("collections [name]", "List or show user collections (premium)")
-  .option("--add <prompt-id>", "Add prompt to collection")
+  .command("collections [action] [name] [promptId]", "Manage user collections (premium)")
+  .option("--add <prompt-id>", "Add prompt to collection (legacy)")
+  .option("--export", "Export collection prompts to files")
+  .option("--format <format>", "Format: skill or md (default: skill)")
+  .option("--stdout", "Print exported content to stdout")
+  .option("--description <text>", "Description for new collection")
   .option("--json", "Output JSON")
-  .action((name: string | undefined, options: { add?: string; json?: boolean }) => {
-    if (name) {
-      return collectionShowCommand(name, options);
+  .action((
+    action: string | undefined,
+    name: string | undefined,
+    promptId: string | undefined,
+    options: { add?: string; export?: boolean; format?: "skill" | "md"; stdout?: boolean; description?: string; json?: boolean }
+  ) => {
+    const outputError = (code: string, message: string) => {
+      if (options.json) {
+        console.log(JSON.stringify({ error: true, code, message }));
+      } else {
+        console.error(message);
+      }
+      process.exit(1);
+    };
+
+    if (!action) {
+      return collectionsCommand(options);
     }
-    return collectionsCommand(options);
+
+    switch (action) {
+      case "create":
+        if (!name) {
+          outputError("missing_argument", "Usage: jfp collections create <name>");
+          return;
+        }
+        return collectionCreateCommand(name, options);
+      case "add":
+        if (!name || !promptId) {
+          outputError("missing_argument", "Usage: jfp collections add <collection> <prompt-id>");
+          return;
+        }
+        return collectionAddCommand(name, promptId, options);
+      case "export":
+        if (!name) {
+          outputError("missing_argument", "Usage: jfp collections export <collection>");
+          return;
+        }
+        return exportCollectionCommand(name, options);
+      default:
+        if (options.add) {
+          return collectionAddCommand(action, options.add, options);
+        }
+        if (options.export) {
+          return exportCollectionCommand(action, options);
+        }
+        return collectionShowCommand(action, options);
+    }
+  });
+
+cli
+  .command("skills [action] [id]", "Skills marketplace (premium)")
+  .option("--tool <tool>", "Filter by tool (e.g., claude-code, cursor)")
+  .option("--category <category>", "Filter by category")
+  .option("--mine", "Show only your skills")
+  .option("--search <query>", "Search skills by name or description")
+  .option("--limit <n>", "Max results (default: 20)")
+  .option("--force", "Force install even if already installed")
+  .option("--stdout", "Output to stdout instead of file")
+  .option("--output <path>", "Output file or directory path")
+  .option("--name <name>", "Name for new skill (with create)")
+  .option("--description <text>", "Description for new skill (with create)")
+  .option("--json", "Output JSON")
+  .action((
+    action: string | undefined,
+    id: string | undefined,
+    options: {
+      tool?: string;
+      category?: string;
+      mine?: boolean;
+      search?: string;
+      limit?: number;
+      force?: boolean;
+      stdout?: boolean;
+      output?: string;
+      name?: string;
+      description?: string;
+      json?: boolean;
+    }
+  ) => {
+    const outputError = (code: string, message: string) => {
+      if (options.json) {
+        console.log(JSON.stringify({ error: true, code, message }));
+      } else {
+        console.error(message);
+      }
+      process.exit(1);
+    };
+
+    // Default action is list
+    if (!action || action === "list") {
+      return skillsListCommand({
+        tool: options.tool,
+        category: options.category,
+        mine: options.mine,
+        search: options.search,
+        limit: options.limit,
+        json: options.json,
+      });
+    }
+
+    switch (action) {
+      case "install":
+        if (!id) {
+          outputError("missing_argument", "Usage: jfp skills install <id>");
+          return;
+        }
+        return skillsInstallCommand(id, { json: options.json, force: options.force });
+      case "export":
+        if (!id) {
+          outputError("missing_argument", "Usage: jfp skills export <id>");
+          return;
+        }
+        return skillsExportCommand(id, {
+          json: options.json,
+          stdout: options.stdout,
+          output: options.output,
+        });
+      case "create":
+        return skillsCreateCommand({
+          name: options.name ?? id,
+          description: options.description,
+          tool: options.tool,
+          output: options.output,
+          json: options.json,
+        });
+      default:
+        outputError(
+          "unknown_action",
+          `Unknown skills action: ${action}. Available: list, install, export, create`
+        );
+    }
   });
 
 cli
