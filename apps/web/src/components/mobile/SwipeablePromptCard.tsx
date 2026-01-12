@@ -38,7 +38,7 @@ const LONG_PRESS_DELAY = 500;
  *
  * Features:
  * - Swipe left: Copy to clipboard (blue reveal)
- * - Swipe right: Add to basket (neutral reveal)
+ * - Swipe right: Add to basket (indigo reveal)
  * - Double-tap: Quick save/favorite with heart animation
  * - Long-press: Opens quick actions menu
  * - Spring-back animation on incomplete swipe
@@ -343,7 +343,7 @@ export function SwipeablePromptCard({
           "absolute inset-y-0 left-0 flex items-center justify-start px-6",
           inBasket
             ? "bg-gradient-to-r from-neutral-500 to-neutral-600"
-            : "bg-gradient-to-r from-neutral-700 to-neutral-800",
+            : "bg-gradient-to-r from-indigo-500 to-indigo-600",
           actionTriggered === "basket" && "from-emerald-500 to-emerald-600"
         )}
         style={{
@@ -450,7 +450,7 @@ export function SwipeablePromptCard({
                       : "bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700"
                   )}
                 >
-                  <ShoppingBag className={cn("w-5 h-5", inBasket ? "text-neutral-400" : "text-neutral-600 dark:text-neutral-400")} />
+                  <ShoppingBag className={cn("w-5 h-5", inBasket ? "text-neutral-400" : "text-indigo-500")} />
                   <span>{inBasket ? "Already in Basket" : "Add to Basket"}</span>
                 </button>
                 <button
