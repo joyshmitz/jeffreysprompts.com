@@ -6,9 +6,37 @@ export type AnalyticsEvent =
   | "search"
   | "export"
   | "skill_install"
-  | "basket_add";
+  | "basket_add"
+  | "filter_apply";
 
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
+
+export type GaEvent =
+  | AnalyticsEvent
+  | "page_view"
+  | "scroll_depth"
+  | "time_on_page"
+  | "view_pricing"
+  | "begin_checkout"
+  | "purchase"
+  | "subscription_cancel"
+  | "sign_in"
+  | "sign_out"
+  | "sign_up"
+  | "prompt_create"
+  | "prompt_save"
+  | "prompt_publish"
+  | "pack_create"
+  | "skill_create"
+  | "collection_create"
+  | "feature_gate_hit"
+  | "swapmeet_browse"
+  | "swapmeet_search"
+  | "swapmeet_prompt_view"
+  | "swapmeet_prompt_save"
+  | "swapmeet_prompt_rate";
+
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "";
 
 function getDoNotTrack(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -35,7 +63,34 @@ export function trackEvent(name: AnalyticsEvent, props?: AnalyticsProps): void {
   const plausible = (window as Window & { plausible?: (event: string, options?: { props?: AnalyticsProps }) => void })
     .plausible;
 
-  if (typeof plausible !== "function") return;
+  if (typeof plausible === "function") {
+    plausible(name, { props: sanitizeProps(props) });
+  }
+  trackGaEvent(name, props);
+}
 
-  plausible(name, { props: sanitizeProps(props) });
+export function trackGaEvent(name: GaEvent, props?: AnalyticsProps): void {
+  if (typeof window === "undefined") return;
+  if (getDoNotTrack()) return;
+  if (!GA_MEASUREMENT_ID) return;
+
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag !== "function") return;
+
+  gtag("event", name, sanitizeProps(props));
+}
+
+export function trackPageView(url: string): void {
+  if (typeof window === "undefined") return;
+  if (getDoNotTrack()) return;
+  if (!GA_MEASUREMENT_ID) return;
+
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag !== "function") return;
+
+  gtag("event", "page_view", {
+    page_path: url,
+    page_location: window.location.href,
+    page_title: document.title,
+  });
 }

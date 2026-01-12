@@ -13,6 +13,7 @@ import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "@/hooks/useKeyboardShortcuts";
 import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
 import { BottomTabBar } from "@/components/mobile/BottomTabBar";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 // Lazy load SpotlightSearch - it's only needed when user presses Cmd+K
 // This reduces initial bundle size significantly (~100KB+ of search/semantic code)
@@ -144,6 +145,7 @@ export function Providers({ children }: ProvidersProps) {
           <ErrorBoundary variant="default">
             {children}
           </ErrorBoundary>
+          <AnalyticsProvider />
           <ErrorBoundary fallback={spotlightFallback}>
             <SpotlightSearch />
           </ErrorBoundary>

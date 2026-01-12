@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useFilterState } from "@/hooks/useFilterState";
 import { FeaturedPromptsSection } from "@/components/landing";
+import { trackEvent } from "@/lib/analytics";
 import type { Prompt, PromptCategory } from "@jeffreysprompts/core/prompts/types";
 
 function PromptGridFallback({ onRefresh }: { onRefresh: () => void }) {
@@ -41,6 +42,11 @@ function HomeContent() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const modalCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousFiltersRef = useRef<{
+    query: string;
+    category: PromptCategory | null;
+    tags: string[];
+  } | null>(null);
 
   // Compute category counts
   const categoryCounts = useMemo(() => {
@@ -132,6 +138,32 @@ function HomeContent() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!previousFiltersRef.current) {
+      previousFiltersRef.current = filters;
+      return;
+    }
+
+    const previous = previousFiltersRef.current;
+    const categoryChanged = previous.category !== filters.category;
+    const tagsChanged = previous.tags.join(",") !== filters.tags.join(",");
+    const queryChanged = previous.query !== filters.query;
+
+    if (categoryChanged || tagsChanged) {
+      trackEvent("filter_apply", {
+        category: filters.category ?? "all",
+        tags: filters.tags.join(","),
+        source: "browse",
+      });
+    }
+
+    if (queryChanged && filters.query.trim()) {
+      trackEvent("search", { query: filters.query.trim(), source: "browse" });
+    }
+
+    previousFiltersRef.current = filters;
+  }, [filters]);
 
   const handleRefresh = useCallback(() => {
     if (typeof window !== "undefined") {

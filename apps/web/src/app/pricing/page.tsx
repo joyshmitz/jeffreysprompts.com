@@ -103,17 +103,17 @@ const trustSignals = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-violet-50/60 via-white to-white dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
-      <div className="border-b border-zinc-200/70 dark:border-zinc-800/70">
+    <div className="min-h-screen bg-gradient-to-b from-violet-50/60 via-white to-white dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-900">
+      <div className="border-b border-neutral-200/70 dark:border-neutral-800/70">
         <div className="container mx-auto px-4 py-14">
           <div className="max-w-3xl">
             <Badge variant="secondary" className="mb-4">
               Simple, transparent pricing
             </Badge>
-            <h1 className="text-4xl font-bold text-zinc-900 dark:text-white sm:text-5xl">
+            <h1 className="text-4xl font-bold text-neutral-900 dark:text-white sm:text-5xl">
               Pricing that scales with your workflow
             </h1>
-            <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+            <p className="mt-4 text-lg text-neutral-600 dark:text-neutral-400">
               Start for free, upgrade when you want deeper tooling. Pro unlocks everything
               you need for serious prompt engineering.
             </p>
@@ -137,7 +137,7 @@ export default function PricingPage() {
             <Card
               key={plan.id}
               className={cn(
-                "relative overflow-hidden border-zinc-200/80 dark:border-zinc-800/70",
+                "relative overflow-hidden border-neutral-200/80 dark:border-neutral-800/70",
                 plan.highlight &&
                   "border-violet-300 bg-violet-50/70 shadow-xl shadow-violet-500/10 dark:border-violet-500/40 dark:bg-violet-950/30"
               )}
@@ -149,21 +149,21 @@ export default function PricingPage() {
                 </div>
               )}
               <CardHeader className="space-y-3">
-                <CardTitle className="text-2xl text-zinc-900 dark:text-white">
+                <CardTitle className="text-2xl text-neutral-900 dark:text-white">
                   {plan.name}
                 </CardTitle>
-                <p className="text-zinc-600 dark:text-zinc-400">{plan.description}</p>
+                <p className="text-neutral-600 dark:text-neutral-400">{plan.description}</p>
                 <div className="flex items-end gap-2">
-                  <span className="text-4xl font-bold text-zinc-900 dark:text-white">
+                  <span className="text-4xl font-bold text-neutral-900 dark:text-white">
                     {plan.price}
                   </span>
-                  <span className="pb-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  <span className="pb-1 text-sm text-neutral-500 dark:text-neutral-400">
                     / month
                   </span>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <ul className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+                <ul className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 text-emerald-500" />
@@ -180,7 +180,13 @@ export default function PricingPage() {
                   {plan.ctaHref.startsWith("/") ? (
                     <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
                   ) : (
-                    <a href={plan.ctaHref} rel="noopener noreferrer">
+                    <a
+                      href={plan.ctaHref}
+                      rel="noopener noreferrer"
+                      data-analytics={plan.id === "pro" ? "begin_checkout" : undefined}
+                      data-analytics-plan={plan.id === "pro" ? "pro" : undefined}
+                      data-analytics-source="pricing"
+                    >
                       {plan.ctaLabel}
                     </a>
                   )}
@@ -192,17 +198,17 @@ export default function PricingPage() {
       </section>
 
       <section className="container mx-auto px-4 pb-14">
-        <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-900/60">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">
+        <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-900/60">
+          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
             Feature comparison
           </h2>
-          <div className="mt-6 overflow-hidden rounded-xl border border-zinc-200/70 dark:border-zinc-800/70">
-            <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr] bg-zinc-100/60 text-sm font-semibold text-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-200">
+          <div className="mt-6 overflow-hidden rounded-xl border border-neutral-200/70 dark:border-neutral-800/70">
+            <div className="grid grid-cols-[1.4fr_0.8fr_0.8fr] bg-neutral-100/60 text-sm font-semibold text-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200">
               <div className="px-4 py-3">Feature</div>
               <div className="px-4 py-3 text-center">Free</div>
               <div className="px-4 py-3 text-center">Pro</div>
             </div>
-            <div className="divide-y divide-zinc-200/70 text-sm text-zinc-600 dark:divide-zinc-800/70 dark:text-zinc-300">
+            <div className="divide-y divide-neutral-200/70 text-sm text-neutral-600 dark:divide-neutral-800/70 dark:text-neutral-300">
               {comparisonRows.map((row) => (
                 <div
                   key={row.feature}
@@ -213,14 +219,14 @@ export default function PricingPage() {
                     {row.free ? (
                       <Check className="mx-auto h-4 w-4 text-emerald-500" />
                     ) : (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-neutral-400">—</span>
                     )}
                   </div>
                   <div className="px-4 py-3 text-center">
                     {row.pro ? (
                       <Check className="mx-auto h-4 w-4 text-emerald-500" />
                     ) : (
-                      <span className="text-zinc-400">—</span>
+                      <span className="text-neutral-400">—</span>
                     )}
                   </div>
                 </div>
@@ -232,15 +238,15 @@ export default function PricingPage() {
 
       <section className="container mx-auto px-4 pb-14">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          <div className="rounded-2xl border border-zinc-200/70 bg-white/80 p-6 dark:border-zinc-800/70 dark:bg-zinc-900/60">
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">FAQ</h2>
+          <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 dark:border-neutral-800/70 dark:bg-neutral-900/60">
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">FAQ</h2>
             <div className="mt-6 space-y-4">
               {faqs.map((item) => (
                 <div key={item.question} className="space-y-2">
-                  <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+                  <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                     {item.question}
                   </h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{item.answer}</p>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">{item.answer}</p>
                 </div>
               ))}
             </div>
@@ -248,16 +254,16 @@ export default function PricingPage() {
 
           <div className="space-y-4">
             {trustSignals.map((signal) => (
-              <Card key={signal.title} className="border-zinc-200/70 dark:border-zinc-800/70">
+              <Card key={signal.title} className="border-neutral-200/70 dark:border-neutral-800/70">
                 <CardContent className="flex gap-4 p-5">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
                     <signal.icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+                    <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                       {signal.title}
                     </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
                       {signal.description}
                     </p>
                   </div>
