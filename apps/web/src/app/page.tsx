@@ -150,15 +150,28 @@ function HomeContent() {
         selectedCategory={filters.category}
       />
 
-      {/* Featured Prompts - Immediate value */}
+      {/* Featured Prompts Section */}
       <FeaturedPromptsSection
         prompts={featuredPrompts}
         totalCount={prompts.length}
         onPromptClick={handlePromptClick}
       />
 
-      {/* Prompt Browser Section */}
+      {/* Visual separator between Featured and Browse */}
+      <div className="h-px bg-gradient-to-r from-transparent via-neutral-300 dark:via-neutral-700 to-transparent" />
+
+      {/* Browse All Prompts Section */}
       <main id="prompts-section" className="container-wide px-4 sm:px-6 lg:px-8 py-12">
+        {/* Section Header */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">
+            Browse All Prompts
+          </h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            Use filters to find exactly what you need
+          </p>
+        </div>
+
         {/* Filters Section */}
         <div className="mb-8 space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -203,23 +216,31 @@ function HomeContent() {
           />
         </div>
 
-        {/* Results header */}
+        {/* Results count - contextual based on active filters */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
-              {filters.category ? (
-                <span className="capitalize">{filters.category}</span>
-              ) : filters.query ? (
-                "Search Results"
-              ) : (
-                "All Prompts"
-              )}
-            </h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-              {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? "s" : ""}
-              {filters.query && ` for "${filters.query}"`}
-              {filters.tags.length > 0 && ` with tags: ${filters.tags.join(", ")}`}
-            </p>
+            {hasActiveFilters ? (
+              <>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                  {filters.category ? (
+                    <span className="capitalize">{filters.category}</span>
+                  ) : filters.query ? (
+                    "Search Results"
+                  ) : (
+                    "Filtered Results"
+                  )}
+                </h3>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                  {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? "s" : ""}
+                  {filters.query && ` matching "${filters.query}"`}
+                  {filters.tags.length > 0 && ` with tags: ${filters.tags.join(", ")}`}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                Showing all {filteredPrompts.length} prompts
+              </p>
+            )}
           </div>
         </div>
 
