@@ -48,14 +48,14 @@ export function TagFilter({
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
-        <span id="tag-filter-label" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <span id="tag-filter-label" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
           Tags
         </span>
         {selected.length > 0 && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 sm:h-6 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white touch-manipulation"
+            className="h-9 sm:h-6 px-2 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white touch-manipulation"
             onClick={handleClear}
             aria-label={`Clear ${selected.length} selected tag${selected.length === 1 ? "" : "s"}`}
           >
@@ -99,7 +99,7 @@ export function TagFilter({
         })}
 
         {hiddenCount > 0 && (
-          <span className="inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-zinc-400 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-zinc-800">
+          <span className="inline-flex items-center rounded-full px-3 py-2 text-xs font-medium text-neutral-400 dark:text-neutral-600 border border-dashed border-neutral-200 dark:border-neutral-800">
             +{hiddenCount} more
           </span>
         )}

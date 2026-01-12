@@ -83,7 +83,7 @@ export function CategoryFilter({
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 sm:h-6 px-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white touch-manipulation"
+          className="h-9 sm:h-6 px-2 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white touch-manipulation"
           onClick={() => handleSelect(null)}
           aria-label="Clear category filter"
         >
