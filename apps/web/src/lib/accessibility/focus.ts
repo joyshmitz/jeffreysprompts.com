@@ -21,8 +21,12 @@ const FOCUSABLE_SELECTORS = [
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS))
     .filter((el) => {
-      // Filter out hidden elements
-      return el.offsetParent !== null &&
+      // Filter out hidden elements (offsetParent fails for fixed-position elements)
+      const style = window.getComputedStyle(el);
+      const isVisible = style.display !== "none" && style.visibility !== "hidden";
+      const hasLayout = el.getClientRects().length > 0;
+      return hasLayout &&
+             isVisible &&
              !el.hasAttribute('aria-hidden') &&
              el.getAttribute('tabindex') !== '-1';
     });
@@ -44,7 +48,6 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
 export function focusTrap(container: HTMLElement): () => void {
   const focusableElements = getFocusableElements(container);
   const firstElement = focusableElements[0];
-  const lastElement = focusableElements[focusableElements.length - 1];
 
   // Store previously focused element to restore later
   const previouslyFocused = document.activeElement as HTMLElement;
@@ -94,17 +97,18 @@ export function moveFocusTo(
 ): void {
   if (!element) return;
 
+  const target = element;
   const { scroll = true, preventScroll = false } = options;
 
   // Make element focusable if it isn't
-  if (!element.hasAttribute('tabindex')) {
-    element.setAttribute('tabindex', '-1');
+  if (!target.hasAttribute('tabindex')) {
+    target.setAttribute('tabindex', '-1');
   }
 
-  element.focus({ preventScroll });
+  target.focus({ preventScroll });
 
   if (scroll && !preventScroll) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
