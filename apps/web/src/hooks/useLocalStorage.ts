@@ -172,7 +172,8 @@ export function useLocalStorage<T>(
   // Setter with debounced persistence
   const setValue = useCallback(
     (value: T | ((prev: T) => T)) => {
-    const valueToStore = value instanceof Function ? value(readValue()) : value;
+    // Use typeof check instead of instanceof - safer across iframe boundaries
+    const valueToStore = typeof value === "function" ? (value as (prev: T) => T)(readValue()) : value;
     let serializedValue: string | null = null;
     let shouldRemove = false;
     try {

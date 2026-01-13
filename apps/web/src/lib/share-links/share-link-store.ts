@@ -1,6 +1,12 @@
-import { createHash } from "crypto";
+import { createHash, pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 
 export type ShareContentType = "prompt" | "bundle" | "workflow" | "collection";
+
+// Password hashing configuration
+// Using PBKDF2-SHA256 with 100,000 iterations (OWASP recommended minimum)
+const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_KEY_LENGTH = 32; // 256 bits
+const SALT_LENGTH = 16; // 128 bits
 
 export interface ShareLink {
   id: string;
@@ -69,13 +75,57 @@ function hashValue(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Hash a password using PBKDF2-SHA256 with random salt.
+ * Returns format: "salt:hash" where both are hex-encoded.
+ *
+ * Security properties:
+ * - Random 128-bit salt prevents rainbow table attacks
+ * - 100,000 iterations provides computational resistance
+ * - PBKDF2 is NIST-approved for password hashing
+ */
 export function hashPassword(password: string): string {
-  return hashValue(password);
+  const salt = randomBytes(SALT_LENGTH);
+  const hash = pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH, "sha256");
+  return `${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
+/**
+ * Verify a password against a stored hash using constant-time comparison.
+ *
+ * Security properties:
+ * - Uses timingSafeEqual to prevent timing attacks
+ * - Handles both new (salt:hash) and legacy (plain SHA256) formats
+ * - Returns true if no password is required (hash is null/undefined)
+ */
 export function verifyPassword(password: string, hash: string | null | undefined): boolean {
   if (!hash) return true;
-  return hashValue(password) === hash;
+
+  // Check if this is the new salt:hash format
+  if (hash.includes(":")) {
+    const [saltHex, storedHashHex] = hash.split(":");
+    const salt = Buffer.from(saltHex, "hex");
+    const storedHash = Buffer.from(storedHashHex, "hex");
+
+    const computedHash = pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH, "sha256");
+
+    // Constant-time comparison prevents timing attacks
+    if (storedHash.length !== computedHash.length) {
+      return false;
+    }
+    return timingSafeEqual(storedHash, computedHash);
+  }
+
+  // Legacy format: plain SHA256 (for backwards compatibility with existing links)
+  // Note: New links should always use the salt:hash format
+  const legacyHash = hashValue(password);
+  const storedBuffer = Buffer.from(hash, "hex");
+  const computedBuffer = Buffer.from(legacyHash, "hex");
+
+  if (storedBuffer.length !== computedBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(storedBuffer, computedBuffer);
 }
 
 export function createShareLink(input: {

@@ -80,9 +80,14 @@ export function getAdminRoleFromHeaders(headers: HeaderAccessor): AdminRole {
  * Check whether the request has the required admin permission.
  *
  * Auth strategy:
- * - If JFP_ADMIN_TOKEN is unset, allow in non-production, deny in production.
+ * - ALWAYS require JFP_ADMIN_TOKEN in production (NODE_ENV === "production")
+ * - In non-production, require explicit JFP_ADMIN_DEV_BYPASS=true to skip token check
  * - If token is set, require Bearer or x-jfp-admin-token to match.
  * - Role is supplied via x-jfp-admin-role header (defaults to support).
+ *
+ * Security notes:
+ * - Dev bypass requires explicit opt-in to prevent accidental exposure
+ * - Even with dev bypass, external origins are rejected for safety
  */
 export function checkAdminPermission(
   request: NextRequest,
@@ -90,11 +95,36 @@ export function checkAdminPermission(
 ): AdminAuthResult {
   const token = process.env.JFP_ADMIN_TOKEN;
   const role = getAdminRoleFromHeaders(request.headers);
+  const isProduction = process.env.NODE_ENV === "production";
+  const devBypassEnabled = process.env.JFP_ADMIN_DEV_BYPASS === "true";
 
   if (!token) {
-    if (process.env.NODE_ENV !== "production") {
+    // In production, always require the token to be configured
+    if (isProduction) {
+      return { ok: false, role, reason: "admin_token_not_configured" };
+    }
+
+    // In non-production, only allow bypass if explicitly enabled
+    if (devBypassEnabled) {
+      // Additional safety: reject if request appears to come from external origin
+      const origin = request.headers.get("origin");
+      const host = request.headers.get("host");
+      if (origin && host && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+        console.warn(
+          "[Admin Auth] Dev bypass blocked: external origin detected",
+          { origin, host, permission }
+        );
+        return { ok: false, role, reason: "unauthorized" };
+      }
+
+      console.warn(
+        "[Admin Auth] Dev bypass active - configure JFP_ADMIN_TOKEN for production",
+        { permission, role: "super_admin" }
+      );
       return { ok: true, role: "super_admin" };
     }
+
+    // No token and no bypass = deny
     return { ok: false, role, reason: "admin_token_not_configured" };
   }
 
