@@ -156,6 +156,8 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
               limit: {
                 type: "number",
                 description: "Maximum results to return (default: 5)",
+                minimum: 1,
+                maximum: 100,
               },
             },
           },

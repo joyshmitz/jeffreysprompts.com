@@ -15,9 +15,10 @@ import { apiClient, requiresPremium, isAuthError } from "../lib/api-client";
 import { isLoggedIn, loadCredentials } from "../lib/credentials";
 import { getOfflinePromptById, normalizePromptCategory } from "../lib/offline";
 import { isSafeSkillId, shouldOutputJson } from "../lib/utils";
-import { getPrompt, type Prompt } from "@jeffreysprompts/core/prompts";
+import { type Prompt } from "@jeffreysprompts/core/prompts";
 import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
+import { loadRegistry } from "../lib/registry-loader";
 
 export interface CollectionItem {
   id: string;
@@ -188,7 +189,10 @@ async function resolvePromptForExport(
   promptId: string,
   options: CollectionExportOptions
 ): Promise<{ prompt?: Prompt; source?: string; error?: string }> {
-  const localPrompt = getPrompt(promptId);
+  // Try local dynamic registry first
+  const registry = await loadRegistry();
+  const localPrompt = registry.prompts.find((p) => p.id === promptId);
+  
   if (localPrompt) {
     return { prompt: localPrompt, source: "local" };
   }
@@ -618,7 +622,8 @@ async function addToCollection(
   options: CollectionShowOptions
 ): Promise<void> {
   // Try to resolve prompt details from local registry (may not include premium prompts)
-  const prompt = getPrompt(promptId);
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === promptId);
   const promptTitle = prompt?.title ?? promptId;
 
   const response = await apiClient.post<{ success: boolean; collection: string; promptId: string }>(

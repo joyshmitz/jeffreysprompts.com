@@ -6,7 +6,7 @@
  */
 
 import chalk from "chalk";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
+import { type Prompt } from "@jeffreysprompts/core/prompts";
 import {
   apiClient,
   isAuthError,
@@ -15,6 +15,7 @@ import {
 } from "../lib/api-client";
 import { isLoggedIn, getCurrentUser } from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
+import { loadRegistry } from "../lib/registry-loader";
 
 export interface SaveOptions {
   json?: boolean;
@@ -47,8 +48,10 @@ export async function saveCommand(
   promptId: string,
   options: SaveOptions = {}
 ): Promise<void> {
-  // Step 1: Check if prompt exists in local registry
-  const prompt = getPrompt(promptId);
+  // Step 1: Check if prompt exists in local registry (dynamic)
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === promptId);
+
   if (!prompt) {
     if (shouldOutputJson(options)) {
       writeJsonError("not_found", `Prompt not found: ${promptId}`);

@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
+import { type Prompt } from "@jeffreysprompts/core/prompts";
 import {
   renderPrompt,
   getMissingVariables,
@@ -12,6 +12,7 @@ import {
   promptForVariable,
   processVariableValue,
 } from "../lib/variables";
+import { loadRegistry } from "../lib/registry-loader";
 
 interface CopyOptions {
   fill?: boolean;
@@ -58,7 +59,10 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export async function copyCommand(id: string, options: CopyOptions) {
-  const prompt = getPrompt(id);
+  // Load registry dynamically (SWR pattern)
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === id);
+
   if (!prompt) {
     if (shouldOutputJson(options)) {
       console.log(JSON.stringify({ error: "not_found", message: `Prompt not found: ${id}` }));
@@ -66,6 +70,7 @@ export async function copyCommand(id: string, options: CopyOptions) {
       console.error(chalk.red(`Prompt not found: ${id}`));
     }
     process.exit(1);
+    return;
   }
 
   // Parse CLI variables

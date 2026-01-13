@@ -2,8 +2,7 @@
  * Utility CLI commands: categories, tags, open, doctor, about
  */
 
-import { prompts, categories, tags } from "@jeffreysprompts/core/prompts/registry";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
+import { type Prompt } from "@jeffreysprompts/core/prompts";
 import chalk from "chalk";
 import boxen from "boxen";
 import { spawn } from "child_process";
@@ -12,6 +11,7 @@ import { join } from "path";
 import { platform } from "os";
 import { getHomeDir } from "../lib/config";
 import { shouldOutputJson } from "../lib/utils";
+import { loadRegistry } from "../lib/registry-loader";
 
 interface JsonOptions {
   json?: boolean;
@@ -21,14 +21,22 @@ interface JsonOptions {
  * List all categories with prompt counts
  */
 export async function categoriesCommand(options: JsonOptions): Promise<void> {
+  const registry = await loadRegistry();
+  const prompts = registry.prompts;
+  
   // Count prompts per category
   const counts: Record<string, number> = {};
+  const categories = new Set<string>();
+  
   for (const prompt of prompts) {
     counts[prompt.category] = (counts[prompt.category] ?? 0) + 1;
+    categories.add(prompt.category);
   }
+  
+  const sortedCategories = [...categories].sort();
 
   if (shouldOutputJson(options)) {
-    const data = categories.map((cat) => ({
+    const data = sortedCategories.map((cat) => ({
       name: cat,
       count: counts[cat] ?? 0,
     }));
@@ -37,7 +45,7 @@ export async function categoriesCommand(options: JsonOptions): Promise<void> {
   }
 
   console.log(chalk.bold.cyan("\nCategories\n"));
-  for (const cat of categories) {
+  for (const cat of sortedCategories) {
     const count = counts[cat] ?? 0;
     console.log(`  ${chalk.yellow(cat.padEnd(16))} ${chalk.dim(`(${count} prompts)`)}`);
   }
@@ -48,11 +56,17 @@ export async function categoriesCommand(options: JsonOptions): Promise<void> {
  * List all tags with prompt counts
  */
 export async function tagsCommand(options: JsonOptions): Promise<void> {
+  const registry = await loadRegistry();
+  const prompts = registry.prompts;
+
   // Count prompts per tag
   const counts: Record<string, number> = {};
+  const tags = new Set<string>();
+  
   for (const prompt of prompts) {
     for (const tag of prompt.tags) {
       counts[tag] = (counts[tag] ?? 0) + 1;
+      tags.add(tag);
     }
   }
 
@@ -80,7 +94,9 @@ export async function tagsCommand(options: JsonOptions): Promise<void> {
  * Open prompt in browser
  */
 export async function openCommand(id: string): Promise<void> {
-  const prompt = getPrompt(id);
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === id);
+
   if (!prompt) {
     console.error(chalk.red(`Prompt not found: ${id}`));
     process.exit(1);
@@ -116,6 +132,7 @@ interface DoctorResult {
  * Check environment for common issues
  */
 export async function doctorCommand(options: JsonOptions): Promise<void> {
+  const registry = await loadRegistry();
   const results: DoctorResult[] = [];
 
   // Check personal skills directory
@@ -188,7 +205,7 @@ export async function doctorCommand(options: JsonOptions): Promise<void> {
   results.push({
     check: "Prompt registry",
     status: "ok",
-    message: `${prompts.length} prompts loaded`,
+    message: `${registry.prompts.length} prompts loaded`,
   });
 
   if (shouldOutputJson(options)) {
@@ -217,6 +234,11 @@ export async function doctorCommand(options: JsonOptions): Promise<void> {
  * Show about information with ASCII banner
  */
 export async function aboutCommand(options: JsonOptions): Promise<void> {
+  const registry = await loadRegistry();
+  // Recalculate dynamic stats
+  const categories = new Set(registry.prompts.map(p => p.category));
+  const tags = new Set(registry.prompts.flatMap(p => p.tags));
+
   const info = {
     name: "jfp",
     description: "JeffreysPrompts CLI - Agent-optimized prompt access",
@@ -225,9 +247,9 @@ export async function aboutCommand(options: JsonOptions): Promise<void> {
     github: "https://github.com/Dicklesworthstone/jeffreysprompts.com",
     author: "Jeffrey Emanuel",
     twitter: "@doodlestein",
-    prompts: prompts.length,
-    categories: categories.length,
-    tags: tags.length,
+    prompts: registry.prompts.length,
+    categories: categories.size,
+    tags: tags.size,
   };
 
   if (shouldOutputJson(options)) {
