@@ -11,6 +11,7 @@ export {
   computeSkillHash,
   createManifestEntry,
   generateWorkflowSkillMd,
+  getUniqueDelimiter,
 } from "./skills";
 export type { SkillManifestEntry, SkillManifest } from "./skills";
 

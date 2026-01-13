@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
-import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
+import { generateSkillMd, getUniqueDelimiter } from "@jeffreysprompts/core/export/skills";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
 
 interface InstallSkillButtonProps {
@@ -37,20 +37,7 @@ function generateInstallCommand(prompt: Prompt, project: boolean): string {
     : "$HOME/.config/claude/skills";
   const skillDir = `${baseDir}/${prompt.id}`;
 
-  // Find a unique HEREDOC delimiter that doesn't appear in content
-  // Limit iterations to prevent DOS if content contains many JFP_SKILL_N patterns
-  const MAX_DELIMITER_ATTEMPTS = 100;
-  let delimiter = "JFP_SKILL";
-  let counter = 0;
-  while (skillContent.includes(delimiter) && counter < MAX_DELIMITER_ATTEMPTS) {
-    counter++;
-    delimiter = `JFP_SKILL_${counter}`;
-  }
-
-  // If we exhausted attempts, use a random suffix as fallback
-  if (counter >= MAX_DELIMITER_ATTEMPTS && skillContent.includes(delimiter)) {
-    delimiter = `JFP_SKILL_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
+  const delimiter = getUniqueDelimiter(skillContent);
 
   const lines = [
     `mkdir -p "${skillDir}" && cat > "${skillDir}/SKILL.md" << '${delimiter}'`,

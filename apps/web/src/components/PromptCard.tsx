@@ -31,6 +31,7 @@ import { useToast } from "@/components/ui/toast";
 import { useBasket } from "@/hooks/use-basket";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { Prompt, PromptDifficulty } from "@jeffreysprompts/core/prompts/types";
 
 interface PromptCardProps {
@@ -87,8 +88,9 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
   const handleCopy = useCallback(
     async (e: MouseEvent) => {
       e.stopPropagation();
-      try {
-        await navigator.clipboard.writeText(prompt.content);
+      const result = await copyToClipboard(prompt.content);
+
+      if (result.success) {
         setCopied(true);
         setCopyFlash(true);
 
@@ -112,7 +114,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
           setCopied(false);
           copiedResetTimer.current = null;
         }, 2000);
-      } catch {
+      } else {
         error("Failed to copy", "Please try again");
       }
     },

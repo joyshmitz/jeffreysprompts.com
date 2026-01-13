@@ -20,6 +20,7 @@ import { Button } from "./ui/button";
 import { useToast } from "./ui/toast";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
+import { copyToClipboard } from "@/lib/clipboard";
 import { getPrompt, type Prompt } from "@jeffreysprompts/core/prompts";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
 import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
@@ -142,29 +143,9 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
 
     const ids = basketPrompts.map((p) => p.id).join(" ");
     const command = `jfp install ${ids}`;
+    const result = await copyToClipboard(command);
 
-    try {
-      // Try modern clipboard API first
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-        await navigator.clipboard.writeText(command);
-      } else {
-        // Fallback for iOS Safari and older browsers
-        const textarea = document.createElement("textarea");
-        textarea.value = command;
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        textarea.style.top = "0";
-        textarea.setAttribute("readonly", "");
-        document.body.appendChild(textarea);
-        textarea.select();
-        textarea.setSelectionRange(0, command.length);
-        const copySucceeded = document.execCommand("copy");
-        document.body.removeChild(textarea);
-        if (!copySucceeded) {
-          throw new Error("execCommand copy failed");
-        }
-      }
-
+    if (result.success) {
       setCopied(true);
       setCopyFlash(true);
 
@@ -191,8 +172,8 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
         setCopied(false);
         resetTimerRef.current = null;
       }, 2000);
-    } catch (err) {
-      console.error("Clipboard copy failed:", err);
+    } else {
+      console.error("Clipboard copy failed:", result.error);
       toast({
         title: "Copy failed",
         message: "Could not copy to clipboard",

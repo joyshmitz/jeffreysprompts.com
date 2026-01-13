@@ -44,13 +44,14 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
+import { copyToClipboard } from "@/lib/clipboard";
 import {
   renderPrompt,
   extractVariables,
   formatVariableName,
   getVariablePlaceholder,
 } from "@jeffreysprompts/core/template";
-import { generateSkillMd } from "@jeffreysprompts/core/export";
+import { generateSkillMd, getUniqueDelimiter } from "@jeffreysprompts/core/export";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 
 interface PromptDetailModalProps {
@@ -71,12 +72,8 @@ function buildInstallCommand(prompt: Prompt): string {
   }
 
   const skillContent = generateSkillMd(prompt);
-  let delimiter = "JFP_SKILL";
-  let counter = 0;
-  while (skillContent.includes(delimiter)) {
-    counter += 1;
-    delimiter = `JFP_SKILL_${counter}`;
-  }
+  const delimiter = getUniqueDelimiter(skillContent);
+  
   return `mkdir -p ~/.config/claude/skills/${prompt.id} && cat > ~/.config/claude/skills/${prompt.id}/SKILL.md << '${delimiter}'\n${skillContent}\n${delimiter}`;
 }
 
@@ -153,8 +150,9 @@ export function PromptDetailModal({
 
   // Copy to clipboard
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(renderedContent);
+    const result = await copyToClipboard(renderedContent);
+
+    if (result.success) {
       setCopied(true);
       setCopyFlash(true);
 
@@ -179,7 +177,7 @@ export function PromptDetailModal({
         setCopied(false);
         copiedResetTimer.current = null;
       }, 2000);
-    } catch {
+    } else {
       error("Failed to copy", "Please try again");
     }
   }, [renderedContent, prompt, success, error]);
@@ -188,12 +186,12 @@ export function PromptDetailModal({
   const handleInstall = useCallback(async () => {
     if (!prompt) return;
     const command = buildInstallCommand(prompt);
+    const result = await copyToClipboard(command);
 
-    try {
-      await navigator.clipboard.writeText(command);
+    if (result.success) {
       success("Install command copied", `Paste in terminal to install "${prompt.title}"`);
       trackEvent("skill_install", { id: prompt.id, source: "modal" });
-    } catch {
+    } else {
       error("Failed to copy", "Please try again");
     }
   }, [prompt, success, error]);
