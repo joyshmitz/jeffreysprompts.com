@@ -134,7 +134,9 @@ export function BottomSheet({
             aria-labelledby={title ? "bottom-sheet-title" : undefined}
             className={cn(
               "fixed left-0 right-0 bottom-0 max-h-[85vh] flex flex-col",
-              "rounded-t-2xl bg-card shadow-2xl",
+              "rounded-t-2xl shadow-2xl",
+              // Explicit background colors for reliability (CSS variable fallback issues on some devices)
+              "bg-white dark:bg-neutral-950",
               "pb-[env(safe-area-inset-bottom)]",
               className
             )}

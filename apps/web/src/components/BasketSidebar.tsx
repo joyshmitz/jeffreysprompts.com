@@ -137,7 +137,27 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
     const command = `jfp install ${ids}`;
 
     try {
-      await navigator.clipboard.writeText(command);
+      // Try modern clipboard API first
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(command);
+      } else {
+        // Fallback for iOS Safari and older browsers
+        const textarea = document.createElement("textarea");
+        textarea.value = command;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        textarea.setAttribute("readonly", "");
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, command.length);
+        const copySucceeded = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (!copySucceeded) {
+          throw new Error("execCommand copy failed");
+        }
+      }
+
       setCopied(true);
       setCopyFlash(true);
 
@@ -164,7 +184,8 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
         setCopied(false);
         resetTimerRef.current = null;
       }, 2000);
-    } catch {
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
       toast({
         title: "Copy failed",
         message: "Could not copy to clipboard",
@@ -214,8 +235,8 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
               ({basketPrompts.length})
             </span>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close basket">
-            <X className="h-4 w-4" aria-hidden="true" />
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close basket" className="h-11 w-11 -mr-2 touch-manipulation">
+            <X className="h-5 w-5" aria-hidden="true" />
           </Button>
         </div>
 

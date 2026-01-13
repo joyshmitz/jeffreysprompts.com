@@ -463,7 +463,8 @@ export function SwipeablePromptCard({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 10 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-neutral-900 rounded-t-3xl p-4 pb-8 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-neutral-900 rounded-t-3xl p-4 shadow-2xl"
+              style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))" }}
               role="dialog"
               aria-modal="true"
               aria-labelledby="quick-actions-title"
