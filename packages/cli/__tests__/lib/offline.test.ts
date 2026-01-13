@@ -240,43 +240,43 @@ describe("searchOfflineLibrary", () => {
   it("finds prompts by title", () => {
     const results = searchOfflineLibrary("wizard");
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("idea-wizard");
+    expect(results[0].prompt.id).toBe("idea-wizard");
   });
 
   it("finds prompts by ID", () => {
     const results = searchOfflineLibrary("code-reviewer");
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("code-reviewer");
+    expect(results[0].prompt.id).toBe("code-reviewer");
   });
 
   it("finds prompts by description", () => {
     const results = searchOfflineLibrary("comprehensive");
     expect(results.length).toBeGreaterThan(0);
-    expect(results.some(p => p.id === "code-reviewer" || p.id === "doc-writer")).toBe(true);
+    expect(results.some(r => r.prompt.id === "code-reviewer" || r.prompt.id === "doc-writer")).toBe(true);
   });
 
   it("finds prompts by category", () => {
     const results = searchOfflineLibrary("ideation");
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("idea-wizard");
+    expect(results[0].prompt.id).toBe("idea-wizard");
   });
 
   it("finds prompts by tag", () => {
     const results = searchOfflineLibrary("security");
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("code-reviewer");
+    expect(results[0].prompt.id).toBe("code-reviewer");
   });
 
   it("finds prompts by content", () => {
     const results = searchOfflineLibrary("documentation for this module");
     expect(results.length).toBeGreaterThan(0);
-    expect(results.some(p => p.id === "doc-writer")).toBe(true);
+    expect(results.some(r => r.prompt.id === "doc-writer")).toBe(true);
   });
 
   it("is case insensitive", () => {
     const results = searchOfflineLibrary("WIZARD");
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("idea-wizard");
+    expect(results[0].prompt.id).toBe("idea-wizard");
   });
 
   it("respects limit parameter", () => {
@@ -292,7 +292,7 @@ describe("searchOfflineLibrary", () => {
 
     // "Code Review Expert" should rank higher because "review" is in the title
     if (results.length > 1) {
-      expect(results[0].id).toBe("code-reviewer");
+      expect(results[0].prompt.id).toBe("code-reviewer");
     }
   });
 
@@ -384,7 +384,7 @@ describe("cache integrity", () => {
 
     // Search should still work efficiently
     const results = searchOfflineLibrary("prompt-50");
-    expect(results.some(p => p.id === "prompt-50")).toBe(true);
+    expect(results.some(r => r.prompt.id === "prompt-50")).toBe(true);
   });
 
   it("handles prompts with missing optional fields", () => {
