@@ -6,6 +6,7 @@ interface ServiceWorkerState {
   isSupported: boolean;
   isRegistered: boolean;
   isOffline: boolean;
+  hasUpdate: boolean;
   registration: ServiceWorkerRegistration | null;
   error: Error | null;
 }
@@ -19,6 +20,7 @@ export function useServiceWorker(): ServiceWorkerState {
     isSupported: false,
     isRegistered: false,
     isOffline: false,
+    hasUpdate: false,
     registration: null,
     error: null,
   });
@@ -47,6 +49,11 @@ export function useServiceWorker(): ServiceWorkerState {
 
         currentRegistration = registration;
 
+        // Check if there's already a waiting worker
+        if (registration.waiting) {
+          setState((prev) => ({ ...prev, hasUpdate: true }));
+        }
+
         setState((prev) => ({
           ...prev,
           isRegistered: true,
@@ -60,8 +67,8 @@ export function useServiceWorker(): ServiceWorkerState {
             installingWorker = newWorker;
             stateChangeHandler = () => {
               if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                // New version available - could prompt user to refresh
-                console.log("[SW] New version available");
+                // New version available
+                setState((prev) => ({ ...prev, hasUpdate: true }));
               }
             };
             newWorker.addEventListener("statechange", stateChangeHandler);
