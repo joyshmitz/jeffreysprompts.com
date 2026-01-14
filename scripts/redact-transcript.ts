@@ -18,7 +18,7 @@ const REDACTION_RULES: RedactionRule[] = [
   },
   {
     label: "Bearer tokens",
-    pattern: /Bearer\s+[A-Za-z0-9._~+\/=\-]+/gi,
+    pattern: /Bearer\s+[A-Za-z0-9._~+\/=\-]{20,}/gi,
     replacement: "Bearer [REDACTED]",
   },
   {
@@ -53,8 +53,8 @@ const REDACTION_RULES: RedactionRule[] = [
     replacement: "$1<redacted>$3",
   },
   {
-    label: "Windows user paths",
-    pattern: /(C:\\Users\\)([^\\\s]+)(\\)/g,
+    label: "Windows user paths (JSON escaped)",
+    pattern: /(C:\\{2}Users\\\\?)([^\\\s"]+)(\\\\?)/g,
     replacement: "$1<redacted>$3",
   },
 ];

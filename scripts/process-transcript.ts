@@ -134,21 +134,33 @@ function estimateTokens(text: string): number {
 }
 
 function processTranscript(
-  rawJsonl: string,
+  rawInput: string,
   annotations: TranscriptHighlight[] = []
 ): ProcessedTranscript {
-  const lines = rawJsonl.trim().split("\n").filter((l) => l.trim());
-  const messages: unknown[] = [];
+  let messages: unknown[] = [];
+  const trimmed = rawInput.trim();
 
-  // Parse each line
-  for (const line of lines) {
+  // Try parsing as a single JSON array first (from extract-transcript.ts)
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
     try {
-      const entry = JSON.parse(line);
-      if (entry) {
-        messages.push(entry);
+      messages = JSON.parse(trimmed);
+    } catch (e) {
+      console.warn("Failed to parse input as JSON array, falling back to JSONL parsing");
+    }
+  }
+
+  // If empty (or failed parse), try JSONL parsing
+  if (messages.length === 0) {
+    const lines = trimmed.split("\n").filter((l) => l.trim());
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry) {
+          messages.push(entry);
+        }
+      } catch {
+        // Skip invalid JSON lines (e.g. empty lines or non-json text)
       }
-    } catch {
-      // Skip invalid JSON lines
     }
   }
 
