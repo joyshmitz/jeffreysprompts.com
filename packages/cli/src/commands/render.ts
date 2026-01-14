@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, openSync, readSync, closeSync, statSync } from "fs";
 import { type Prompt } from "@jeffreysprompts/core/prompts";
 import {
   renderPrompt,
@@ -165,8 +165,29 @@ export async function renderCommand(id: string, options: RenderOptions) {
       }
       process.exit(1);
     }
-    context = readFileSync(options.context, "utf-8");
-    contextSource = options.context;
+    
+    // Read file carefully to avoid memory exhaustion
+    try {
+      const fd = openSync(options.context, "r");
+      try {
+        const stats = statSync(options.context);
+        // Read up to maxContext + 1 to detect truncation
+        const bytesToRead = Math.min(stats.size, maxContext + 1);
+        const buffer = Buffer.alloc(bytesToRead);
+        const bytesRead = readSync(fd, buffer, 0, bytesToRead, 0);
+        context = buffer.slice(0, bytesRead).toString("utf-8");
+        contextSource = options.context;
+      } finally {
+        closeSync(fd);
+      }
+    } catch (err) {
+      if (shouldOutputJson(options)) {
+        console.log(JSON.stringify({ error: "read_error", message: `Failed to read context file: ${(err as Error).message}` }));
+      } else {
+        console.error(chalk.red(`Failed to read context file: ${(err as Error).message}`));
+      }
+      process.exit(1);
+    }
   }
 
   let truncated = false;
