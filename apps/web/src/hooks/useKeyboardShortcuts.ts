@@ -185,53 +185,85 @@ export function useKeyboardShortcuts(
         document.activeElement instanceof HTMLSelectElement ||
         document.activeElement?.getAttribute("contenteditable") === "true";
 
+      const key = e.key.toLowerCase();
+      
+      // Update sequence buffer
+      const nextBuffer = [...sequenceBuffer.current, key];
+      const nextBufferStr = nextBuffer.join(" ");
+      let hasPartialMatch = false;
+      let fullMatch: KeyboardShortcut | null = null;
+
+      // Check sequences first
       for (const shortcut of shortcuts) {
-        // Skip non-global shortcuts when input is focused
         if (isInputFocused && !shortcut.global) continue;
-
+        
         const parsed = parseKeys(shortcut.keys);
+        if (!parsed.sequence) continue;
 
-        // Handle sequences
-        if (parsed.sequence) {
-          // Clear sequence buffer on timeout
-          if (sequenceTimeout.current) {
-            clearTimeout(sequenceTimeout.current);
-          }
-          sequenceTimeout.current = setTimeout(() => {
-            sequenceBuffer.current = [];
-          }, 1000);
+        const sequenceStr = parsed.sequence.join(" ");
 
-          // Add current key to buffer
-          sequenceBuffer.current.push(e.key.toLowerCase());
-
-          // Check if sequence matches
-          const bufferStr = sequenceBuffer.current.join(" ");
-          const sequenceStr = parsed.sequence.join(" ");
-
-          if (bufferStr === sequenceStr) {
-            if (shortcut.preventDefault !== false) {
-              e.preventDefault();
-            }
-            shortcut.handler();
-            sequenceBuffer.current = [];
-            return;
-          }
-
-          // Partial match - keep buffer
-          if (sequenceStr.startsWith(bufferStr)) {
-            return;
-          }
-
-          // No match - reset if this is the first key of a sequence
-          if (parsed.sequence[0] === e.key.toLowerCase()) {
-            sequenceBuffer.current = [e.key.toLowerCase()];
-          } else {
-            sequenceBuffer.current = [];
-          }
-          continue;
+        if (sequenceStr === nextBufferStr) {
+          fullMatch = shortcut;
+          break; // Prioritize first full match
         }
 
-        // Handle single key combinations
+        if (sequenceStr.startsWith(nextBufferStr)) {
+          hasPartialMatch = true;
+        }
+      }
+
+      if (fullMatch) {
+        if (fullMatch.preventDefault !== false) e.preventDefault();
+        fullMatch.handler();
+        sequenceBuffer.current = [];
+        if (sequenceTimeout.current) clearTimeout(sequenceTimeout.current);
+        return;
+      }
+
+      if (hasPartialMatch) {
+        sequenceBuffer.current = nextBuffer;
+        if (sequenceTimeout.current) clearTimeout(sequenceTimeout.current);
+        sequenceTimeout.current = setTimeout(() => {
+          sequenceBuffer.current = [];
+        }, 1000);
+        return;
+      }
+
+      // No sequence match (full or partial). Check if this key starts a NEW sequence.
+      // This handles the case where "g h" is a shortcut, buffer is "x", user types "g".
+      // Previous buffer "x" failed. "x g" failed. 
+      // But "g" might start "g h".
+      
+      let startsNewSequence = false;
+      for (const shortcut of shortcuts) {
+        if (isInputFocused && !shortcut.global) continue;
+        const parsed = parseKeys(shortcut.keys);
+        if (parsed.sequence && parsed.sequence[0] === key) {
+          startsNewSequence = true;
+          break;
+        }
+      }
+
+      if (startsNewSequence) {
+        sequenceBuffer.current = [key];
+        if (sequenceTimeout.current) clearTimeout(sequenceTimeout.current);
+        sequenceTimeout.current = setTimeout(() => {
+          sequenceBuffer.current = [];
+        }, 1000);
+        // Don't return, allow single key handlers to fire if they match?
+        // Usually sequences consume keys. But if "g" is also a single key shortcut?
+        // Let's assume sequences take precedence.
+        return;
+      } else {
+        sequenceBuffer.current = [];
+      }
+
+      // Handle single key combinations (only if no sequence activity was detected/kept)
+      for (const shortcut of shortcuts) {
+        if (isInputFocused && !shortcut.global) continue;
+        const parsed = parseKeys(shortcut.keys);
+        if (parsed.sequence) continue;
+
         if (matchesKeys(e, parsed)) {
           if (shortcut.preventDefault !== false) {
             e.preventDefault();
