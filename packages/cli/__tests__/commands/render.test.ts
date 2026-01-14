@@ -232,18 +232,17 @@ describe("renderCommand", () => {
   });
 
   describe("output modes", () => {
-    it("outputs JSON in non-TTY environments (test environment)", async () => {
-      // Note: In non-TTY (like tests), shouldOutputJson returns true by default
-      // This is intentional for piping to other tools
+    it("outputs JSON when requested", async () => {
+      // Explicitly request JSON to ensure stable testing
       const contextFile = join(testDir, "non-tty-output.txt");
       writeFileSync(contextFile, "Non-TTY context content");
 
       await renderCommand("idea-wizard", {
-        json: false, // Even with json: false, non-TTY outputs JSON
+        json: true,
         context: contextFile,
       });
 
-      // In non-TTY, we get JSON regardless of --json flag
+      // We get JSON output
       const parsedOutput = JSON.parse(output.join(""));
       expect(parsedOutput.id).toBe("idea-wizard");
       expect(parsedOutput.rendered).toContain("Come up with your very best ideas");

@@ -47,7 +47,7 @@ describe("Card", () => {
     });
 
     it("applies hover styles when hover prop is true", () => {
-      render(<Card hover>Content</Card>);
+      render(<Card hover="lift">Content</Card>);
       const card = screen.getByText("Content");
       expect(card).toHaveClass("hover:shadow-lg");
     });

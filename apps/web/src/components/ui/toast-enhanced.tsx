@@ -240,6 +240,7 @@ function ToastItem({ toast, index, onRemove }: ToastItemProps) {
     }, interval);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, isPaused]); // Re-binds when paused state changes, capturing new 'progress' as start point
 
   // Auto-dismiss when progress reaches 0

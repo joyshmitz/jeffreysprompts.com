@@ -1,6 +1,6 @@
 
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from "./dialog";
 
 // Mock Radix UI's Dialog primitive since it relies on browser APIs that might be partial in HappyDOM

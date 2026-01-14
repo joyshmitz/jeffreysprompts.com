@@ -7,9 +7,8 @@
  * Supports staggered children animations and multiple animation variants.
  */
 
-import { useRef, useEffect, useState, type ReactNode } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { motion, useReducedMotion } from "framer-motion";
+import { type ReactNode } from "react";
 
 type AnimationVariant = "fadeUp" | "fadeIn" | "slideLeft" | "slideRight" | "scale";
 

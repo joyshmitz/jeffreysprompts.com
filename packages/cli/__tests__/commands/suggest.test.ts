@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 describe("suggestCommand", () => {
-  it("outputs JSON suggestions for a task", () => {
-    suggestCommand("improve documentation", { json: true, limit: 3 });
+  it("outputs JSON suggestions for a task", async () => {
+    await suggestCommand("improve documentation", { json: true, limit: 3 });
     const payload = JSON.parse(output.join(""));
     expect(payload.task).toBe("improve documentation");
     expect(payload.suggestions.length).toBeGreaterThan(0);

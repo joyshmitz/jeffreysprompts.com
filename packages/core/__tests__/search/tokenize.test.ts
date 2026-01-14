@@ -14,9 +14,10 @@ describe("tokenize", () => {
     expect(result.join(" ")).not.toContain("?");
   });
 
-  it("should preserve hyphens", () => {
+  it("should split hyphens", () => {
     const result = tokenize("code-review is important");
-    expect(result).toContain("code-review");
+    expect(result).toContain("code");
+    expect(result).toContain("review");
   });
 
   it("should remove stopwords", () => {

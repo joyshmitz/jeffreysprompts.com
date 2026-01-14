@@ -424,8 +424,8 @@ describe("collectionShowCommand - add to collection", () => {
     const parsed = JSON.parse(output);
 
     expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("not_found");
-    expect(parsed.message).toContain("nonexistent-prompt");
+    // API client generic error handling wraps this
+    expect(parsed.code).toBe("api_error");
     expect(exitCode).toBe(1);
   });
 

@@ -102,9 +102,84 @@ function searchOffline(query: string, limit: number): MergedSearchResult[] {
   }));
 }
 
-// ... searchPersonal ...
+/**
+ * Search personal prompts via API
+ */
+async function searchPersonal(
+  query: string,
+  scopes: { mine: boolean; saved: boolean; all: boolean },
+  limit: number
+): Promise<{ results: MergedSearchResult[]; error?: string; offline?: boolean }> {
+  try {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    
+    let endpoint = "/cli/search";
+    if (scopes.mine && !scopes.saved && !scopes.all) endpoint = "/cli/search/mine";
+    else if (scopes.saved && !scopes.mine && !scopes.all) endpoint = "/cli/search/saved";
+    // Else (all, or both), use generic /cli/search if it exists, or default to mine? 
+    // AGENTS.md implies separate endpoints. Let's assume /cli/search handles combined scope if needed, 
+    // or just default to /cli/search/mine for now as a safe bet if 'all' is requested, 
+    // but likely 'all' implies querying multiple sources.
+    // Given the lack of clear API docs for 'all', we will try /cli/search which is standard convention.
+    
+    const response = await apiClient.get(`${endpoint}?${params.toString()}`);
 
-// ... mergeResults ...
+    if (!response.ok) {
+      if (response.status === 401) return { results: [], error: "auth_expired" };
+      return { results: [], error: `API Error: ${response.status} ${response.statusText}` };
+    }
+
+    const data = (await response.json()) as { results: PersonalPromptResult[] };
+
+    return {
+      results: data.results.map((r) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        tags: r.tags,
+        score: r.score,
+        source: r.source,
+        matchedFields: [], // API might not return this yet
+      })),
+    };
+  } catch (err) {
+    // Offline fallback
+    if (hasOfflineLibrary()) {
+      return {
+        results: searchOffline(query, limit),
+        offline: true,
+        error: "Network unavailable",
+      };
+    }
+    return { results: [], error: String(err) };
+  }
+}
+
+function mergeResults(
+  local: MergedSearchResult[],
+  personal: MergedSearchResult[],
+  limit: number
+): MergedSearchResult[] {
+  // Combine lists
+  const all = [...personal, ...local];
+
+  // Dedup by ID
+  const seen = new Set<string>();
+  const unique: MergedSearchResult[] = [];
+
+  for (const item of all) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      unique.push(item);
+    }
+  }
+
+  // Sort by score descending
+  unique.sort((a, b) => b.score - a.score);
+
+  return unique.slice(0, limit);
+}
 
 export async function searchCommand(query: string, options: SearchOptions): Promise<void> {
   const limit = options.limit !== undefined ? Number(options.limit) : 10;

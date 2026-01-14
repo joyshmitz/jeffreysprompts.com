@@ -82,7 +82,7 @@ export function BottomSheet({
   // Reset y position when opening
   React.useEffect(() => {
     if (open) {
-      y.jump(0);
+      y.set(0);
     }
   }, [open, y]);
 

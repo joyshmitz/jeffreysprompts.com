@@ -14,15 +14,7 @@
  */
 
 import { motion } from "framer-motion";
-import {
-  Search,
-  Filter,
-  FileQuestion,
-  AlertCircle,
-  Inbox,
-  RefreshCw,
-  type LucideIcon,
-} from "lucide-react";
+import { Search, Filter, Inbox, AlertCircle, RefreshCw, type LucideIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 
