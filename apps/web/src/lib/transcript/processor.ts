@@ -222,7 +222,7 @@ function detectSections(messages: TranscriptMessage[]): TranscriptSection[] {
       while (
         endIdx + 1 < messages.length &&
         messages[endIdx + 1].thinking &&
-        messages[endIdx + 1].thinking!.length > 500
+        messages[endIdx + 1].thinking.length > 500
       ) {
         endIdx++;
       }
@@ -413,7 +413,9 @@ function generateSessionId(startTime: string): string {
   if (isNaN(date.getTime())) {
     return `session-${Date.now()}`;
   }
-  return `session-${date.toISOString().slice(0, 10)}-${date.getTime() % 100000}`;
+  // Use a random suffix to prevent collisions for same-day sessions
+  const suffix = Math.random().toString(36).substring(2, 8);
+  return `session-${date.toISOString().slice(0, 10)}-${suffix}`;
 }
 
 /**
