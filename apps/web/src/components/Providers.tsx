@@ -162,6 +162,7 @@ export function Providers({ children }: ProvidersProps) {
             key={serviceWorker.isOffline ? "offline" : "online"}
             isOffline={serviceWorker.isOffline}
             isRegistered={serviceWorker.isRegistered}
+            hasUpdate={serviceWorker.hasUpdate}
           />
           <Toaster />
         </BasketProvider>
