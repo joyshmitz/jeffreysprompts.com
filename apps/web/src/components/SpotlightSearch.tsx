@@ -350,21 +350,16 @@ export function SpotlightSearch({
     }
   }, [selectedIndex, results.length])
 
-  // Handle prompt selection
-  const handleSelect = React.useCallback(
-    async (result: SearchResult) => {
-      const promptId = result.prompt.id
-
-      // Save search query to recent searches
-      if (query.trim()) {
-        saveRecentSearch(query.trim())
-      }
+  // Unified prompt selection handler
+  const selectPrompt = React.useCallback(
+    async (prompt: Prompt) => {
+      const promptId = prompt.id
 
       if (copyOnSelect) {
         try {
-          await navigator.clipboard.writeText(result.prompt.content)
+          await navigator.clipboard.writeText(prompt.content)
           setCopied(promptId)
-          success("Copied prompt", result.prompt.title, 2500)
+          success("Copied prompt", prompt.title, 2500)
           // Keep dialog open briefly to show feedback
           setTimeout(() => setIsOpen(false), 500)
         } catch (err) {
@@ -378,7 +373,19 @@ export function SpotlightSearch({
 
       onSelect?.(promptId)
     },
-    [copyOnSelect, onSelect, success, error, query, saveRecentSearch]
+    [copyOnSelect, onSelect, success, error]
+  )
+
+  // Handle prompt selection from search results
+  const handleSelect = React.useCallback(
+    async (result: SearchResult) => {
+      // Save search query to recent searches
+      if (query.trim()) {
+        saveRecentSearch(query.trim())
+      }
+      await selectPrompt(result.prompt)
+    },
+    [query, saveRecentSearch, selectPrompt]
   )
 
   // Handle keyboard navigation
@@ -410,24 +417,10 @@ export function SpotlightSearch({
 
   // Helper to handle featured prompt selection
   const handleFeaturedSelect = React.useCallback(
-    async (prompt: Prompt) => {
-      if (copyOnSelect) {
-        try {
-          await navigator.clipboard.writeText(prompt.content)
-          setCopied(prompt.id)
-          success("Copied prompt", prompt.title, 2500)
-          setTimeout(() => setIsOpen(false), 500)
-        } catch (err) {
-          console.error("Failed to copy:", err)
-          error("Failed to copy", "Please try again")
-          setIsOpen(false)
-        }
-      } else {
-        setIsOpen(false)
-      }
-      onSelect?.(prompt.id)
+    (prompt: Prompt) => {
+      selectPrompt(prompt)
     },
-    [copyOnSelect, onSelect, success, error]
+    [selectPrompt]
   )
 
   // Don't render on server
