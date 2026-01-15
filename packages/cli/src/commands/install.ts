@@ -53,6 +53,28 @@ export async function installCommand(ids: string[], options: InstallOptions) {
       process.exit(1);
     }
 
+    // Load existing manifest or create a new one (needed for mod check)
+    let manifest = readManifest(targetRoot) ?? createEmptyManifest();
+
+    // Check if this bundle has been modified by the user
+    const modCheck = checkSkillModification(targetRoot, bundle.id, manifest);
+
+    if (!modCheck.canOverwrite && !options.force) {
+      if (shouldOutputJson(options)) {
+        console.log(JSON.stringify({
+          error: "modified_by_user",
+          message: `Bundle '${bundle.id}' has been modified by the user. Use --force to overwrite.`,
+          id: bundle.id
+        }));
+      } else {
+        console.log(
+          `${chalk.yellow("⚠")} Bundle ${chalk.bold(bundle.id)} has been modified by you.`
+        );
+        console.log(chalk.cyan("Use --force to overwrite user changes."));
+      }
+      process.exit(1);
+    }
+
     try {
       // Create map of dynamic prompts for bundle resolution
       const promptsMap = new Map(registry.prompts.map(p => [p.id, p]));
