@@ -30,6 +30,7 @@ export async function installCommand(ids: string[], options: InstallOptions) {
 
   // Load registry dynamically
   const registry = await loadRegistry();
+  const promptsMap = new Map(registry.prompts.map((p) => [p.id, p]));
 
   if (options.all) {
     // Install all prompts from registry
@@ -76,8 +77,6 @@ export async function installCommand(ids: string[], options: InstallOptions) {
     }
 
     try {
-      // Create map of dynamic prompts for bundle resolution
-      const promptsMap = new Map(registry.prompts.map(p => [p.id, p]));
       const skillContent = generateBundleSkillMd(bundle, promptsMap);
       
       const skillDir = resolveSafeChildPath(targetRoot, bundle.id);
@@ -140,7 +139,7 @@ export async function installCommand(ids: string[], options: InstallOptions) {
   const failed: string[] = [];
 
   for (const id of ids) {
-    const prompt = registry.prompts.find((p) => p.id === id);
+    const prompt = promptsMap.get(id);
     
     if (!prompt) {
       console.warn(chalk.yellow(`Warning: Prompt '${id}' not found. Skipping.`));

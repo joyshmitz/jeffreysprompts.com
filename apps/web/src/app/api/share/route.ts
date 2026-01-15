@@ -61,6 +61,8 @@ function parseExpiresAt(
 }
 
 function getUserId(request: NextRequest): string | null {
+  // SECURITY WARNING: trusting x-user-id from headers is unsafe unless behind a trusted proxy
+  // that strips/overwrites this header. Ensure your deployment environment handles this.
   const headerId = request.headers.get("x-user-id")?.trim();
   if (headerId) return headerId;
   const queryId = request.nextUrl.searchParams.get("userId")?.trim();

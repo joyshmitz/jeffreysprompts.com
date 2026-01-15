@@ -5,6 +5,7 @@ import { createHash, randomBytes } from "crypto";
 import { spawn } from "child_process";
 import { loadConfig, saveConfig } from "../lib/config";
 import { shouldOutputJson } from "../lib/utils";
+import { compareVersions } from "../lib/version";
 
 const GITHUB_OWNER = "Dicklesworthstone";
 const GITHUB_REPO = "jeffreysprompts.com";
@@ -51,22 +52,6 @@ function getBinaryName(): string {
   }
 
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
-}
-
-function parseVersion(v: string): [number, number, number] {
-  const clean = v.replace(/^v/, "");
-  const parts = clean.split(".").map((p) => parseInt(p, 10) || 0);
-  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
-}
-
-function compareVersions(a: string, b: string): number {
-  const [aMajor, aMinor, aPatch] = parseVersion(a);
-  const [bMajor, bMinor, bPatch] = parseVersion(b);
-
-  if (aMajor !== bMajor) return aMajor < bMajor ? -1 : 1;
-  if (aMinor !== bMinor) return aMinor < bMinor ? -1 : 1;
-  if (aPatch !== bPatch) return aPatch < bPatch ? -1 : 1;
-  return 0;
 }
 
 async function fetchLatestRelease(): Promise<GithubRelease> {

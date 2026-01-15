@@ -8,6 +8,7 @@
 import chalk from "chalk";
 import { version } from "../../package.json";
 import { loadConfig, saveConfig } from "./config";
+import { compareVersions } from "./version";
 
 const GITHUB_OWNER = "Dicklesworthstone";
 const GITHUB_REPO = "jeffreysprompts.com";
@@ -20,22 +21,6 @@ interface GithubRelease {
   tag_name: string;
   name: string;
   html_url: string;
-}
-
-function parseVersion(v: string): [number, number, number] {
-  const clean = v.replace(/^v/, "");
-  const parts = clean.split(".").map((p) => parseInt(p, 10) || 0);
-  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
-}
-
-function compareVersions(a: string, b: string): number {
-  const [aMajor, aMinor, aPatch] = parseVersion(a);
-  const [bMajor, bMinor, bPatch] = parseVersion(b);
-
-  if (aMajor !== bMajor) return aMajor < bMajor ? -1 : 1;
-  if (aMinor !== bMinor) return aMinor < bMinor ? -1 : 1;
-  if (aPatch !== bPatch) return aPatch < bPatch ? -1 : 1;
-  return 0;
 }
 
 function shouldCheck(lastCheck: string | null): boolean {
