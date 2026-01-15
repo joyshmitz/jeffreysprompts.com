@@ -38,6 +38,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ReportDialog } from "@/components/reporting/ReportDialog";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -289,6 +296,22 @@ export function PromptDetailModal({
                     placeholder={getVariablePlaceholder(variable.name, variable.type)}
                     className="h-20 text-sm bg-white dark:bg-neutral-900/50"
                   />
+                ) : variable.type === "select" && variable.options?.length ? (
+                  <Select
+                    value={variableValues[variable.name] ?? variable.default ?? ""}
+                    onValueChange={(value) => updateVariable(variable.name, value)}
+                  >
+                    <SelectTrigger id={`var-${variable.name}`} className="bg-white dark:bg-neutral-900/50">
+                      <SelectValue placeholder="Select an option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {variable.options.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Input
                     id={`var-${variable.name}`}
