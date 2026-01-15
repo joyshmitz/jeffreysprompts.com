@@ -4,6 +4,8 @@
  * Provides rich snippets for search engines with schema.org vocabulary
  */
 
+import { safeJsonStringify } from "@/lib/utils";
+
 interface JsonLdProps {
   data: Record<string, unknown>;
 }
@@ -12,7 +14,7 @@ export function JsonLd({ data }: JsonLdProps) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonStringify(data) }}
     />
   );
 }
