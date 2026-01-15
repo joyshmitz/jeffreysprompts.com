@@ -7,34 +7,51 @@
  * - jfp collections <name> --add <prompt-id>: Add prompt to collection
  */
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import {
+  collectionsCommand,
+  collectionShowCommand,
+} from "../../src/commands/collections";
 
-// Test directory setup
-let TEST_DIR: string;
-let FAKE_HOME: string;
-let FAKE_CONFIG: string;
+// Helper to create a unique test environment
+function setupTestEnv(envOverrides: Record<string, string | undefined> = {}) {
+  const testDir = join(tmpdir(), "jfp-collections-test-" + Date.now() + "-" + Math.random().toString(36).slice(2));
+  const fakeHome = join(testDir, "home");
+  const fakeConfig = join(fakeHome, ".config");
 
-// Store original env vars
-const originalEnv = { ...process.env };
+  mkdirSync(fakeHome, { recursive: true });
 
-// Store original console methods and fetch
-const originalLog = console.log;
-const originalError = console.error;
-const originalFetch = globalThis.fetch;
-const originalExit = process.exit;
+  const mockEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: fakeHome,
+    XDG_CONFIG_HOME: undefined,
+    JFP_TOKEN: undefined,
+    JFP_PREMIUM_API_URL: "https://test-premium.example.com/api",
+    ...envOverrides,
+  };
 
-// Capture console output
-let consoleOutput: string[] = [];
-let exitCode: number | undefined;
+  const cleanup = () => {
+    try {
+      if (existsSync(testDir)) {
+        rmSync(testDir, { recursive: true, force: true });
+      }
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  };
 
-function createCredentialsFile(options: {
+  return { testDir, fakeHome, fakeConfig, mockEnv, cleanup };
+}
+
+// Helper to create valid credentials
+function createCredentialsFile(configDir: string, options: {
   email?: string;
   tier?: "free" | "premium";
   expired?: boolean;
 } = {}) {
-  const credDir = join(FAKE_CONFIG, "jfp");
+  const credDir = join(configDir, "jfp");
   mkdirSync(credDir, { recursive: true });
 
   const creds = {
@@ -52,23 +69,17 @@ function createCredentialsFile(options: {
   return creds;
 }
 
-function setupTest() {
-  // Create unique test directory for each test
-  TEST_DIR = join(tmpdir(), "jfp-collections-test-" + Date.now() + "-" + Math.random().toString(36).slice(2));
-  FAKE_HOME = join(TEST_DIR, "home");
-  FAKE_CONFIG = join(FAKE_HOME, ".config");
+// Mock console
+let consoleOutput: string[] = [];
+let exitCode: number | undefined;
+const originalLog = console.log;
+const originalError = console.error;
+const originalExit = process.exit;
 
-  // Create fresh test directories
-  rmSync(TEST_DIR, { recursive: true, force: true });
-  mkdirSync(FAKE_HOME, { recursive: true });
+// Mock fetch
+const originalFetch = globalThis.fetch;
 
-  // Set env vars for testing
-  process.env.HOME = FAKE_HOME;
-  delete process.env.XDG_CONFIG_HOME;
-  delete process.env.JFP_TOKEN;
-  process.env.JFP_PREMIUM_API_URL = "https://test-premium.example.com/api";
-
-  // Capture console output
+beforeEach(() => {
   consoleOutput = [];
   exitCode = undefined;
   console.log = (...args: unknown[]) => {
@@ -81,401 +92,424 @@ function setupTest() {
     exitCode = code;
     throw new Error("EXIT_" + code);
   }) as never;
-}
+});
 
-function cleanupTest() {
-  // Restore env vars
-  Object.keys(process.env).forEach((key) => {
-    if (!(key in originalEnv)) {
-      delete process.env[key];
-    }
-  });
-  Object.assign(process.env, originalEnv);
-
-  // Restore console and fetch
+afterEach(() => {
   console.log = originalLog;
   console.error = originalError;
-  globalThis.fetch = originalFetch;
   process.exit = originalExit;
-
-  // Cleanup test directory
-  try {
-    rmSync(TEST_DIR, { recursive: true, force: true });
-  } catch {
-    // Ignore cleanup errors
-  }
-}
+  globalThis.fetch = originalFetch;
+});
 
 describe("collectionsCommand - not logged in", () => {
-  beforeEach(setupTest);
-  afterEach(cleanupTest);
-
   it("shows not authenticated error when not logged in (JSON)", async () => {
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
+    const { mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({ json: true });
-    } catch (e) {
-      // Expected exit
+      try {
+        await collectionsCommand({ json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_authenticated");
+      expect(parsed.hint).toContain("login");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("not_authenticated");
-    expect(parsed.hint).toContain("login");
-    expect(exitCode).toBe(1);
   });
 
   it("shows not authenticated error when not logged in (human)", async () => {
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
+    const { mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({});
-    } catch (e) {
-      // Expected exit
-    }
+      try {
+        await collectionsCommand({}, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
 
-    const output = consoleOutput.join("\n");
-    expect(output).toContain("logged in");
-    expect(exitCode).toBe(1);
+      const output = consoleOutput.join("\n");
+      expect(output).toContain("logged in");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
+    }
   });
 });
 
 describe("collectionsCommand - free tier", () => {
-  beforeEach(setupTest);
-  afterEach(cleanupTest);
-
   it("shows premium required error for free tier (JSON)", async () => {
-    createCredentialsFile({ tier: "free" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({ json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "free" });
+
+      try {
+        await collectionsCommand({ json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("premium_required");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("premium_required");
-    expect(exitCode).toBe(1);
   });
 
   it("shows premium required error for free tier (human)", async () => {
-    createCredentialsFile({ tier: "free" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({});
-    } catch (e) {
-      // Expected exit
-    }
+      createCredentialsFile(fakeConfig, { tier: "free" });
 
-    const output = consoleOutput.join("\n");
-    expect(output).toContain("premium");
-    expect(exitCode).toBe(1);
+      try {
+        await collectionsCommand({}, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      expect(output).toContain("premium");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
+    }
   });
 });
 
 describe("collectionsCommand - premium tier", () => {
-  beforeEach(setupTest);
-  afterEach(cleanupTest);
-
   it("fetches and displays collections (JSON)", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
+    try {
+      createCredentialsFile(fakeConfig, { tier: "premium" });
 
-    const mockCollections = [
-      {
-        id: "col-1",
-        name: "My Favorites",
-        promptCount: 5,
-        createdAt: "2026-01-01T00:00:00Z",
-        updatedAt: "2026-01-10T00:00:00Z",
-      },
-      {
-        id: "col-2",
-        name: "Work Prompts",
-        promptCount: 3,
-        createdAt: "2026-01-05T00:00:00Z",
-        updatedAt: "2026-01-08T00:00:00Z",
-      },
-    ];
+      const mockCollections = [
+        {
+          id: "col-1",
+          name: "My Favorites",
+          promptCount: 5,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-10T00:00:00Z",
+        },
+        {
+          id: "col-2",
+          name: "Work Prompts",
+          promptCount: 3,
+          createdAt: "2026-01-05T00:00:00Z",
+          updatedAt: "2026-01-08T00:00:00Z",
+        },
+      ];
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify(mockCollections), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify(mockCollections), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
 
-    await collectionsCommand({ json: true });
+      await collectionsCommand({ json: true }, mockEnv);
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
 
-    expect(Array.isArray(parsed.collections)).toBe(true);
-    expect(parsed.collections.length).toBe(2);
-    expect(parsed.collections[0].name).toBe("My Favorites");
-    expect(parsed.collections[1].name).toBe("Work Prompts");
-    expect(exitCode).toBeUndefined();
+      expect(Array.isArray(parsed.collections)).toBe(true);
+      expect(parsed.collections.length).toBe(2);
+      expect(parsed.collections[0].name).toBe("My Favorites");
+      expect(parsed.collections[1].name).toBe("Work Prompts");
+      expect(exitCode).toBeUndefined();
+    } finally {
+      cleanup();
+    }
   });
 
   it("handles empty collections list", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
+    try {
+      createCredentialsFile(fakeConfig, { tier: "premium" });
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
 
-    await collectionsCommand({ json: true });
+      await collectionsCommand({ json: true }, mockEnv);
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
 
-    expect(Array.isArray(parsed.collections)).toBe(true);
-    expect(parsed.collections.length).toBe(0);
+      expect(Array.isArray(parsed.collections)).toBe(true);
+      expect(parsed.collections.length).toBe(0);
+    } finally {
+      cleanup();
+    }
   });
 
   it("handles API error", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: "Internal server error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({ json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "premium" });
+
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Internal server error" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+      try {
+        await collectionsCommand({ json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("api_error");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("api_error");
-    expect(exitCode).toBe(1);
   });
 
   it("handles 401 auth error", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionsCommand } = await import("../../src/commands/collections");
-
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionsCommand({ json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "premium" });
+
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+      try {
+        await collectionsCommand({ json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("auth_expired");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("auth_expired");
-    expect(exitCode).toBe(1);
   });
 });
 
 describe("collectionShowCommand - show collection", () => {
-  beforeEach(setupTest);
-  afterEach(cleanupTest);
-
   it("fetches and displays collection details (JSON)", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
+    try {
+      createCredentialsFile(fakeConfig, { tier: "premium" });
 
-    const mockCollection = {
-      id: "col-1",
-      name: "My Favorites",
-      description: "My favorite prompts",
-      promptCount: 2,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-10T00:00:00Z",
-      prompts: [
-        {
-          id: "idea-wizard",
-          title: "Idea Wizard",
-          description: "Generate and refine ideas",
-          category: "ideation",
-        },
-        {
-          id: "readme-reviser",
-          title: "README Reviser",
-          description: "Improve your README",
-          category: "documentation",
-        },
-      ],
-    };
+      const mockCollection = {
+        id: "col-1",
+        name: "My Favorites",
+        description: "My favorite prompts",
+        promptCount: 2,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: "2026-01-10T00:00:00Z",
+        prompts: [
+          {
+            id: "idea-wizard",
+            title: "Idea Wizard",
+            description: "Generate and refine ideas",
+            category: "ideation",
+          },
+          {
+            id: "readme-reviser",
+            title: "README Reviser",
+            description: "Improve your README",
+            category: "documentation",
+          },
+        ],
+      };
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify(mockCollection), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify(mockCollection), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
 
-    await collectionShowCommand("My Favorites", { json: true });
+      await collectionShowCommand("My Favorites", { json: true }, mockEnv);
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
 
-    expect(parsed.collection.name).toBe("My Favorites");
-    expect(parsed.items.length).toBe(2);
-    expect(parsed.items[0].id).toBe("idea-wizard");
-    expect(exitCode).toBeUndefined();
+      expect(parsed.collection.name).toBe("My Favorites");
+      expect(parsed.items.length).toBe(2);
+      expect(parsed.items[0].id).toBe("idea-wizard");
+      expect(exitCode).toBeUndefined();
+    } finally {
+      cleanup();
+    }
   });
 
   it("handles collection not found", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
-
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: "Not found" }), {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionShowCommand("NonExistent", { json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "premium" });
+
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+      try {
+        await collectionShowCommand("NonExistent", { json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_found");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("not_found");
-    expect(exitCode).toBe(1);
   });
 });
 
 describe("collectionShowCommand - add to collection", () => {
-  beforeEach(setupTest);
-  afterEach(cleanupTest);
-
   it("adds prompt to collection (JSON)", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
+    try {
+      createCredentialsFile(fakeConfig, { tier: "premium" });
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ success: true, collection: "My Favorites", promptId: "idea-wizard" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ success: true, collection: "My Favorites", promptId: "idea-wizard" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
 
-    await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true });
+      await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true }, mockEnv);
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
 
-    expect(parsed.added).toBe(true);
-    expect(parsed.prompt_id).toBe("idea-wizard");
-    expect(exitCode).toBeUndefined();
+      expect(parsed.added).toBe(true);
+      expect(parsed.prompt_id).toBe("idea-wizard");
+      expect(exitCode).toBeUndefined();
+    } finally {
+      cleanup();
+    }
   });
 
   it("handles prompt not found in registry", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionShowCommand("My Favorites", { add: "nonexistent-prompt", json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "premium" });
+
+      try {
+        await collectionShowCommand("My Favorites", { add: "nonexistent-prompt", json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      // API client generic error handling wraps this
+      expect(parsed.code).toBe("api_error");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    // API client generic error handling wraps this
-    expect(parsed.code).toBe("api_error");
-    expect(exitCode).toBe(1);
   });
 
   it("handles already in collection (409)", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
+    try {
+      createCredentialsFile(fakeConfig, { tier: "premium" });
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: "Already in collection" }), {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Already in collection" }), {
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
 
-    await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true });
+      await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true }, mockEnv);
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
 
-    expect(parsed.added).toBe(false);
-    expect(parsed.already_exists).toBe(true);
-    expect(exitCode).toBeUndefined();
+      expect(parsed.added).toBe(false);
+      expect(parsed.already_exists).toBe(true);
+      expect(exitCode).toBeUndefined();
+    } finally {
+      cleanup();
+    }
   });
 
   it("handles collection not found when adding", async () => {
-    createCredentialsFile({ tier: "premium" });
-    const { collectionShowCommand } = await import("../../src/commands/collections");
-
-    globalThis.fetch = mock(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ error: "Collection not found" }), {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-    );
-
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv();
     try {
-      await collectionShowCommand("NonExistent", { add: "idea-wizard", json: true });
-    } catch (e) {
-      // Expected exit
+      createCredentialsFile(fakeConfig, { tier: "premium" });
+
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "Collection not found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+      try {
+        await collectionShowCommand("NonExistent", { add: "idea-wizard", json: true }, mockEnv);
+      } catch (e) {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      const parsed = JSON.parse(output);
+
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("not_found");
+      expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
     }
-
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
-
-    expect(parsed.error).toBe(true);
-    expect(parsed.code).toBe("not_found");
-    expect(exitCode).toBe(1);
   });
 });

@@ -28,12 +28,18 @@ describe("tokenize", () => {
     expect(result).toContain("fox");
   });
 
-  it("should filter out single-character tokens", () => {
+  it("should filter out single-character tokens unless allowed", () => {
     const result = tokenize("a b c code");
     expect(result).not.toContain("a");
     expect(result).not.toContain("b");
-    expect(result).not.toContain("c");
+    expect(result).toContain("c"); // Allowed (C language)
     expect(result).toContain("code");
+  });
+
+  it("should preserve allowed single-letter words", () => {
+    const result = tokenize("c r code");
+    expect(result).toContain("c"); // C language
+    expect(result).toContain("r"); // R language
   });
 
   it("should handle empty input", () => {
