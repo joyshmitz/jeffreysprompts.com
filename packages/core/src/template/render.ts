@@ -20,7 +20,7 @@ function applyVariableDefaults(
 
 /**
  * Render a prompt with variable substitution
- * Variables are in {{UPPER_SNAKE_CASE}} format
+ * Variables are in {{VARIABLE_NAME}} format (case insensitive)
  */
 export function renderPrompt(
   prompt: Prompt,
@@ -28,7 +28,7 @@ export function renderPrompt(
 ): string {
   const merged = applyVariableDefaults(prompt, vars);
 
-  return prompt.content.replace(/\{\{([A-Z0-9_]+)\}\}/g, (match, key) => {
+  return prompt.content.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, key) => {
     const value = merged[key];
     return value !== undefined ? value : match; // Keep placeholder if not provided
   });
@@ -38,7 +38,7 @@ export function renderPrompt(
  * Extract variable names from prompt content
  */
 export function extractVariables(content: string): string[] {
-  const matches = content.match(/\{\{([A-Z0-9_]+)\}\}/g) ?? [];
+  const matches = content.match(/\{\{([a-zA-Z0-9_]+)\}\}/g) ?? [];
   return [...new Set(matches.map((m) => m.slice(2, -2)))];
 }
 

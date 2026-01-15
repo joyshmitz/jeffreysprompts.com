@@ -109,8 +109,17 @@ export function useFilterState(): UseFilterStateReturn {
   );
 
   const clearFilters = useCallback(() => {
-    router.push(pathname, { scroll: false });
-  }, [router, pathname]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("q");
+    params.delete("category");
+    params.delete("tags");
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+
+    router.push(newUrl, { scroll: false });
+  }, [searchParams, router, pathname]);
 
   const hasActiveFilters = useMemo(
     () => Boolean(filters.query || filters.category || filters.tags.length > 0),

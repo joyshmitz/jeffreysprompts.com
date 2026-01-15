@@ -5,7 +5,8 @@
  * Requires authentication and premium subscription.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from "fs";
+import { randomBytes } from "crypto";
 import chalk from "chalk";
 import boxen from "boxen";
 import ora from "ora";
@@ -35,16 +36,36 @@ interface SyncResponse {
   last_modified: string;
 }
 
+function atomicWrite(path: string, data: unknown): void {
+  const content = JSON.stringify(data, null, 2);
+  const suffix = randomBytes(8).toString("hex");
+  const tempPath = `${path}.${suffix}.tmp`;
+
+  try {
+    writeFileSync(tempPath, content);
+    renameSync(tempPath, path);
+  } catch (err) {
+    try {
+      if (existsSync(tempPath)) {
+        unlinkSync(tempPath);
+      }
+    } catch {
+      // Ignore cleanup error
+    }
+    throw err;
+  }
+}
+
 function writeMeta(meta: SyncMeta): void {
   const libraryDir = getLibraryDir();
   mkdirSync(libraryDir, { recursive: true });
-  writeFileSync(getMetaPath(), JSON.stringify(meta, null, 2));
+  atomicWrite(getMetaPath(), meta);
 }
 
 function writeLibrary(prompts: SyncedPrompt[]): void {
   const libraryDir = getLibraryDir();
   mkdirSync(libraryDir, { recursive: true });
-  writeFileSync(getLibraryPath(), JSON.stringify(prompts, null, 2));
+  atomicWrite(getLibraryPath(), prompts);
 }
 
 function writeJson(payload: Record<string, unknown>): void {
