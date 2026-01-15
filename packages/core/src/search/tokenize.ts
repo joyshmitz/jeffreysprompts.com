@@ -14,6 +14,9 @@ const STOPWORDS = new Set([
   "same", "so", "than", "too", "very", "just", "also", "now", "here",
 ]);
 
+// Single-letter words to preserve (e.g., programming languages)
+const ALLOWLIST = new Set(["c", "r"]);
+
 /**
  * Tokenize text into lowercase words, removing stopwords and punctuation.
  * Uses NFC normalization to ensure consistent matching for Unicode characters.
@@ -25,7 +28,7 @@ export function tokenize(text: string): string[] {
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s+#]/gu, " ") // Remove everything except letters, numbers, whitespace, +, #
     .split(/\s+/)
-    .filter((word) => word.length > 1 && !STOPWORDS.has(word));
+    .filter((word) => (word.length > 1 || ALLOWLIST.has(word)) && !STOPWORDS.has(word));
 }
 
 /**

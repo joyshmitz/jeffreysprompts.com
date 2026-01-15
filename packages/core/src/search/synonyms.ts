@@ -28,6 +28,10 @@ export const SYNONYMS: Record<string, string[]> = {
   agent: ["bot", "assistant", "ai", "llm"],
   prompt: ["instruction", "query", "request"],
   code: ["programming", "software", "implementation"],
+
+  // Technology specific
+  nodejs: ["node", "js"],
+  reactjs: ["react"],
 };
 
 /**
