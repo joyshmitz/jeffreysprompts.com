@@ -58,7 +58,7 @@ import {
   formatVariableName,
   getVariablePlaceholder,
 } from "@jeffreysprompts/core/template";
-import { generateSkillMd, getUniqueDelimiter } from "@jeffreysprompts/core/export";
+import { generateInstallOneLiner } from "@jeffreysprompts/core/export/skills";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 
 interface PromptDetailModalProps {
@@ -68,21 +68,6 @@ interface PromptDetailModalProps {
 }
 
 type VariableValues = Record<string, string>;
-
-// Safe prompt ID pattern (kebab-case: lowercase letters, numbers, hyphens)
-const SAFE_PROMPT_ID = /^[a-z0-9-]+$/;
-
-function buildInstallCommand(prompt: Prompt): string {
-  // Validate prompt ID to prevent shell injection
-  if (!SAFE_PROMPT_ID.test(prompt.id)) {
-    throw new Error(`Invalid prompt ID: ${prompt.id}`);
-  }
-
-  const skillContent = generateSkillMd(prompt);
-  const delimiter = getUniqueDelimiter(skillContent);
-  
-  return `mkdir -p ~/.config/claude/skills/${prompt.id} && cat > ~/.config/claude/skills/${prompt.id}/SKILL.md << '${delimiter}'\n${skillContent}\n${delimiter}`;
-}
 
 export function PromptDetailModal({
   prompt,
@@ -192,13 +177,17 @@ export function PromptDetailModal({
   // Generate install command and copy
   const handleInstall = useCallback(async () => {
     if (!prompt) return;
-    const command = buildInstallCommand(prompt);
-    const result = await copyToClipboard(command);
+    try {
+      const command = generateInstallOneLiner(prompt);
+      const result = await copyToClipboard(command);
 
-    if (result.success) {
-      success("Install command copied", `Paste in terminal to install "${prompt.title}"`);
-      trackEvent("skill_install", { id: prompt.id, source: "modal" });
-    } else {
+      if (result.success) {
+        success("Install command copied", `Paste in terminal to install "${prompt.title}"`);
+        trackEvent("skill_install", { id: prompt.id, source: "modal" });
+      } else {
+        error("Failed to copy", "Please try again");
+      }
+    } catch {
       error("Failed to copy", "Please try again");
     }
   }, [prompt, success, error]);

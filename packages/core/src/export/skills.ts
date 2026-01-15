@@ -193,6 +193,19 @@ export function generateInstallScript(prompts: Prompt[], targetDir?: string): st
 }
 
 /**
+ * Generate a single-line shell command to install a skill via HEREDOC
+ * Useful for "Copy to Clipboard" buttons
+ */
+export function generateInstallOneLiner(prompt: Prompt, options: { project?: boolean } = {}): string {
+  const skillContent = generateSkillMd(prompt);
+  const baseDir = options.project ? ".claude/skills" : "$HOME/.config/claude/skills";
+  const skillDir = `${baseDir}/${prompt.id}`;
+  const delimiter = getUniqueDelimiter(skillContent);
+
+  return `mkdir -p "${skillDir}" && cat > "${skillDir}/SKILL.md" << '${delimiter}'\n${skillContent}\n${delimiter}`;
+}
+
+/**
  * Generate skill folder structure as entries for zip creation
  * Returns array of { path, content } objects
  */

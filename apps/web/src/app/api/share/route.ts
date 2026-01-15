@@ -52,7 +52,8 @@ function parseExpiresAt(
     : typeof expiresInValue === "number"
     ? expiresInValue
     : NaN;
-  if (!Number.isFinite(days) || !Number.isInteger(days) || days <= 0) return "invalid";
+  // Allow fractional days (e.g. 0.5 = 12 hours)
+  if (!Number.isFinite(days) || days <= 0) return "invalid";
   if (days > MAX_EXPIRES_IN_DAYS) return "too_long";
 
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
-import { generateSkillMd, getUniqueDelimiter } from "@jeffreysprompts/core/export/skills";
+import { generateInstallOneLiner } from "@jeffreysprompts/core/export/skills";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
 
 interface InstallSkillButtonProps {
@@ -17,36 +17,6 @@ interface InstallSkillButtonProps {
   className?: string;
   /** Install to project (.claude/skills) instead of personal ($HOME/.config/claude/skills) */
   project?: boolean;
-}
-
-// Safe prompt ID pattern (kebab-case: lowercase letters, numbers, hyphens)
-const SAFE_PROMPT_ID = /^[a-z0-9-]+$/;
-
-/**
- * Generate a shell command to install a single skill via HEREDOC
- * Creates: mkdir + cat HEREDOC > SKILL.md
- */
-function generateInstallCommand(prompt: Prompt, project: boolean): string {
-  // Validate prompt ID to prevent shell injection
-  if (!SAFE_PROMPT_ID.test(prompt.id)) {
-    throw new Error(`Invalid prompt ID: ${prompt.id}`);
-  }
-
-  const skillContent = generateSkillMd(prompt);
-  const baseDir = project
-    ? ".claude/skills"
-    : "$HOME/.config/claude/skills";
-  const skillDir = `${baseDir}/${prompt.id}`;
-
-  const delimiter = getUniqueDelimiter(skillContent);
-
-  const lines = [
-    `mkdir -p "${skillDir}" && cat > "${skillDir}/SKILL.md" << '${delimiter}'`,
-    skillContent,
-    delimiter,
-  ];
-
-  return lines.join("\n");
 }
 
 /**
@@ -73,7 +43,7 @@ export function InstallSkillButton({
 
   const handleCopy = useCallback(async () => {
     try {
-      const command = generateInstallCommand(prompt, project);
+      const command = generateInstallOneLiner(prompt, { project });
       const result = await copyToClipboard(command);
       if (result.success) {
         setCopied(true);

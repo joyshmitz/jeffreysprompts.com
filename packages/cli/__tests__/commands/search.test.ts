@@ -1,19 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { searchCommand } from "../../src/commands/search";
+import { join } from "path";
+import { tmpdir } from "os";
+import { mkdirSync, rmSync } from "fs";
 
 // Mock console.log to capture output
 let output: string[] = [];
 const originalLog = console.log;
+let originalEnv: NodeJS.ProcessEnv;
+let testHome: string;
 
 beforeEach(() => {
   output = [];
   console.log = (...args: unknown[]) => {
     output.push(args.join(" "));
   };
+
+  // Isolate environment
+  originalEnv = { ...process.env };
+  testHome = join(tmpdir(), `jfp-search-test-${Date.now()}-${Math.random()}`);
+  mkdirSync(testHome, { recursive: true });
+  process.env.HOME = testHome;
+  delete process.env.JFP_TOKEN;
+  delete process.env.XDG_CONFIG_HOME;
 });
 
 afterEach(() => {
   console.log = originalLog;
+  process.env = originalEnv;
+  try {
+    rmSync(testHome, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("searchCommand", () => {

@@ -166,7 +166,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
         data-testid="prompt-card"
         data-featured={prompt.featured ? "true" : undefined}
         className={cn(
-          "group relative flex flex-col h-full cursor-pointer overflow-hidden",
+          "group relative flex flex-col h-full overflow-hidden",
           // Base styles - clean, neutral
           "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800",
           // Hover: subtle lift + refined shadow (Stripe-style)
@@ -176,15 +176,6 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
           "dark:hover:shadow-[0_8px_30px_-10px_rgba(0,0,0,0.4)]",
           "hover:border-neutral-300 dark:hover:border-neutral-700"
         )}
-        onClick={handleClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleClick();
-          }
-        }}
       >
         {/* Featured indicator - prominent top accent */}
         {prompt.featured && (
@@ -283,7 +274,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-8 w-8 p-0 relative overflow-hidden",
+                    "h-8 w-8 p-0 relative overflow-hidden z-10",
                     "hover:bg-neutral-100 dark:hover:bg-neutral-800",
                     inBasket && "text-emerald-600 dark:text-emerald-400",
                     basketFlash && "bg-emerald-100 dark:bg-emerald-900/30"
@@ -321,7 +312,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-8 w-8 p-0 relative overflow-hidden",
+                    "h-8 w-8 p-0 relative overflow-hidden z-10",
                     "hover:bg-neutral-100 dark:hover:bg-neutral-800",
                     copied && "text-emerald-600 dark:text-emerald-400",
                     copyFlash && "bg-emerald-100 dark:bg-emerald-900/30"
@@ -356,11 +347,8 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
 
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-sm font-medium bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 dark:text-neutral-900"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClick();
-                  }}
+                  className="h-8 px-3 text-sm font-medium bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 dark:text-neutral-900 after:absolute after:inset-0 after:z-0"
+                  onClick={handleClick}
                 >
                   View
                   <ChevronRight className="w-4 h-4 ml-1" />

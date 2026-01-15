@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import {
   generateSkillMd,
   generateInstallScript,
+  generateInstallOneLiner,
   generateSkillEntries,
   computeSkillHash,
   createManifestEntry,
@@ -157,6 +158,28 @@ describe("generateInstallScript", () => {
     const result = generateInstallScript([promptWithDelimiter]);
     // Should find a unique delimiter
     expect(result).toContain("JFP_SKILL");
+  });
+});
+
+describe("generateInstallOneLiner", () => {
+  it("should generate valid one-liner", () => {
+    const result = generateInstallOneLiner(testPrompt);
+    expect(result).toContain("mkdir -p");
+    expect(result).toContain("test-prompt");
+    expect(result).toContain("cat >");
+    expect(result).toContain("SKILL.md");
+    expect(result).toContain("<<");
+  });
+
+  it("should default to home config directory", () => {
+    const result = generateInstallOneLiner(testPrompt);
+    expect(result).toContain("$HOME/.config/claude/skills");
+  });
+
+  it("should use project directory when specified", () => {
+    const result = generateInstallOneLiner(testPrompt, { project: true });
+    expect(result).toContain(".claude/skills");
+    expect(result).not.toContain("$HOME");
   });
 });
 

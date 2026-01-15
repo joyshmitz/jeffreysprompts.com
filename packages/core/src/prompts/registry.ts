@@ -115,7 +115,7 @@ Use ultrathink to design the interface before implementing.`,
     title: "Stripe-Level UI",
     description: "Build world-class, polished UI/UX components with intense focus on visual appeal",
     category: "refactoring",
-    tags: ["ui", "ux", "frontend", "design", "polish"],
+    tags: ["ui", "ux", "frontend", "design", "polish", "ultrathink"],
     author: "Jeffrey Emanuel",
     twitter: "@doodlestein",
     version: "1.0.0",
@@ -123,7 +123,7 @@ Use ultrathink to design the interface before implementing.`,
     difficulty: "intermediate",
     estimatedTokens: 200,
     created: "2025-08-31",
-    content: `I want you to do a spectacular job building absolutely world-class UI/UX components, with an intense focus on making the most visually appealing, user-friendly, intuitive, slick, polished, "Stripe level" of quality UI/UX possible for this that leverages the good libraries that are already part of the project.`,
+    content: `I want you to do a spectacular job building absolutely world-class UI/UX components, with an intense focus on making the most visually appealing, user-friendly, intuitive, slick, polished, "Stripe level" of quality UI/UX possible for this that leverages the good libraries that are already part of the project. Use ultrathink.`,
     whenToUse: [
       "When building new UI components",
       "When polishing existing interfaces",
@@ -194,7 +194,7 @@ And you can't do this sort of thing using regex or a script, you MUST manually r
     title: "The Code Reorganizer",
     description: "Restructure scattered code files into a sensible, intuitive folder structure",
     category: "refactoring",
-    tags: ["refactoring", "organization", "structure", "cleanup"],
+    tags: ["refactoring", "organization", "structure", "cleanup", "ultrathink"],
     author: "Jeffrey Emanuel",
     twitter: "@doodlestein",
     version: "1.0.0",
@@ -208,7 +208,7 @@ Before making any of these changes, I really need you to take the time to explor
 
 I'm also open to merging/consolidating/splitting individual code files; if we have multiple small related code files that you think should be combined into a single code file, explain why. If you think any particular code files are WAY too big and really should be refactored into several smaller code files, then explain that too and your proposed strategy for how to restructure them.
 
-Always keep in mind, and track in this plan document, changes you will need to make to any calling code to properly reflect the new folder structure and file structure so that we don't break anything. I don't want to discover after you do all this that nothing works anymore and we have to do a massive slog to get anything running again properly.`,
+Always keep in mind, and track in this plan document, changes you will need to make to any calling code to properly reflect the new folder structure and file structure so that we don't break anything. I don't want to discover after you do all this that nothing works anymore and we have to do a massive slog to get anything running again properly. Use ultrathink.`,
     whenToUse: [
       "When your codebase has grown organically and become messy",
       "When onboarding new developers is difficult due to confusing structure",
@@ -251,7 +251,7 @@ Always keep in mind, and track in this plan document, changes you will need to m
     title: "System Weaknesses Analyzer",
     description: "Identify the weakest parts of the system that need fresh ideas and improvements",
     category: "ideation",
-    tags: ["analysis", "improvement", "review", "brainstorming"],
+    tags: ["analysis", "improvement", "review", "brainstorming", "ultrathink"],
     author: "Jeffrey Emanuel",
     twitter: "@doodlestein",
     version: "1.0.0",
@@ -259,7 +259,7 @@ Always keep in mind, and track in this plan document, changes you will need to m
     difficulty: "intermediate",
     estimatedTokens: 100,
     created: "2025-09-17",
-    content: `Based on everything you've seen, what are the weakest/worst parts of the system? What is most needing of fresh ideas and innovative/creative/clever improvements?`,
+    content: `Based on everything you've seen, what are the weakest/worst parts of the system? What is most needing of fresh ideas and innovative/creative/clever improvements? Use ultrathink.`,
     whenToUse: [
       "After the agent has explored the codebase thoroughly",
       "When you want to identify areas for improvement",
