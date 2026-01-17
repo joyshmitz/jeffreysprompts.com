@@ -7,17 +7,37 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
+env:
+  BUN_VERSION: "1.2"
 
 jobs:
   # Run all quality gates before building release artifacts
   pre-release-tests:
     name: Pre-Release Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            nextjs-${{ runner.os }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -54,6 +74,7 @@ jobs:
   pre-release-e2e-web:
     name: Pre-Release Web E2E (${{ matrix.project }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: pre-release-tests
     strategy:
       fail-fast: false
@@ -63,7 +84,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.project }}-${{ hashFiles('apps/web/package.json') }}
+          restore-keys: playwright-${{ runner.os }}-${{ matrix.project }}-
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Install Playwright browsers
@@ -75,6 +108,7 @@ jobs:
     name: Build (${{ matrix.target }})
     needs: [pre-release-tests, pre-release-e2e-web]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -105,7 +139,14 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -133,20 +174,20 @@ jobs:
 
           echo "=== Smoke Test: Basic invocation ==="
           $BINARY --help
-          echo "✓ --help works"
+          echo "OK: --help works"
 
           echo ""
           echo "=== Smoke Test: Version check ==="
           $BINARY --version
-          echo "✓ --version works"
+          echo "OK: --version works"
 
           echo ""
           echo "=== Smoke Test: List prompts (JSON) ==="
           OUTPUT=$($BINARY list --json)
           if echo "$OUTPUT" | head -1 | grep -q '^\['; then
-            echo "✓ list --json returns JSON array"
+            echo "OK: list --json returns JSON array"
           else
-            echo "✗ list --json failed"
+            echo "FAIL: list --json failed"
             exit 1
           fi
 
@@ -154,9 +195,9 @@ jobs:
           echo "=== Smoke Test: Show prompt (JSON) ==="
           OUTPUT=$($BINARY show idea-wizard --json)
           if echo "$OUTPUT" | grep -q '"id": "idea-wizard"'; then
-            echo "✓ show idea-wizard --json returns correct prompt"
+            echo "OK: show idea-wizard --json returns correct prompt"
           else
-            echo "✗ show idea-wizard --json failed"
+            echo "FAIL: show idea-wizard --json failed"
             exit 1
           fi
 
@@ -164,9 +205,9 @@ jobs:
           echo "=== Smoke Test: Search prompts (JSON) ==="
           OUTPUT=$($BINARY search wizard --json)
           if echo "$OUTPUT" | head -1 | grep -q '^\['; then
-            echo "✓ search wizard --json returns JSON array"
+            echo "OK: search wizard --json returns JSON array"
           else
-            echo "✗ search wizard --json failed"
+            echo "FAIL: search wizard --json failed"
             exit 1
           fi
 
@@ -174,9 +215,9 @@ jobs:
           echo "=== Smoke Test: Categories (JSON) ==="
           OUTPUT=$($BINARY categories --json)
           if echo "$OUTPUT" | head -1 | grep -q '^\['; then
-            echo "✓ categories --json returns JSON array"
+            echo "OK: categories --json returns JSON array"
           else
-            echo "✗ categories --json failed"
+            echo "FAIL: categories --json failed"
             exit 1
           fi
 
@@ -194,6 +235,7 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -215,6 +257,11 @@ jobs:
         run: |
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'release/jfp-*'
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
