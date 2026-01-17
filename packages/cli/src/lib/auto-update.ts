@@ -9,6 +9,7 @@ import chalk from "chalk";
 import { version } from "../../package.json";
 import { loadConfig, saveConfig } from "./config";
 import { compareVersions } from "./version";
+import { spawn } from "child_process";
 
 const GITHUB_OWNER = "Dicklesworthstone";
 const GITHUB_REPO = "jeffreysprompts.com";
@@ -54,17 +55,13 @@ async function fetchLatestVersion(): Promise<string | null> {
   }
 }
 
-function recordCheck(config: ReturnType<typeof loadConfig>): void {
-  const next = {
-    ...config.updates,
-    lastCheck: new Date().toISOString(),
-  };
-  saveConfig({ updates: next });
-}
-
 /**
  * Check for updates in the background and print a notification if available.
  * This function returns immediately and does not block.
+ * 
+ * Strategy:
+ * 1. Check if we have a cached update notification from previous run
+ * 2. If check is due, spawn a detached process to check and update cache
  */
 export function checkForUpdatesInBackground(): void {
   const config = loadConfig();
@@ -72,41 +69,47 @@ export function checkForUpdatesInBackground(): void {
   // Skip if auto-check is disabled
   if (!config.updates.autoCheck) return;
 
-  // Skip if we checked recently
-  if (!shouldCheck(config.updates.lastCheck)) return;
+  // 1. Check for cached update info (instant)
+  if (
+    config.updates.latestKnownVersion &&
+    compareVersions(version, config.updates.latestKnownVersion) < 0
+  ) {
+    // Don't pollute JSON output or break MCP server (serve mode)
+    if (process.argv.includes("--json") || process.argv.includes("serve")) return;
 
-  // Run check in background (don't await)
-  (async () => {
+    // Use setImmediate to print after CLI output settles
+    setTimeout(() => {
+      console.log();
+      console.log(chalk.cyan("─".repeat(50)));
+      console.log(
+        chalk.cyan("📦 Update available: ") +
+          chalk.yellow(version) +
+          chalk.dim(" → ") +
+          chalk.green(config.updates.latestKnownVersion)
+      );
+      console.log(chalk.dim("   Run 'jfp update-cli' to update"));
+      console.log(chalk.cyan("─".repeat(50)));
+    }, 100);
+  }
+
+  // 2. Check if we need to refresh (spawn detached)
+  if (shouldCheck(config.updates.lastCheck)) {
     try {
-      const latestVersion = await fetchLatestVersion();
-      if (!latestVersion) return;
+      const isDev = process.argv[0].endsWith("bun");
+      const cmd = process.argv[0];
+      const args = isDev 
+        ? [process.argv[1], "update-check-internal"] 
+        : ["update-check-internal"];
 
-      // Record that we checked
-      recordCheck(config);
-
-      // Compare versions
-      if (compareVersions(version, latestVersion) < 0) {
-        // Don't pollute JSON output or break MCP server (serve mode)
-        if (process.argv.includes("--json") || process.argv.includes("serve")) return;
-
-        // Use setImmediate/setTimeout to print after CLI output settles
-        setTimeout(() => {
-          console.log();
-          console.log(chalk.cyan("─".repeat(50)));
-          console.log(
-            chalk.cyan("📦 Update available: ") +
-              chalk.yellow(version) +
-              chalk.dim(" → ") +
-              chalk.green(latestVersion)
-          );
-          console.log(chalk.dim("   Run 'jfp update-cli' to update"));
-          console.log(chalk.cyan("─".repeat(50)));
-        }, 100);
-      }
+      // Spawn detached process that won't block the parent from exiting
+      spawn(cmd, args, {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
     } catch {
-      // Silently ignore errors - don't disrupt CLI usage
+      // Silently ignore spawning errors
     }
-  })();
+  }
 }
 
 /**
@@ -122,7 +125,13 @@ export async function checkForUpdates(): Promise<{
 
   // Record check
   if (config.updates.autoCheck) {
-    recordCheck(config);
+    // Record manually since we did the work
+    const next = {
+      ...config.updates,
+      lastCheck: new Date().toISOString(),
+      latestKnownVersion: latestVersion ?? config.updates.latestKnownVersion,
+    };
+    saveConfig({ updates: next });
   }
 
   return {

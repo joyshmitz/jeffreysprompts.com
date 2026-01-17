@@ -78,8 +78,6 @@ export class ApiClient {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       // Handle non-JSON responses
       const contentType = response.headers.get("content-type");
       let data: T | undefined;
@@ -128,8 +126,6 @@ export class ApiClient {
         data,
       };
     } catch (err) {
-      clearTimeout(timeoutId);
-
       if (err instanceof Error && err.name === "AbortError") {
         return {
           ok: false,
@@ -143,6 +139,8 @@ export class ApiClient {
         status: 0,
         error: err instanceof Error ? err.message : "Unknown error",
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

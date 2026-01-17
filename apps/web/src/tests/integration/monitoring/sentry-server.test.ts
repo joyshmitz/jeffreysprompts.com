@@ -5,34 +5,35 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock Sentry module
-const mockInit = vi.fn();
-const mockCaptureException = vi.fn();
-const mockCaptureMessage = vi.fn();
-const mockSetContext = vi.fn();
-const mockSetTag = vi.fn();
-const mockSetUser = vi.fn();
-const mockWithScope = vi.fn((callback) => {
-  const mockScope = {
-    setTag: mockSetTag,
+// Hoist mocks so they are available to the factory
+const mocks = vi.hoisted(() => {
+  const mockSetTag = vi.fn();
+  const mockSetContext = vi.fn();
+  const mockSetUser = vi.fn();
+  const mockWithScope = vi.fn((callback) => {
+    const mockScope = {
+      setTag: mockSetTag,
+      setContext: mockSetContext,
+      setUser: mockSetUser,
+      setExtra: vi.fn(),
+      setLevel: vi.fn(),
+    };
+    callback(mockScope);
+  });
+
+  return {
+    init: vi.fn(),
+    captureException: vi.fn(),
+    captureMessage: vi.fn(),
     setContext: mockSetContext,
+    setTag: mockSetTag,
     setUser: mockSetUser,
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
+    withScope: mockWithScope,
+    replayIntegration: vi.fn(() => ({})),
   };
-  callback(mockScope);
 });
 
-vi.mock("@sentry/nextjs", () => ({
-  init: mockInit,
-  captureException: mockCaptureException,
-  captureMessage: mockCaptureMessage,
-  setContext: mockSetContext,
-  setTag: mockSetTag,
-  setUser: mockSetUser,
-  withScope: mockWithScope,
-  replayIntegration: vi.fn(() => ({})),
-}));
+vi.mock("@sentry/nextjs", () => mocks);
 
 describe("Sentry Server Configuration", () => {
   const originalEnv = process.env;
@@ -103,8 +104,8 @@ describe("Sentry Server Configuration", () => {
       const testError = new Error("Test server error");
       Sentry.captureException(testError);
 
-      expect(mockCaptureException).toHaveBeenCalledWith(testError);
-      expect(mockCaptureException).toHaveBeenCalledTimes(1);
+      expect(mocks.captureException).toHaveBeenCalledWith(testError);
+      expect(mocks.captureException).toHaveBeenCalledTimes(1);
     });
 
     it("should capture messages with correct structure", async () => {
@@ -112,8 +113,8 @@ describe("Sentry Server Configuration", () => {
 
       Sentry.captureMessage("Test message");
 
-      expect(mockCaptureMessage).toHaveBeenCalledWith("Test message");
-      expect(mockCaptureMessage).toHaveBeenCalledTimes(1);
+      expect(mocks.captureMessage).toHaveBeenCalledWith("Test message");
+      expect(mocks.captureMessage).toHaveBeenCalledTimes(1);
     });
 
     it("should allow setting request context with requestId", async () => {
@@ -130,9 +131,9 @@ describe("Sentry Server Configuration", () => {
         });
       });
 
-      expect(mockWithScope).toHaveBeenCalled();
-      expect(mockSetTag).toHaveBeenCalledWith("requestId", requestId);
-      expect(mockSetContext).toHaveBeenCalledWith("request", expect.objectContaining({
+      expect(mocks.withScope).toHaveBeenCalled();
+      expect(mocks.setTag).toHaveBeenCalledWith("requestId", requestId);
+      expect(mocks.setContext).toHaveBeenCalledWith("request", expect.objectContaining({
         requestId,
       }));
     });
@@ -148,12 +149,12 @@ describe("Sentry Server Configuration", () => {
         });
       });
 
-      expect(mockSetUser).toHaveBeenCalledWith({
+      expect(mocks.setUser).toHaveBeenCalledWith({
         id: "user-uuid-12345",
       });
 
       // Verify no PII fields were passed
-      const userCall = mockSetUser.mock.calls[0][0];
+      const userCall = mocks.setUser.mock.calls[0][0];
       expect(userCall).not.toHaveProperty("email");
       expect(userCall).not.toHaveProperty("ip_address");
       expect(userCall).not.toHaveProperty("name");
@@ -237,8 +238,8 @@ describe("Sentry Error Correlation", () => {
       });
     });
 
-    expect(mockSetTag).toHaveBeenCalledWith("correlationId", correlationId);
-    expect(mockSetTag).toHaveBeenCalledWith("requestId", requestId);
+    expect(mocks.setTag).toHaveBeenCalledWith("correlationId", correlationId);
+    expect(mocks.setTag).toHaveBeenCalledWith("requestId", requestId);
   });
 
   it("should capture error with full context", async () => {
@@ -259,8 +260,8 @@ describe("Sentry Error Correlation", () => {
 
     Sentry.captureException(testError);
 
-    expect(mockCaptureException).toHaveBeenCalledWith(testError);
-    expect(mockSetTag).toHaveBeenCalledWith("requestId", requestId);
-    expect(mockSetTag).toHaveBeenCalledWith("errorType", "database");
+    expect(mocks.captureException).toHaveBeenCalledWith(testError);
+    expect(mocks.setTag).toHaveBeenCalledWith("requestId", requestId);
+    expect(mocks.setTag).toHaveBeenCalledWith("errorType", "database");
   });
 });

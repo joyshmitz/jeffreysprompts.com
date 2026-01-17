@@ -803,13 +803,9 @@ interface SpotlightTriggerProps {
 
 export function SpotlightTrigger({ className }: SpotlightTriggerProps) {
   const handleClick = React.useCallback(() => {
-    // Simulate Cmd+K press
-    const event = new KeyboardEvent("keydown", {
-      key: "k",
-      metaKey: true,
-      bubbles: true,
-    })
-    document.dispatchEvent(event)
+    // Dispatch custom event to open spotlight
+    const event = new CustomEvent("jfp:open-spotlight")
+    window.dispatchEvent(event)
   }, [])
 
   return (

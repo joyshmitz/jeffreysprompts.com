@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Calendar,
@@ -399,18 +400,19 @@ function UserAvatar({
     .toUpperCase()
     .slice(0, 2) || "?";
 
-  const sizeClasses = {
-    sm: "h-10 w-10 text-sm",
-    md: "h-16 w-16 text-lg",
-    lg: "h-24 w-24 text-2xl",
+  const sizeDimensions = {
+    sm: 40,
+    md: 64,
+    lg: 96,
   };
 
   if (avatar) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={avatar}
         alt={displayName}
+        width={sizeDimensions[size]}
+        height={sizeDimensions[size]}
         className={cn(
           "rounded-full object-cover ring-2 ring-neutral-200 dark:ring-neutral-700",
           sizeClasses[size]

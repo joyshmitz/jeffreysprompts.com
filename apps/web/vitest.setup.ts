@@ -13,7 +13,17 @@ vi.mock("framer-motion", async (importOriginal) => {
       {
         get: (_target, prop: string) => {
           const Component = React.forwardRef(({ children, ...props }: { children?: React.ReactNode; [key: string]: unknown }, ref) => {
-            return React.createElement(prop, { ...props, ref }, children);
+            // Filter out framer-motion props to avoid React warnings in tests
+            /* eslint-disable @typescript-eslint/no-unused-vars */
+            const {
+              initial, animate, exit, variants, transition, layout, layoutId,
+              drag, dragConstraints, dragElastic, dragMomentum, dragPropagation, dragDirectionLock,
+              onDrag, onDragStart, onDragEnd, onDragTransitionEnd,
+              whileHover, whileTap, whileFocus, whileInView, viewport,
+              ...validProps
+            } = props;
+            /* eslint-enable @typescript-eslint/no-unused-vars */
+            return React.createElement(prop, { ...validProps, ref }, children);
           });
           Component.displayName = `motion.${prop}`;
           return Component;

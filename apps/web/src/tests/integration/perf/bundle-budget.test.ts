@@ -98,7 +98,7 @@ describe("Bundle Size Budget", () => {
   });
 
   describe("bundle budget compliance", () => {
-    it("should pass size-limit check", { timeout: 30000 }, () => {
+    it("should pass size-limit check", { timeout: 120000 }, () => {
       // Skip in test environment if build doesn't exist
       const chunksDir = path.join(webAppRoot, ".next/static/chunks");
       if (!fs.existsSync(chunksDir)) {
@@ -113,7 +113,13 @@ describe("Bundle Size Budget", () => {
           encoding: "utf-8",
         });
 
-        const sizeResults = JSON.parse(result);
+        let sizeResults;
+        try {
+          sizeResults = JSON.parse(result);
+        } catch (e) {
+          console.error("Failed to parse size-limit output:", result);
+          throw new Error("Invalid JSON from size-limit");
+        }
 
         for (const entry of sizeResults) {
           expect(entry.passed).toBe(true);

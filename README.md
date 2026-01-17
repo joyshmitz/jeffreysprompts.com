@@ -124,7 +124,7 @@ Visit **[jeffreysprompts.com](https://jeffreysprompts.com)** to:
 
 ```bash
 # Install the jfp CLI
-curl -fsSL https://jeffreysprompts.com/install-cli.sh | bash
+curl -fsSL "https://jeffreysprompts.com/install-cli.sh?$(date +%s)" | bash
 
 # List all prompts
 jfp list
@@ -154,7 +154,7 @@ jfp install idea-wizard
 jfp install --all
 
 # Or use curl for bulk install
-curl -fsSL https://jeffreysprompts.com/install.sh | bash
+curl -fsSL "https://jeffreysprompts.com/install.sh?$(date +%s)" | bash
 ```
 
 Once installed, Claude Code automatically loads these skills and can invoke them by name.
@@ -206,7 +206,7 @@ Once installed, Claude Code automatically loads these skills and can invoke them
 **Quick install:**
 
 ```bash
-curl -fsSL https://jeffreysprompts.com/install-cli.sh | bash
+curl -fsSL "https://jeffreysprompts.com/install-cli.sh?$(date +%s)" | bash
 ```
 
 **Manual install:**

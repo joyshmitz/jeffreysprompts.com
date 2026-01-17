@@ -9,8 +9,9 @@ import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { loginCommand } from "../../src/commands/login";
 
-// Mock dependencies
+// Mock credentials data
 const mockCredentials = {
   access_token: "test-token-12345",
   refresh_token: "refresh-token-67890",
@@ -19,16 +20,6 @@ const mockCredentials = {
   tier: "premium",
   user_id: "user-123",
 };
-
-// Mock credentials module
-mock.module("../../src/lib/credentials", () => ({
-  loadCredentials: mock(),
-  saveCredentials: mock(),
-  getAccessToken: mock(),
-}));
-
-import { loadCredentials, saveCredentials, getAccessToken } from "../../src/lib/credentials";
-import { loginCommand } from "../../src/commands/login";
 
 // Test directory setup
 let TEST_DIR: string;
@@ -59,6 +50,7 @@ function setupTest() {
   mkdirSync(FAKE_HOME, { recursive: true });
 
   // Set env vars for testing
+  process.env.JFP_HOME = FAKE_HOME; // Override JFP_HOME to point to temp dir
   process.env.HOME = FAKE_HOME;
   delete process.env.XDG_CONFIG_HOME;
   delete process.env.JFP_TOKEN;
@@ -104,13 +96,14 @@ function cleanupTest() {
 describe("loginCommand - already logged in", () => {
   beforeEach(() => {
     setupTest();
-    // Reset mocks
-    (loadCredentials as jest.Mock).mockReset();
   });
   afterEach(cleanupTest);
 
   it("shows already logged in when credentials exist (JSON)", async () => {
-    (loadCredentials as jest.Mock).mockResolvedValue(mockCredentials);
+    // Write credentials file manually instead of mocking loadCredentials
+    const credsPath = join(FAKE_HOME, ".config", "jfp", "credentials.json");
+    mkdirSync(join(FAKE_HOME, ".config", "jfp"), { recursive: true });
+    writeFileSync(credsPath, JSON.stringify(mockCredentials));
 
     await loginCommand({ json: true });
 
@@ -126,7 +119,7 @@ describe("loginCommand - already logged in", () => {
 describe("Device Code Flow", () => {
   beforeEach(() => {
     setupTest();
-    (loadCredentials as jest.Mock).mockResolvedValue(null);
+    // No credentials file = not logged in
   });
   afterEach(cleanupTest);
 

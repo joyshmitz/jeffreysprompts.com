@@ -94,6 +94,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: "../..",
   },
+  // Configure webpack to ignore optional dependencies if missing
+  webpack: (config) => {
+    try {
+      require.resolve("@xenova/transformers");
+    } catch {
+      config.resolve.alias["@xenova/transformers"] = false;
+    }
+    return config;
+  },
   // Security headers
   async headers() {
     return [

@@ -10,6 +10,7 @@ import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   ArrowLeft,
   Copy,
@@ -270,9 +271,11 @@ export default function CommunityPromptDetailPage() {
               <div className="flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
                   {prompt.author.avatarUrl ? (
-                    <img
+                    <Image
                       src={prompt.author.avatarUrl}
                       alt={prompt.author.displayName}
+                      width={40}
+                      height={40}
                       className="h-10 w-10 rounded-full"
                     />
                   ) : (

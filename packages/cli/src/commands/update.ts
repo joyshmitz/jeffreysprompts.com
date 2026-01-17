@@ -2,6 +2,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { getHomeDir } from "../lib/config";
 import { generateSkillMd, computeSkillHash } from "@jeffreysprompts/core/export";
+import { generateBundleSkillMd } from "@jeffreysprompts/core/prompts/bundles";
 import chalk from "chalk";
 import {
   readManifest,
@@ -75,18 +76,49 @@ function updateLocation(
   let updatedManifest = manifest;
   let hasUpdates = false;
 
-  for (const entry of manifest.entries) {
-    // Find prompt in dynamic registry
-    const prompt = registry.prompts.find(p => p.id === entry.id);
+  // Build prompts map for bundles
+  const promptsMap = new Map(registry.prompts.map((p) => [p.id, p]));
 
-    if (!prompt) {
-      // Prompt no longer exists in registry
-      results.push({
-        id: entry.id,
-        action: "skipped",
-        reason: "Prompt no longer in registry",
-      });
-      continue;
+  for (const entry of manifest.entries) {
+    let newContent: string;
+    let newVersion: string;
+
+    if (entry.kind === "bundle") {
+      const bundle = registry.bundles.find((b) => b.id === entry.id);
+      if (!bundle) {
+        results.push({
+          id: entry.id,
+          action: "skipped",
+          reason: "Bundle no longer in registry",
+        });
+        continue;
+      }
+      newVersion = bundle.version;
+      try {
+        newContent = generateBundleSkillMd(bundle, promptsMap);
+      } catch (err) {
+        results.push({
+          id: entry.id,
+          action: "failed",
+          reason: `Failed to generate bundle: ${(err as Error).message}`,
+        });
+        continue;
+      }
+    } else {
+      // Find prompt in dynamic registry
+      const prompt = registry.prompts.find((p) => p.id === entry.id);
+
+      if (!prompt) {
+        // Prompt no longer exists in registry
+        results.push({
+          id: entry.id,
+          action: "skipped",
+          reason: "Prompt no longer in registry",
+        });
+        continue;
+      }
+      newVersion = prompt.version || "1.0.0";
+      newContent = generateSkillMd(prompt);
     }
 
     let skillDir: string;
@@ -132,8 +164,7 @@ function updateLocation(
       continue;
     }
 
-    // Generate new content and compare
-    const newContent = generateSkillMd(prompt);
+    // Generate new content and compare (already generated above)
     const newHash = computeSkillHash(newContent);
 
     if (newHash === entry.hash) {
@@ -141,7 +172,7 @@ function updateLocation(
         id: entry.id,
         action: "unchanged",
         oldVersion: entry.version,
-        newVersion: prompt.version || "1.0.0",
+        newVersion: newVersion,
       });
       continue;
     }
@@ -154,7 +185,7 @@ function updateLocation(
         id: entry.id,
         action: "updated",
         oldVersion: entry.version,
-        newVersion: prompt.version || "1.0.0",
+        newVersion: newVersion,
         reason: "Would update (dry-run)",
       };
 
@@ -172,9 +203,9 @@ function updateLocation(
         writeFileSync(skillPath, newContent);
 
         const newEntry: SkillManifestEntry = {
-          id: prompt.id,
-          kind: "prompt",
-          version: prompt.version || "1.0.0",
+          id: entry.id,
+          kind: entry.kind === "bundle" ? "bundle" : "prompt",
+          version: newVersion,
           hash: newHash,
           updatedAt: new Date().toISOString(),
         };
@@ -185,7 +216,7 @@ function updateLocation(
           id: entry.id,
           action: "updated",
           oldVersion: entry.version,
-          newVersion: prompt.version || "1.0.0",
+          newVersion: newVersion,
         });
       } catch (err) {
         results.push({

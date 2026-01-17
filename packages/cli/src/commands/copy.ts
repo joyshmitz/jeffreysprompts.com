@@ -3,7 +3,8 @@ import {
   renderPrompt,
   getMissingVariables,
   extractVariables,
-} from "@jeffreysprompts/core/template/render";
+  getDynamicDefaults,
+} from "@jeffreysprompts/core/template";
 import chalk from "chalk";
 import { shouldOutputJson } from "../lib/utils";
 import {
@@ -36,6 +37,10 @@ export async function copyCommand(id: string, options: CopyOptions) {
 
   // Parse CLI variables
   let variables = parseVariables(process.argv);
+
+  // Inject dynamic defaults (CWD, PROJECT_NAME)
+  const defaults = getDynamicDefaults(process.cwd());
+  variables = { ...defaults, ...variables };
 
   // Process variable values based on their types
   const processedVars: Record<string, string> = {};

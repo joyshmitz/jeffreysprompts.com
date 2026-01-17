@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Copy,
@@ -158,9 +159,11 @@ export function CommunityPromptCard({
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
                 {prompt.author.avatarUrl ? (
-                  <img
+                  <Image
                     src={prompt.author.avatarUrl}
                     alt={prompt.author.displayName}
+                    width={32}
+                    height={32}
                     className="h-8 w-8 rounded-full"
                   />
                 ) : (

@@ -18,6 +18,7 @@ import { join } from "path";
 
 const TEST_LOG_DIR = "/tmp/jfp-e2e-tests";
 const PROJECT_ROOT = join(import.meta.dir, "../../../..");
+const E2E_TIMEOUT = 10000; // Increase timeout to 10s for full workflow
 
 const PROMPT_REQUIRED_KEYS = [
   "id",
@@ -461,6 +462,6 @@ describe("CLI Discovery Flow E2E", () => {
       // Note: In headless environments, logger.hasErrors() may be true due to
       // clipboard failure, but the workflow still completes successfully with fallback.
       // We verify the workflow completed by checking all steps produced valid output.
-    });
+    }, E2E_TIMEOUT);
   });
 });

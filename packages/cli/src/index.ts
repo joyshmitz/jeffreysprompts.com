@@ -36,7 +36,7 @@ import {
 import { randomCommand } from "./commands/random";
 import { helpCommand } from "./commands/help";
 import { serveCommand } from "./commands/serve";
-import { updateCliCommand } from "./commands/update-cli";
+import { updateCliCommand, internalUpdateCheckCommand } from "./commands/update-cli";
 import { loginCommand } from "./commands/login";
 import { logoutCommand, whoamiCommand } from "./commands/auth";
 import { notesCommand } from "./commands/notes";
@@ -408,6 +408,11 @@ cli
   .option("--force", "Force reinstall even if up to date")
   .option("--json", "Output JSON")
   .action(updateCliCommand);
+
+// Hidden command for detached background update checks
+cli
+  .command("update-check-internal", "", { allowUnknownOptions: true })
+  .action(internalUpdateCheckCommand);
 
 cli
   .command("config [action] [key] [value]", "Manage CLI configuration")

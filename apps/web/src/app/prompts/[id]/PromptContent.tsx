@@ -40,7 +40,8 @@ import {
   formatVariableName,
   getVariablePlaceholder,
 } from "@jeffreysprompts/core/template";
-import { generateSkillMd, getUniqueDelimiter } from "@jeffreysprompts/core/export";
+import { generateSkillMd, generateInstallOneLiner } from "@jeffreysprompts/core/export";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 
 interface PromptContentProps {
@@ -48,21 +49,6 @@ interface PromptContentProps {
 }
 
 type VariableValues = Record<string, string>;
-
-// Safe prompt ID pattern (kebab-case: lowercase letters, numbers, hyphens)
-const SAFE_PROMPT_ID = /^[a-z0-9-]+$/;
-
-function buildInstallCommand(prompt: Prompt): string {
-  // Validate prompt ID to prevent shell injection
-  if (!SAFE_PROMPT_ID.test(prompt.id)) {
-    throw new Error(`Invalid prompt ID: ${prompt.id}`);
-  }
-
-  const skillContent = generateSkillMd(prompt);
-  const delimiter = getUniqueDelimiter(skillContent);
-  
-  return `mkdir -p ~/.config/claude/skills/${prompt.id} && cat > ~/.config/claude/skills/${prompt.id}/SKILL.md << '${delimiter}'\n${skillContent}\n${delimiter}`;
-}
 
 export function PromptContent({ prompt }: PromptContentProps) {
   const { success, error } = useToast();
@@ -116,28 +102,37 @@ export function PromptContent({ prompt }: PromptContentProps) {
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(renderedContent);
-      setCopied(true);
-      success("Copied to clipboard");
-      trackEvent("prompt_copy", { id: prompt.id, source: "prompt_page" });
-      if (copiedResetTimer.current) {
-        clearTimeout(copiedResetTimer.current);
+      const result = await copyToClipboard(renderedContent);
+      if (result.success) {
+        setCopied(true);
+        success("Copied to clipboard");
+        trackEvent("prompt_copy", { id: prompt.id, source: "prompt_page" });
+        if (copiedResetTimer.current) {
+          clearTimeout(copiedResetTimer.current);
+        }
+        copiedResetTimer.current = setTimeout(() => {
+          setCopied(false);
+          copiedResetTimer.current = null;
+        }, 2000);
+      } else {
+        error("Failed to copy to clipboard");
       }
-      copiedResetTimer.current = setTimeout(() => {
-        setCopied(false);
-        copiedResetTimer.current = null;
-      }, 2000);
     } catch {
       error("Failed to copy to clipboard");
     }
   }, [renderedContent, prompt.id, success, error]);
 
   const handleInstall = useCallback(async () => {
-    const command = buildInstallCommand(prompt);
+    // Generate standard install command (default to personal)
+    const command = generateInstallOneLiner(prompt);
     try {
-      await navigator.clipboard.writeText(command);
-      success("Install command copied - paste in terminal");
-      trackEvent("skill_install", { id: prompt.id, source: "prompt_page" });
+      const result = await copyToClipboard(command);
+      if (result.success) {
+        success("Install command copied - paste in terminal");
+        trackEvent("skill_install", { id: prompt.id, source: "prompt_page" });
+      } else {
+        error("Failed to copy install command");
+      }
     } catch {
       error("Failed to copy install command");
     }

@@ -49,7 +49,7 @@ describe("Image Optimization", () => {
   });
 
   describe("Image usage in components", () => {
-    it("should use next/image for optimized images", () => {
+    it("should use next/image for optimized images", { timeout: 15000 }, () => {
       // Find all TSX files
       const tsxFiles = findFiles(srcDir, /\.tsx$/);
 

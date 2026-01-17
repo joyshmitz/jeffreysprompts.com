@@ -21,6 +21,7 @@ export interface JfpConfig {
     autoUpdate: boolean;
     channel: "stable" | "beta";
     lastCheck: string | null;
+    latestKnownVersion?: string | null;
   };
   skills: {
     personalDir: string;
@@ -78,6 +79,7 @@ export function createDefaultConfig(): JfpConfig {
       autoUpdate: false,
       channel: "stable",
       lastCheck: null,
+      latestKnownVersion: null,
     },
     skills: {
       personalDir: join(home, ".config", "claude", "skills"),

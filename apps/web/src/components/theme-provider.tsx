@@ -46,13 +46,20 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => getStoredTheme() ?? defaultTheme
-  );
+  // Initialize with defaultTheme to match server-side rendering
+  const [theme, setThemeState] = useState<Theme>(defaultTheme);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() =>
     getSystemTheme()
   );
   const resolvedTheme = theme === "system" ? systemTheme : theme;
+
+  // Hydrate theme from local storage after mount
+  useEffect(() => {
+    const stored = getStoredTheme();
+    if (stored) {
+      setThemeState(stored);
+    }
+  }, []);
 
   // Update resolved theme and apply to document with smooth transition
   useEffect(() => {

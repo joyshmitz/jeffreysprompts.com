@@ -7,6 +7,21 @@ import { loadConfig, saveConfig } from "../lib/config";
 import { shouldOutputJson } from "../lib/utils";
 import { compareVersions } from "../lib/version";
 
+// Add imports for hidden command
+// These are used for the hidden `update-check-internal` command
+export async function internalUpdateCheckCommand() {
+  const config = loadConfig();
+  
+  try {
+    const release = await fetchLatestRelease();
+    const latestVersion = release.tag_name.replace(/^v/, "");
+    recordUpdateCheck(config.updates, latestVersion);
+    // Silent success - state is saved in config
+  } catch {
+    // Silent failure
+  }
+}
+
 const GITHUB_OWNER = "Dicklesworthstone";
 const GITHUB_REPO = "jeffreysprompts.com";
 const RELEASE_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
@@ -170,10 +185,14 @@ async function fetchChecksumForAsset(
   return null;
 }
 
-function recordUpdateCheck(configUpdates: { autoCheck: boolean; autoUpdate: boolean; channel: "stable" | "beta"; lastCheck: string | null }) {
+function recordUpdateCheck(
+  configUpdates: { autoCheck: boolean; autoUpdate: boolean; channel: "stable" | "beta"; lastCheck: string | null; latestKnownVersion?: string | null },
+  latestVersion?: string
+) {
   const next = {
     ...configUpdates,
     lastCheck: new Date().toISOString(),
+    latestKnownVersion: latestVersion ?? configUpdates.latestKnownVersion,
   };
   saveConfig({ updates: next });
 }
@@ -296,7 +315,7 @@ export async function updateCliCommand(options: UpdateCliOptions = {}) {
     }
 
     const release = await fetchLatestRelease();
-    recordUpdateCheck(config.updates);
+    recordUpdateCheck(config.updates, release.tag_name.replace(/^v/, ""));
 
     result.latestVersion = release.tag_name.replace(/^v/, "");
     const comparison = compareVersions(version, result.latestVersion);

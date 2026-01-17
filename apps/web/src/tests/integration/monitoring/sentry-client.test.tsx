@@ -7,35 +7,35 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-// Mock Sentry module
-const mockInit = vi.fn();
-const mockCaptureException = vi.fn();
-const mockCaptureMessage = vi.fn();
-const mockSetContext = vi.fn();
-const mockSetTag = vi.fn();
-const mockSetUser = vi.fn();
-const mockWithScope = vi.fn((callback) => {
-  const mockScope = {
-    setTag: mockSetTag,
-    setContext: mockSetContext,
-    setUser: mockSetUser,
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
-  };
-  callback(mockScope);
-});
-const mockReplayIntegration = vi.fn(() => ({ name: "Replay" }));
+// Hoist mocks so they are available to the factory
+const mocks = vi.hoisted(() => {
+  const mockSetTag = vi.fn();
+  const mockSetContext = vi.fn();
+  const mockSetUser = vi.fn();
+  const mockWithScope = vi.fn((callback) => {
+    const mockScope = {
+      setTag: mockSetTag,
+      setContext: mockSetContext,
+      setUser: mockSetUser,
+      setExtra: vi.fn(),
+      setLevel: vi.fn(),
+    };
+    callback(mockScope);
+  });
 
-vi.mock("@sentry/nextjs", () => ({
-  init: mockInit,
-  captureException: mockCaptureException,
-  captureMessage: mockCaptureMessage,
-  setContext: mockSetContext,
-  setTag: mockSetTag,
-  setUser: mockSetUser,
-  withScope: mockWithScope,
-  replayIntegration: mockReplayIntegration,
-}));
+  return {
+    init: vi.fn(),
+    captureException: vi.fn(),
+    captureMessage: vi.fn(),
+    setContext: mockSetContext,
+    setTag: mockSetTag,
+    setUser: mockSetUser,
+    withScope: mockWithScope,
+    replayIntegration: vi.fn(() => ({ name: "Replay" })),
+  };
+});
+
+vi.mock("@sentry/nextjs", () => mocks);
 
 describe("Sentry Client Configuration", () => {
   const originalEnv = process.env;
@@ -125,7 +125,7 @@ describe("Sentry Client Configuration", () => {
       const clientError = new Error("Client-side error");
       Sentry.captureException(clientError);
 
-      expect(mockCaptureException).toHaveBeenCalledWith(clientError);
+      expect(mocks.captureException).toHaveBeenCalledWith(clientError);
     });
 
     it("should support client context with requestId", async () => {
@@ -142,8 +142,8 @@ describe("Sentry Client Configuration", () => {
         });
       });
 
-      expect(mockSetTag).toHaveBeenCalledWith("requestId", requestId);
-      expect(mockSetContext).toHaveBeenCalledWith("client", expect.objectContaining({
+      expect(mocks.setTag).toHaveBeenCalledWith("requestId", requestId);
+      expect(mocks.setContext).toHaveBeenCalledWith("client", expect.objectContaining({
         requestId,
       }));
     });
@@ -341,9 +341,9 @@ describe("Error Boundary Integration", () => {
       );
 
       // Verify Sentry was called with correct context
-      expect(mockWithScope).toHaveBeenCalled();
-      expect(mockSetTag).toHaveBeenCalledWith("errorBoundary", "true");
-      expect(mockCaptureException).toHaveBeenCalled();
+      expect(mocks.withScope).toHaveBeenCalled();
+      expect(mocks.setTag).toHaveBeenCalledWith("errorBoundary", "true");
+      expect(mocks.captureException).toHaveBeenCalled();
     });
   });
 });
@@ -368,8 +368,8 @@ describe("Client Error Correlation", () => {
       });
     });
 
-    expect(mockSetTag).toHaveBeenCalledWith("requestId", serverRequestId);
-    expect(mockSetContext).toHaveBeenCalledWith("page", expect.objectContaining({
+    expect(mocks.setTag).toHaveBeenCalledWith("requestId", serverRequestId);
+    expect(mocks.setContext).toHaveBeenCalledWith("page", expect.objectContaining({
       requestId: serverRequestId,
     }));
   });
@@ -390,8 +390,8 @@ describe("Client Error Correlation", () => {
       });
     });
 
-    expect(mockSetTag).toHaveBeenCalledWith("sessionId", sessionId);
-    expect(mockSetTag).toHaveBeenCalledWith("requestId", requestId);
+    expect(mocks.setTag).toHaveBeenCalledWith("sessionId", sessionId);
+    expect(mocks.setTag).toHaveBeenCalledWith("requestId", requestId);
   });
 });
 
@@ -414,7 +414,7 @@ describe("PII Protection", () => {
       });
     });
 
-    const userCall = mockSetUser.mock.calls[0]?.[0];
+    const userCall = mocks.setUser.mock.calls[0]?.[0];
     if (userCall) {
       expect(userCall).not.toHaveProperty("email");
       expect(userCall).not.toHaveProperty("ip_address");
@@ -438,7 +438,7 @@ describe("PII Protection", () => {
       });
     });
 
-    const contextCall = mockSetContext.mock.calls.find(
+    const contextCall = mocks.setContext.mock.calls.find(
       (call) => call[0] === "form"
     );
 

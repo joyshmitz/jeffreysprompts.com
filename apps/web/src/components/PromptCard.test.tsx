@@ -57,15 +57,21 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <BasketProvider>{children}</BasketProvider>
 );
 
-// Mock copyToClipboard from lib
-vi.mock("@/lib/clipboard", () => ({
-  copyToClipboard: vi.fn().mockResolvedValue({ success: true }),
-}));
+// Mock clipboard API
+const mockWriteText = vi.fn().mockResolvedValue(undefined);
+Object.defineProperty(navigator, "clipboard", {
+  value: {
+    writeText: mockWriteText,
+  },
+  writable: true,
+  configurable: true,
+});
 
 describe("PromptCard", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockWriteText.mockClear();
   });
 
   afterEach(() => {
