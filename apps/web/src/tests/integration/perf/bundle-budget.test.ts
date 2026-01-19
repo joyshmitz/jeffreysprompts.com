@@ -116,7 +116,7 @@ describe("Bundle Size Budget", () => {
         let sizeResults;
         try {
           sizeResults = JSON.parse(result);
-        } catch (e) {
+        } catch (_e) {
           console.error("Failed to parse size-limit output:", result);
           throw new Error("Invalid JSON from size-limit");
         }

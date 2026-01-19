@@ -5,7 +5,8 @@
  * and logs command execution with timing for E2E test debugging.
  */
 
-import { spawn, type SpawnOptions as BunSpawnOptions } from "bun";
+import { spawn } from "bun";
+import type { SpawnOptions as BunSpawnOptionsType } from "bun";
 import { TestLogger } from "./logger";
 
 export interface SpawnOptions {
@@ -81,21 +82,22 @@ export async function spawnCli(options: SpawnOptions): Promise<SpawnResult> {
       env: { ...process.env, ...env },
       stdout: "pipe",
       stderr: "pipe",
-    } as BunSpawnOptions);
+    } as BunSpawnOptionsType);
 
     // Collect output
     const stdoutChunks: Uint8Array[] = [];
     const stderrChunks: Uint8Array[] = [];
 
-    // Read streams
-    const stdoutReader = proc.stdout?.getReader();
-    const stderrReader = proc.stderr?.getReader();
+    // Read streams (handle case where stdout/stderr might be file descriptors)
+    const stdoutStream = proc.stdout;
+    const stderrStream = proc.stderr;
 
     const readStream = async (
-      reader: ReadableStreamDefaultReader<Uint8Array> | undefined,
+      stream: ReadableStream<Uint8Array> | number | null | undefined,
       chunks: Uint8Array[]
     ) => {
-      if (!reader) return;
+      if (!stream || typeof stream === 'number') return;
+      const reader = stream.getReader();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -104,8 +106,8 @@ export async function spawnCli(options: SpawnOptions): Promise<SpawnResult> {
     };
 
     await Promise.all([
-      readStream(stdoutReader, stdoutChunks),
-      readStream(stderrReader, stderrChunks),
+      readStream(stdoutStream, stdoutChunks),
+      readStream(stderrStream, stderrChunks),
       proc.exited,
     ]);
 

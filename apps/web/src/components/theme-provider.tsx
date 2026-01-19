@@ -46,20 +46,16 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
 }: ThemeProviderProps) {
-  // Initialize with defaultTheme to match server-side rendering
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+  // Initialize from localStorage on client, defaultTheme on server
+  // This avoids the need for a separate hydration effect
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return defaultTheme;
+    return getStoredTheme() ?? defaultTheme;
+  });
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() =>
     getSystemTheme()
   );
   const resolvedTheme = theme === "system" ? systemTheme : theme;
-
-  // Hydrate theme from local storage after mount
-  useEffect(() => {
-    const stored = getStoredTheme();
-    if (stored) {
-      setThemeState(stored);
-    }
-  }, []);
 
   // Update resolved theme and apply to document with smooth transition
   useEffect(() => {

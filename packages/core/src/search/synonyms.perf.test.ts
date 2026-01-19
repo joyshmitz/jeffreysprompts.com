@@ -1,5 +1,8 @@
 
-import { describe, it, expect, bench } from "bun:test";
+import { describe, it, expect } from "bun:test";
+
+// @ts-expect-error - bench is a Bun runtime feature not in TS types
+const { bench } = await import("bun:test");
 import { expandQuery, SYNONYMS } from "./synonyms";
 
 describe("synonyms performance", () => {
