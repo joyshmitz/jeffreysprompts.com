@@ -123,9 +123,12 @@ Visit **[jeffreysprompts.com](https://jeffreysprompts.com)** to:
 ### CLI Tool
 
 ```bash
-# Install the jfp CLI
 curl -fsSL "https://jeffreysprompts.com/install-cli.sh?$(date +%s)" | bash
+```
 
+Usage:
+
+```bash
 # List all prompts
 jfp list
 
@@ -153,7 +156,11 @@ jfp install idea-wizard
 # Install all skills
 jfp install --all
 
-# Or use curl for bulk install
+```
+
+Or use curl for bulk install:
+
+```bash
 curl -fsSL "https://jeffreysprompts.com/install.sh?$(date +%s)" | bash
 ```
 
@@ -211,15 +218,19 @@ curl -fsSL "https://jeffreysprompts.com/install-cli.sh?$(date +%s)" | bash
 
 **Manual install:**
 
+Download for your platform from GitHub Releases:
+
+Linux x64:
+
 ```bash
-# Download for your platform from GitHub Releases
-# Linux x64
 curl -L https://github.com/Dicklesworthstone/jeffreysprompts.com/releases/latest/download/jfp-linux-x64 -o ~/.local/bin/jfp
+chmod +x ~/.local/bin/jfp
+```
 
-# macOS ARM
+macOS ARM:
+
+```bash
 curl -L https://github.com/Dicklesworthstone/jeffreysprompts.com/releases/latest/download/jfp-darwin-arm64 -o ~/.local/bin/jfp
-
-# Make executable
 chmod +x ~/.local/bin/jfp
 ```
 
