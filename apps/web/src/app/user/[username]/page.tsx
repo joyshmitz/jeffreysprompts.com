@@ -406,6 +406,12 @@ function UserAvatar({
     lg: 96,
   };
 
+  const sizeClasses = {
+    sm: "h-10 w-10",
+    md: "h-16 w-16",
+    lg: "h-24 w-24",
+  };
+
   if (avatar) {
     return (
       <Image

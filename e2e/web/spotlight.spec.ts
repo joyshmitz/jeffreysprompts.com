@@ -236,3 +236,122 @@ test.describe("SpotlightSearch Accessibility", () => {
     });
   });
 });
+
+test.describe("SpotlightSearch Semantic Toggle", () => {
+  test.beforeEach(async ({ page, logger }) => {
+    await logger.step("clear localStorage and navigate", async () => {
+      await page.goto("/");
+      await page.evaluate(() => localStorage.removeItem("jfp-semantic-search"));
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+    });
+  });
+
+  test("semantic toggle button exists in spotlight", async ({ page, logger }) => {
+    await logger.step("open spotlight", async () => {
+      await page.keyboard.press("Meta+k");
+    });
+
+    const dialog = page.getByRole("dialog", { name: /search prompts/i });
+    await logger.step("verify toggle button visible", async () => {
+      await expect(dialog).toBeVisible();
+      const semanticToggle = dialog.getByLabel(/toggle semantic search/i);
+      await expect(semanticToggle).toBeVisible();
+    });
+  });
+
+  test("clicking toggle changes aria-pressed state", async ({ page, logger }) => {
+    await logger.step("open spotlight", async () => {
+      await page.keyboard.press("Meta+k");
+    });
+
+    const dialog = page.getByRole("dialog", { name: /search prompts/i });
+    await logger.step("get initial state", async () => {
+      await expect(dialog).toBeVisible();
+    });
+
+    const semanticToggle = dialog.getByLabel(/toggle semantic search/i);
+
+    await logger.step("verify initial aria-pressed state", async () => {
+      const initialPressed = await semanticToggle.getAttribute("aria-pressed");
+      // Default is false (BM25 mode)
+      expect(initialPressed).toBe("false");
+    });
+
+    await logger.step("click toggle to enable semantic mode", async () => {
+      await semanticToggle.click();
+    });
+
+    await logger.step("verify aria-pressed changed to true", async () => {
+      await expect(semanticToggle).toHaveAttribute("aria-pressed", "true");
+    });
+
+    await logger.step("click toggle again to disable", async () => {
+      await semanticToggle.click();
+    });
+
+    await logger.step("verify aria-pressed back to false", async () => {
+      await expect(semanticToggle).toHaveAttribute("aria-pressed", "false");
+    });
+  });
+
+  test("semantic preference persists across sessions", async ({ page, logger }) => {
+    await logger.step("open spotlight", async () => {
+      await page.keyboard.press("Meta+k");
+    });
+
+    const dialog = page.getByRole("dialog", { name: /search prompts/i });
+    const semanticToggle = dialog.getByLabel(/toggle semantic search/i);
+
+    await logger.step("enable semantic mode", async () => {
+      await expect(semanticToggle).toBeVisible();
+      await semanticToggle.click();
+      await expect(semanticToggle).toHaveAttribute("aria-pressed", "true");
+    });
+
+    await logger.step("verify localStorage was set", async () => {
+      const stored = await page.evaluate(() =>
+        localStorage.getItem("jfp-semantic-search")
+      );
+      expect(stored).toBe("true");
+    });
+
+    await logger.step("close spotlight and reload page", async () => {
+      await page.keyboard.press("Escape");
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+    });
+
+    await logger.step("reopen spotlight", async () => {
+      await page.keyboard.press("Meta+k");
+    });
+
+    await logger.step("verify semantic mode persisted", async () => {
+      const newDialog = page.getByRole("dialog", { name: /search prompts/i });
+      await expect(newDialog).toBeVisible();
+      const newToggle = newDialog.getByLabel(/toggle semantic search/i);
+      await expect(newToggle).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
+  test("toggle has accessible title attribute", async ({ page, logger }) => {
+    await logger.step("open spotlight", async () => {
+      await page.keyboard.press("Meta+k");
+    });
+
+    const dialog = page.getByRole("dialog", { name: /search prompts/i });
+    const semanticToggle = dialog.getByLabel(/toggle semantic search/i);
+
+    await logger.step("verify title when disabled", async () => {
+      await expect(semanticToggle).toBeVisible();
+      const title = await semanticToggle.getAttribute("title");
+      expect(title).toMatch(/semantic/i);
+    });
+
+    await logger.step("enable and verify title changes", async () => {
+      await semanticToggle.click();
+      const newTitle = await semanticToggle.getAttribute("title");
+      expect(newTitle).toMatch(/semantic.*enabled/i);
+    });
+  });
+});

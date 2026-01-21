@@ -7,6 +7,7 @@
 export {
   generateSkillMd,
   generateInstallScript,
+  generateInstallOneLiner,
   generateSkillEntries,
   computeSkillHash,
   createManifestEntry,
