@@ -391,12 +391,15 @@ export function PromptDetailModal({
         </div>
       )}
 
-      {/* Action buttons */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
+      {/* Action buttons - Mobile: stacked full-width, Desktop: inline */}
+      <div className="pt-4 border-t border-border/50">
+        {/* Primary action - Copy - always full width on mobile for prominence */}
         <Button
           onClick={handleCopy}
+          size="lg"
           className={cn(
-            "flex-1 sm:flex-none font-medium transition-colors",
+            "w-full font-medium transition-all duration-200 mb-3",
+            "h-12 text-base",
             copied && "bg-emerald-600 hover:bg-emerald-700",
             copyFlash && "bg-emerald-500"
           )}
@@ -409,16 +412,16 @@ export function PromptDetailModal({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center"
+                className="flex items-center justify-center"
               >
                 <motion.span
                   initial={prefersReducedMotion ? {} : { rotate: -180, scale: 0 }}
                   animate={{ rotate: 0, scale: 1 }}
                   transition={{ type: "spring", stiffness: 500, damping: 25 }}
                 >
-                  <Check className="w-4 h-4 mr-2" />
+                  <Check className="w-5 h-5 mr-2" />
                 </motion.span>
-                Copied
+                Copied!
               </motion.span>
             ) : (
               <motion.span
@@ -427,41 +430,45 @@ export function PromptDetailModal({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center"
+                className="flex items-center justify-center"
               >
-                <Copy className="w-4 h-4 mr-2" />
+                <Copy className="w-5 h-5 mr-2" />
                 Copy Prompt
               </motion.span>
             )}
           </AnimatePresence>
         </Button>
-        <Button
-          variant="outline"
-          onClick={handleInstall}
-          className="flex-1 sm:flex-none font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
-        >
-          <Terminal className="w-4 h-4 mr-2" />
-          Install as Skill
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleDownload}
-          className="flex-1 sm:flex-none font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download
-        </Button>
-        {prompt && (
-          <ReportDialog
-            contentType="prompt"
-            contentId={prompt.id}
-            contentTitle={prompt.title}
-            triggerVariant="outline"
-            triggerSize="sm"
-            triggerClassName="flex-1 sm:flex-none font-medium"
-            showLabel
-          />
-        )}
+
+        {/* Secondary actions - 2x2 grid on mobile, inline on desktop */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={handleInstall}
+            className="h-11 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 sm:flex-1"
+          >
+            <Terminal className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">Install</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            className="h-11 font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 sm:flex-1"
+          >
+            <Download className="w-4 h-4 mr-2 shrink-0" />
+            <span className="truncate">Download</span>
+          </Button>
+          {prompt && (
+            <ReportDialog
+              contentType="prompt"
+              contentId={prompt.id}
+              contentTitle={prompt.title}
+              triggerVariant="outline"
+              triggerSize="default"
+              triggerClassName="h-11 font-medium col-span-2 sm:col-span-1 sm:flex-1"
+              showLabel
+            />
+          )}
+        </div>
       </div>
     </div>
   );

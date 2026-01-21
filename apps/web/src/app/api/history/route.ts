@@ -43,9 +43,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid resource type." }, { status: 400 });
   }
 
+  // After validation, narrow the type for TypeScript
+  const validResourceType = resourceType && isHistoryResourceType(resourceType) ? resourceType : null;
+
   const items = listHistory({
     userId,
-    resourceType: resourceType ? resourceType : null,
+    resourceType: validResourceType,
     limit,
   });
 

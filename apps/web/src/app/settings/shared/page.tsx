@@ -92,6 +92,16 @@ export default function SharedLinksPage() {
       }
 
       const data = await response.json();
+      // Map API content types to shareable content types
+      const mapContentType = (apiType: string): ManagedShareLink["contentType"] => {
+        if (apiType === "bundle") return "pack";
+        if (apiType === "workflow") return "collection"; // workflows mapped to collection for UI purposes
+        if (apiType === "prompt" || apiType === "pack" || apiType === "skill" || apiType === "collection") {
+          return apiType;
+        }
+        return "prompt"; // fallback
+      };
+
       const links: ManagedShareLink[] = (data.links as ApiShareLink[]).map(
         (link) => ({
           linkCode: link.code,
@@ -100,7 +110,7 @@ export default function SharedLinksPage() {
           expiresAt: link.expiresAt,
           viewCount: link.viewCount,
           createdAt: link.createdAt,
-          contentType: link.contentType === "bundle" ? "pack" : link.contentType,
+          contentType: mapContentType(link.contentType),
           contentTitle: resolveContentTitle(link.contentType, link.contentId),
           contentId: link.contentId,
         })

@@ -217,6 +217,7 @@ export default function SharePage() {
         setShareData({
           linkCode: data.link.code,
           contentType: data.link.contentType,
+          contentId: data.link.contentId,
           requiresPassword: false,
           isExpired: false,
           expiresAt: data.link.expiresAt,
