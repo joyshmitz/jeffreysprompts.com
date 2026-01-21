@@ -1,11 +1,15 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // Bundle analyzer setup (run with ANALYZE=true)
 const analyzeBundles = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
+
+// i18n setup with next-intl
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 // Security headers for production
 const isProd = process.env.NODE_ENV === "production";
@@ -116,8 +120,8 @@ const nextConfig: NextConfig = {
 };
 
 // Wrap with Sentry for error tracking and source maps
-// Also wrap with bundle analyzer (enabled via ANALYZE=true)
-export default withSentryConfig(analyzeBundles(nextConfig), {
+// Also wrap with bundle analyzer (enabled via ANALYZE=true) and i18n
+export default withSentryConfig(analyzeBundles(withNextIntl(nextConfig)), {
   // Sentry organization and project (from env vars)
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
