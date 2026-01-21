@@ -43,6 +43,7 @@ export function getStaticRoutes(): SitemapEntry[] {
     { url: buildUrl("/contact"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: buildUrl("/contribute"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: buildUrl("/guidelines"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: buildUrl("/dmca"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: buildUrl("/privacy"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: buildUrl("/terms"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: buildUrl("/cookies"), lastModified: now, changeFrequency: "yearly", priority: 0.4 },
