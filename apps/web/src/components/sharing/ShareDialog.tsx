@@ -87,14 +87,6 @@ const EXPIRATION_OPTIONS = [
   { value: "90", label: "90 days" },
 ];
 
-function generateMockLinkCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  return Array.from(
-    { length: 12 },
-    () => chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
-}
-
 export function ShareDialog({
   open,
   onOpenChange,
@@ -143,29 +135,38 @@ export function ShareDialog({
   const handleCreateShare = useCallback(async () => {
     setIsCreating(true);
     try {
-      // Mock API call - will be replaced with real API
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentType,
+          contentId,
+          password: passwordEnabled ? password : null,
+          expiresIn: expiration !== "never" ? parseInt(expiration) : null,
+        }),
+      });
 
-      const newLinkCode = generateMockLinkCode();
-      const mockShare: ShareLink = {
-        linkCode: newLinkCode,
-        url: `https://jeffreysprompts.com/share/${newLinkCode}`,
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create share link");
+      }
+
+      const data = await response.json();
+      const newShare: ShareLink = {
+        linkCode: data.linkCode,
+        url: data.url,
         password: passwordEnabled ? password : null,
-        expiresAt:
-          expiration !== "never"
-            ? new Date(
-                Date.now() + parseInt(expiration) * 24 * 60 * 60 * 1000
-              ).toISOString()
-            : null,
+        expiresAt: data.expiresAt,
         viewCount: 0,
         createdAt: new Date().toISOString(),
       };
 
-      onShareCreated?.(mockShare);
+      onShareCreated?.(newShare);
       success("Share link created", "Your content is now shareable", { duration: 3000 });
       trackEvent("share_link_create", { contentType, contentId });
-    } catch {
-      toastError("Failed to create share link", "Please try again");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Please try again";
+      toastError("Failed to create share link", message);
     } finally {
       setIsCreating(false);
     }
@@ -181,20 +182,29 @@ export function ShareDialog({
   ]);
 
   const handleRevokeShare = useCallback(async () => {
+    if (!existingShare?.linkCode) return;
+
     setIsRevoking(true);
     try {
-      // Mock API call - will be replaced with real API
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await fetch(`/api/share/${existingShare.linkCode}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to revoke link");
+      }
 
       onShareRevoked?.();
       success("Share link revoked", "The link is no longer accessible", { duration: 3000 });
       trackEvent("share_link_revoke", { contentType, contentId });
-    } catch {
-      toastError("Failed to revoke link", "Please try again");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Please try again";
+      toastError("Failed to revoke link", message);
     } finally {
       setIsRevoking(false);
     }
-  }, [contentType, contentId, onShareRevoked, success, toastError]);
+  }, [existingShare?.linkCode, contentType, contentId, onShareRevoked, success, toastError]);
 
   const handleSocialShare = useCallback(
     (platform: "twitter" | "linkedin") => {

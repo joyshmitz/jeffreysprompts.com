@@ -37,107 +37,33 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
+import type { Prompt } from "@jeffreysprompts/core/prompts";
 
-// Mock shared content data
-interface SharedPrompt {
-  id: string;
-  title: string;
-  description: string;
-  content: string;
-  category: string;
-  tags: string[];
-  author: {
-    displayName: string;
-    username: string;
-    showAuthor: boolean;
-  };
-  createdAt: string;
+// API response types
+interface ShareLinkInfo {
+  code: string;
+  contentType: "prompt" | "bundle" | "workflow" | "collection";
+  contentId: string;
   viewCount: number;
+  expiresAt: string | null;
+  createdAt: string;
 }
 
+interface ShareApiResponse {
+  link: ShareLinkInfo;
+  content: Prompt;
+}
+
+// Internal state types
 interface ShareData {
   linkCode: string;
-  contentType: "prompt" | "pack" | "skill";
+  contentType: "prompt" | "bundle" | "workflow" | "collection";
   requiresPassword: boolean;
   isExpired: boolean;
   expiresAt: string | null;
-  content: SharedPrompt | null;
+  content: Prompt | null;
+  viewCount: number;
 }
-
-// Mock data for demonstration
-const mockShareData: Record<string, ShareData> = {
-  "x7KmN2pQ4rYz": {
-    linkCode: "x7KmN2pQ4rYz",
-    contentType: "prompt",
-    requiresPassword: false,
-    isExpired: false,
-    expiresAt: null,
-    content: {
-      id: "shared-1",
-      title: "Ultimate Code Review Assistant",
-      description:
-        "Comprehensive code review prompt that catches bugs, suggests improvements, and ensures best practices. Perfect for thorough PR reviews.",
-      content: `Review this code thoroughly and provide comprehensive feedback.
-
-## Analysis Framework
-
-1. **Bug Detection**
-   - Check for potential null/undefined errors
-   - Look for off-by-one errors
-   - Identify race conditions
-   - Find memory leaks
-
-2. **Security Review**
-   - SQL injection vulnerabilities
-   - XSS attack vectors
-   - Authentication/authorization issues
-   - Sensitive data exposure
-
-3. **Performance Analysis**
-   - Identify N+1 queries
-   - Check for unnecessary re-renders
-   - Look for memory-intensive operations
-   - Suggest caching opportunities
-
-4. **Code Quality**
-   - Naming conventions
-   - Function complexity
-   - DRY principle violations
-   - SOLID principle adherence
-
-For each issue found, provide:
-- Line number/location
-- Severity (critical/warning/suggestion)
-- Clear explanation of the problem
-- Specific code fix recommendation`,
-      category: "automation",
-      tags: ["code-review", "best-practices", "debugging", "security"],
-      author: {
-        displayName: "Code Wizard",
-        username: "codewizard",
-        showAuthor: true,
-      },
-      createdAt: "2026-01-10T12:00:00Z",
-      viewCount: 342,
-    },
-  },
-  "protected123": {
-    linkCode: "protected123",
-    contentType: "prompt",
-    requiresPassword: true,
-    isExpired: false,
-    expiresAt: "2026-02-01T00:00:00Z",
-    content: null, // Requires password
-  },
-  "expired456": {
-    linkCode: "expired456",
-    contentType: "prompt",
-    requiresPassword: false,
-    isExpired: true,
-    expiresAt: "2026-01-01T00:00:00Z",
-    content: null,
-  },
-};
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -160,23 +86,80 @@ export default function SharePage() {
 
   const linkCode = params.linkCode as string;
 
-  // Load share data
+  // Load share data from API
   useEffect(() => {
     const loadShareData = async () => {
       setIsLoading(true);
-      // Mock API call - will be replaced with real API
-      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const data = mockShareData[linkCode];
-      setShareData(data || null);
-      setIsLoading(false);
+      try {
+        const response = await fetch(`/api/share/${linkCode}`);
 
-      if (data && !data.requiresPassword && !data.isExpired) {
+        if (response.status === 404) {
+          setShareData(null);
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.status === 410) {
+          // Expired
+          setShareData({
+            linkCode,
+            contentType: "prompt",
+            requiresPassword: false,
+            isExpired: true,
+            expiresAt: null,
+            content: null,
+            viewCount: 0,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.status === 401) {
+          // Password required
+          const data = await response.json();
+          if (data.requiresPassword) {
+            setShareData({
+              linkCode,
+              contentType: "prompt",
+              requiresPassword: true,
+              isExpired: false,
+              expiresAt: null,
+              content: null,
+              viewCount: 0,
+            });
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        if (!response.ok) {
+          setShareData(null);
+          setIsLoading(false);
+          return;
+        }
+
+        const data: ShareApiResponse = await response.json();
+        setShareData({
+          linkCode: data.link.code,
+          contentType: data.link.contentType,
+          requiresPassword: false,
+          isExpired: false,
+          expiresAt: data.link.expiresAt,
+          content: data.content,
+          viewCount: data.link.viewCount,
+        });
         trackEvent("share_view", { linkCode });
+      } catch {
+        setShareData(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadShareData();
+    if (linkCode) {
+      loadShareData();
+    }
   }, [linkCode]);
 
   const handleCopy = useCallback(async () => {
@@ -205,26 +188,42 @@ export default function SharePage() {
       setIsVerifying(true);
       setPasswordError("");
 
-      // Mock password verification - will be replaced with real API
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      try {
+        const response = await fetch(`/api/share/${linkCode}/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password }),
+        });
 
-      // For demo, password "secret" works
-      if (password === "secret") {
-        setShareData((prev) =>
-          prev
-            ? {
-                ...prev,
-                requiresPassword: false,
-                content: mockShareData["x7KmN2pQ4rYz"]?.content || null,
-              }
-            : null
-        );
+        if (response.status === 401) {
+          setPasswordError("Incorrect password");
+          setIsVerifying(false);
+          return;
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          setPasswordError(errorData.error || "Verification failed");
+          setIsVerifying(false);
+          return;
+        }
+
+        const data: ShareApiResponse = await response.json();
+        setShareData({
+          linkCode: data.link.code,
+          contentType: data.link.contentType,
+          requiresPassword: false,
+          isExpired: false,
+          expiresAt: data.link.expiresAt,
+          content: data.content,
+          viewCount: data.link.viewCount,
+        });
         trackEvent("share_view", { linkCode, passwordProtected: true });
-      } else {
-        setPasswordError("Incorrect password");
+      } catch {
+        setPasswordError("Network error. Please try again.");
+      } finally {
+        setIsVerifying(false);
       }
-
-      setIsVerifying(false);
     },
     [password, linkCode]
   );
@@ -387,7 +386,7 @@ export default function SharePage() {
             </Link>
             <Badge variant="outline" className="gap-1">
               <Eye className="h-3 w-3" />
-              {content.viewCount} views
+              {shareData.viewCount} views
             </Badge>
           </div>
         </div>
@@ -415,18 +414,20 @@ export default function SharePage() {
 
             {/* Author & Meta */}
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-              {content.author.showAuthor && (
+              {content.author && (
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
                     <User className="h-4 w-4 text-neutral-500" />
                   </div>
-                  <span>{content.author.displayName}</span>
+                  <span>{content.author}</span>
                 </div>
               )}
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
-                {formatDate(content.createdAt)}
-              </div>
+              {content.created && (
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  {formatDate(content.created)}
+                </div>
+              )}
             </div>
 
             {/* Tags */}

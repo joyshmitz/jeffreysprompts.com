@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Ticket, User, Bell, Palette, Shield, ChevronRight } from "lucide-react";
+import { Ticket, User, Bell, Palette, Shield, ChevronRight, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -73,6 +73,22 @@ export default function SettingsPage() {
       </div>
 
       <div className="container-wide py-10">
+        {/* Sharing Section */}
+        <div className="mb-8">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
+            Sharing
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <SettingCard
+              href="/settings/shared"
+              icon={<Link2 className="h-6 w-6 text-violet-600 dark:text-violet-400" />}
+              iconBg="bg-violet-100 dark:bg-violet-900/30"
+              title="My Shared Links"
+              description="Manage your active share links for prompts and packs."
+            />
+          </div>
+        </div>
+
         {/* Support Section */}
         <div className="mb-8">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
