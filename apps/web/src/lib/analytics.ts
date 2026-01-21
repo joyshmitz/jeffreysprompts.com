@@ -5,6 +5,7 @@ import { hasAnalyticsConsent } from "@/lib/consent/cookie-consent";
 export type AnalyticsEvent =
   | "prompt_view"
   | "prompt_copy"
+  | "prompt_rating"
   | "prompt_publish"
   | "prompt_unpublish"
   | "search"
