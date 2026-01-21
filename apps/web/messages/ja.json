@@ -1,0 +1,266 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "share": "Share",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "clear": "Clear",
+    "viewAll": "View All",
+    "learnMore": "Learn More",
+    "getStarted": "Get Started",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "tryAgain": "Try Again"
+  },
+  "nav": {
+    "home": "Home",
+    "browse": "Browse",
+    "swapMeet": "Swap Meet",
+    "pricing": "Pricing",
+    "settings": "Settings",
+    "profile": "Profile",
+    "signIn": "Sign In",
+    "signOut": "Sign Out"
+  },
+  "home": {
+    "hero": {
+      "title": "Curated Prompts for Agentic Coding",
+      "subtitle": "Battle-tested prompts for AI coding agents. Browse, copy, and install as Claude Code skills.",
+      "cta": "Browse Prompts"
+    },
+    "features": {
+      "install": {
+        "title": "One-Click Install",
+        "description": "Install prompts directly as Claude Code skills"
+      },
+      "curated": {
+        "title": "Curated Collection",
+        "description": "Hand-picked prompts from experienced developers"
+      },
+      "community": {
+        "title": "Community Driven",
+        "description": "Share and discover prompts from the community"
+      }
+    },
+    "stats": {
+      "prompts": "Prompts",
+      "users": "Users",
+      "installs": "Installs"
+    }
+  },
+  "prompts": {
+    "title": "Browse Prompts",
+    "empty": "No prompts found",
+    "emptyDescription": "Try adjusting your search or filters",
+    "searchPlaceholder": "Search prompts...",
+    "categories": {
+      "all": "All Categories",
+      "coding": "Coding",
+      "writing": "Writing",
+      "analysis": "Analysis",
+      "debugging": "Debugging",
+      "testing": "Testing",
+      "documentation": "Documentation"
+    },
+    "card": {
+      "install": "Install",
+      "copyCode": "Copy Code",
+      "viewDetails": "View Details",
+      "by": "by",
+      "saves": "saves",
+      "views": "views"
+    },
+    "detail": {
+      "prompt": "Prompt",
+      "usage": "Usage",
+      "examples": "Examples",
+      "relatedPrompts": "Related Prompts",
+      "reportIssue": "Report Issue"
+    },
+    "filters": {
+      "sortBy": "Sort by",
+      "newest": "Newest",
+      "popular": "Most Popular",
+      "trending": "Trending",
+      "alphabetical": "A-Z"
+    }
+  },
+  "swapMeet": {
+    "title": "Swap Meet",
+    "subtitle": "Trade and discover prompts from the community",
+    "listings": "Listings",
+    "myListings": "My Listings",
+    "createListing": "Create Listing",
+    "empty": "No listings yet",
+    "emptyDescription": "Be the first to list a prompt!",
+    "price": "Price",
+    "free": "Free",
+    "trade": "Trade",
+    "contact": "Contact Seller"
+  },
+  "referral": {
+    "title": "Referral Program",
+    "subtitle": "Share Jeffrey's Prompts and earn rewards",
+    "yourCode": "Your Referral Code",
+    "yourLink": "Your Referral Link",
+    "howItWorks": "How It Works",
+    "step1": {
+      "title": "Share Your Link",
+      "description": "Copy your unique referral link and share with friends"
+    },
+    "step2": {
+      "title": "Friends Sign Up",
+      "description": "They get a 30-day trial and 20% off their first subscription"
+    },
+    "step3": {
+      "title": "You Get Rewarded",
+      "description": "Earn 1 month of free Premium for each friend who subscribes"
+    },
+    "stats": {
+      "title": "Your Stats",
+      "totalReferrals": "Total Referrals",
+      "pending": "Pending",
+      "converted": "Converted",
+      "rewarded": "Rewarded",
+      "rewardsEarned": "Rewards Earned"
+    },
+    "terms": {
+      "title": "Referral Program Terms",
+      "maxReward": "Maximum 12 months of free Premium per year",
+      "noSelfReferral": "Self-referrals are not allowed",
+      "noCash": "Rewards cannot be exchanged for cash",
+      "modifyRights": "We reserve the right to modify or terminate the program"
+    },
+    "landing": {
+      "invited": "You've Been Invited!",
+      "benefits": "Your Benefits",
+      "extendedTrial": "30-Day Extended Trial",
+      "discount": "20% Off First Subscription",
+      "claimReward": "Claim Your Reward"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "publicProfile": "Public Profile",
+    "privateProfile": "Private Profile",
+    "stats": {
+      "prompts": "Prompts",
+      "saves": "Saves",
+      "views": "Views",
+      "reputation": "Reputation"
+    },
+    "tabs": {
+      "prompts": "Prompts",
+      "saved": "Saved",
+      "activity": "Activity"
+    },
+    "badges": {
+      "creator": "Creator",
+      "contributor": "Contributor",
+      "featuredAuthor": "Featured Author",
+      "earlyAdopter": "Early Adopter",
+      "topContributor": "Top Contributor"
+    },
+    "settings": {
+      "visibility": "Profile Visibility",
+      "visibilityDescription": "Choose whether your profile is visible to others",
+      "displayName": "Display Name",
+      "bio": "Bio",
+      "website": "Website",
+      "twitter": "Twitter/X",
+      "github": "GitHub"
+    }
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signUp": "Create Account",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "rememberMe": "Remember me",
+    "orContinueWith": "Or continue with",
+    "google": "Google",
+    "github": "GitHub",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": {
+      "title": "Language",
+      "select": "Select Language"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": "Email Notifications",
+      "push": "Push Notifications"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "analytics": "Usage Analytics",
+      "analyticsDescription": "Help improve the app by sharing anonymous usage data"
+    },
+    "account": {
+      "title": "Account",
+      "deleteAccount": "Delete Account",
+      "deleteWarning": "This action cannot be undone"
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "Page not found",
+    "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
+    "unauthorized": "Please sign in to continue",
+    "forbidden": "You don't have permission to access this",
+    "serverError": "Server error. Please try again later.",
+    "networkError": "Network error. Please check your connection.",
+    "validationError": "Please check your input and try again"
+  },
+  "footer": {
+    "copyright": "All rights reserved",
+    "links": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "contact": "Contact",
+      "help": "Help Center",
+      "guidelines": "Community Guidelines"
+    },
+    "social": {
+      "twitter": "Follow on Twitter",
+      "github": "View on GitHub"
+    }
+  },
+  "accessibility": {
+    "skipToContent": "Skip to main content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "expandSection": "Expand section",
+    "collapseSection": "Collapse section",
+    "loading": "Loading content",
+    "searchResults": "{count, plural, =0 {No results} one {# result} other {# results}} found"
+  }
+}

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Providers } from "@/components/Providers";
 import { Nav } from "@/components/Nav";
 import { BottomNav } from "@/components/BottomNav";
@@ -83,13 +85,17 @@ export const metadata: Metadata = {
   category: "technology",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Get locale and messages for i18n
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <JsonLd data={websiteJsonLd} />
         <JsonLd data={softwareAppJsonLd} />
@@ -97,15 +103,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          <SkipLink targetId="main-content" />
-          <Nav />
-          <main id="main-content" tabIndex={-1} className="min-h-screen pb-20 md:pb-0 focus:outline-none">
-            {children}
-          </main>
-          <Footer className="hidden md:block" />
-          <BottomNav />
-        </Providers>
+        <NextIntlClientProvider messages={messages}>
+          <Providers>
+            <SkipLink targetId="main-content" />
+            <Nav />
+            <main id="main-content" tabIndex={-1} className="min-h-screen pb-20 md:pb-0 focus:outline-none">
+              {children}
+            </main>
+            <Footer className="hidden md:block" />
+            <BottomNav />
+          </Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
