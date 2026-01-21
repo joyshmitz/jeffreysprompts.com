@@ -3,7 +3,7 @@
 /**
  * Language Switcher Component
  *
- * Dropdown menu for selecting the application language.
+ * Select menu for changing the application language.
  * Uses next-intl for locale management.
  */
 
@@ -11,12 +11,12 @@ import { useLocale } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { Globe } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { locales, localeNames, localeFlags, type Locale } from "@/i18n/config";
 
 export function LanguageSwitcher() {
@@ -24,7 +24,7 @@ export function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleLocaleChange = (newLocale: Locale) => {
+  const handleLocaleChange = (newLocale: string) => {
     // Remove current locale prefix if present
     const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
 
@@ -34,26 +34,22 @@ export function LanguageSwitcher() {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Globe className="h-4 w-4" />
+    <Select value={locale} onValueChange={handleLocaleChange}>
+      <SelectTrigger className="w-auto min-w-[140px] gap-2">
+        <Globe className="h-4 w-4 shrink-0" />
+        <SelectValue>
           <span className="hidden sm:inline">{localeNames[locale as Locale]}</span>
           <span className="sm:hidden">{localeFlags[locale as Locale]}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
         {locales.map((loc) => (
-          <DropdownMenuItem
-            key={loc}
-            onClick={() => handleLocaleChange(loc)}
-            className={locale === loc ? "bg-accent" : ""}
-          >
+          <SelectItem key={loc} value={loc}>
             <span className="mr-2">{localeFlags[loc]}</span>
             {localeNames[loc]}
-          </DropdownMenuItem>
+          </SelectItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </SelectContent>
+    </Select>
   );
 }
