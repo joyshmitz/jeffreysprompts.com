@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { CommunityPromptCard } from "@/components/swap-meet/CommunityPromptCard";
 import type { CommunityPrompt } from "@/lib/swap-meet/types";
+import { sortByTrending } from "@/lib/discovery/trending";
 
 // Mock data for community prompts (will be replaced with API calls)
 const mockCommunityPrompts: CommunityPrompt[] = [
@@ -235,7 +236,8 @@ export default function SwapMeetPage() {
     // Sort
     switch (sortBy) {
       case "trending":
-        results.sort((a, b) => b.stats.views - a.stats.views);
+        // Use multi-factor trending algorithm
+        results = sortByTrending(results);
         break;
       case "newest":
         results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
