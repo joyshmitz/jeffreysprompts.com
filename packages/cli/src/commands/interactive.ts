@@ -1,24 +1,12 @@
 import { select, search, Separator } from "@inquirer/prompts";
 import { type Prompt } from "@jeffreysprompts/core/prompts";
 import { searchPrompts, buildIndex } from "@jeffreysprompts/core/search";
-import { generateSkillMd, generatePromptMarkdown } from "@jeffreysprompts/core/export";
+import { generatePromptMarkdown } from "@jeffreysprompts/core/export";
 import chalk from "chalk";
 import boxen from "boxen";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join, resolve } from "path";
-import { getHomeDir } from "../lib/config";
-import {
-  readManifest,
-  writeManifest,
-  createEmptyManifest,
-  upsertManifestEntry,
-  checkSkillModification,
-} from "../lib/manifest";
-import { computeSkillHash } from "@jeffreysprompts/core/export";
-import { resolveSafeChildPath, isSafeSkillId } from "../lib/utils";
+import { writeFileSync } from "fs";
 import { loadRegistry } from "../lib/registry-loader";
 import { copyToClipboard } from "../lib/clipboard";
-import type { SkillManifestEntry } from "@jeffreysprompts/core/export";
 
 interface InteractiveOptions {
   // No options yet, placeholder for future
@@ -43,56 +31,6 @@ function displayPrompt(prompt: Prompt): void {
   );
 }
 
-async function installPrompt(prompt: Prompt, toProject: boolean): Promise<void> {
-  const targetRoot = toProject
-    ? resolve(process.cwd(), ".claude/skills")
-    : join(getHomeDir(), ".config/claude/skills");
-
-  if (!isSafeSkillId(prompt.id)) {
-    console.log(chalk.red(`Error: Unsafe prompt id "${prompt.id}".`));
-    return;
-  }
-
-  let manifest = readManifest(targetRoot) ?? createEmptyManifest();
-  const modCheck = checkSkillModification(targetRoot, prompt.id, manifest);
-
-  if (!modCheck.canOverwrite) {
-    console.log(
-      chalk.yellow(`Skill ${prompt.id} has user modifications. Use --force in regular install to overwrite.`)
-    );
-    return;
-  }
-
-  try {
-    const skillContent = generateSkillMd(prompt);
-    const skillDir = resolveSafeChildPath(targetRoot, prompt.id);
-    const skillPath = join(skillDir, "SKILL.md");
-
-    if (!existsSync(skillDir)) {
-      mkdirSync(skillDir, { recursive: true });
-    }
-
-    writeFileSync(skillPath, skillContent);
-
-    const hash = computeSkillHash(skillContent);
-    const entry: SkillManifestEntry = {
-      id: prompt.id,
-      kind: "prompt",
-      version: prompt.version ?? "1.0.0",
-      hash,
-      updatedAt: new Date().toISOString(),
-    };
-    manifest = upsertManifestEntry(manifest, entry);
-    writeManifest(targetRoot, manifest);
-
-    const location = toProject ? "project" : "personal";
-    console.log(chalk.green(`✓ Installed ${chalk.bold(prompt.id)} to ${location} skills`));
-    console.log(chalk.dim(`  ${skillPath}`));
-  } catch (err) {
-    console.log(chalk.red(`Failed to install: ${(err as Error).message}`));
-  }
-}
-
 async function exportToMd(prompt: Prompt): Promise<void> {
   const md = generatePromptMarkdown(prompt);
   const filename = `${prompt.id}.md`;
@@ -107,8 +45,6 @@ async function promptAction(prompt: Prompt): Promise<"back" | "exit"> {
       choices: [
         { name: "📋 Copy to clipboard", value: "copy" },
         { name: "👁️  View full prompt", value: "view" },
-        { name: "📥 Install to personal skills", value: "install-personal" },
-        { name: "📥 Install to project skills", value: "install-project" },
         { name: "📄 Export as markdown", value: "export-md" },
         new Separator(),
         { name: "← Back to search", value: "back" },
@@ -129,12 +65,6 @@ async function promptAction(prompt: Prompt): Promise<"back" | "exit"> {
       }
       case "view":
         displayPrompt(prompt);
-        break;
-      case "install-personal":
-        await installPrompt(prompt, false);
-        break;
-      case "install-project":
-        await installPrompt(prompt, true);
         break;
       case "export-md":
         await exportToMd(prompt);

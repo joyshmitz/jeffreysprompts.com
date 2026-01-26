@@ -43,7 +43,7 @@ describe("helpCommand", () => {
       expect(json.commands).toHaveProperty("listing_searching");
       expect(json.commands).toHaveProperty("viewing");
       expect(json.commands).toHaveProperty("copying_exporting");
-      expect(json.commands).toHaveProperty("installing_skills");
+      expect(json.commands).toHaveProperty("premium");
       expect(json.commands).toHaveProperty("bundles");
       expect(json.commands).toHaveProperty("registry");
       expect(json.commands).toHaveProperty("utilities");
@@ -93,7 +93,7 @@ describe("helpCommand", () => {
         "listing_searching",
         "viewing",
         "copying_exporting",
-        "installing_skills",
+        "premium",
         "bundles",
         "registry",
         "utilities",

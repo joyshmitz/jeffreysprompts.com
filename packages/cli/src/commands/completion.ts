@@ -16,13 +16,9 @@ const COMMANDS = [
   "list",
   "search",
   "show",
-  "install",
-  "uninstall",
   "export",
   "render",
   "copy",
-  "installed",
-  "update",
   "suggest",
   "bundles",
   "bundle",
@@ -35,7 +31,6 @@ const COMMANDS = [
   "sync",
   "notes",
   "collections",
-  "skills",
   "i",
   "interactive",
   "categories",
@@ -53,13 +48,9 @@ const COMMAND_OPTIONS: Record<string, string[]> = {
   list: ["--category", "--tag", "--mine", "--saved", "--json"],
   search: ["--limit", "--mine", "--saved", "--all", "--local", "--json"],
   show: ["--json", "--raw"],
-  install: ["--project", "--all", "--bundle", "--force", "--json"],
-  uninstall: ["--project", "--confirm", "--json"],
   export: ["--format", "--all", "--stdout", "--json"],
   render: ["--fill", "--context", "--stdin", "--max-context", "--json"],
   copy: ["--fill", "--json"],
-  installed: ["--personal", "--project", "--json"],
-  update: ["--personal", "--project", "--dry-run", "--diff", "--force", "--json"],
   suggest: ["--json", "--limit", "--semantic"],
   bundles: ["--json"],
   bundle: ["--json"],
@@ -72,7 +63,6 @@ const COMMAND_OPTIONS: Record<string, string[]> = {
   sync: ["--force", "--status", "--json"],
   notes: ["--add", "--delete", "--json"],
   collections: ["--add", "--export", "--format", "--stdout", "--description", "--json"],
-  skills: ["--tool", "--category", "--mine", "--search", "--limit", "--force", "--stdout", "--output", "--name", "--description", "--json"],
   i: [],
   interactive: [],
   categories: ["--json"],
@@ -90,7 +80,7 @@ const GLOBAL_OPTIONS = ["--help", "--version"];
 
 const OPTION_VALUES: Record<string, string[]> = {
   "--shell": [...SUPPORTED_SHELLS],
-  "--format": ["skill", "md"],
+  "--format": ["md"],
 };
 
 function normalizeShell(value?: string): SupportedShell | null {

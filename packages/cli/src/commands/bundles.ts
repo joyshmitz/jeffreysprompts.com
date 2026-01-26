@@ -138,6 +138,5 @@ export async function bundleShowCommand(id: string, options: BundleShowOptions) 
     })
   );
 
-  // Installation hint
-  console.log(chalk.dim("\nInstall with: jfp install --bundle " + bundle.id));
+  console.log(chalk.dim("\nExport prompts with: jfp export <prompt-id>"));
 }

@@ -20,3 +20,16 @@ export function resolveSafeChildPath(root: string, child: string): string {
   }
   return resolvedChild;
 }
+
+export function exitWithDeprecatedSkillCommand(
+  options: { json?: boolean },
+  message: string,
+  code = "deprecated_command"
+): never {
+  if (shouldOutputJson(options)) {
+    console.log(JSON.stringify({ error: true, code, message }));
+  } else {
+    console.error(message);
+  }
+  process.exit(1);
+}

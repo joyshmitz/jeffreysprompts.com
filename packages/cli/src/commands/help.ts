@@ -52,14 +52,7 @@ function getHelpData() {
       copying_exporting: [
         { name: "copy <id>", description: "Copy prompt to clipboard", options: ["--fill", "--json"] },
         { name: "render <id>", description: "Render prompt with variables", options: ["--fill", "--context", "--stdin", "--json"] },
-        { name: "export [...ids]", description: "Export as SKILL.md or markdown", options: ["--format", "--all", "--stdout", "--json"] },
-      ],
-      installing_skills: [
-        { name: "install [...ids]", description: "Install prompts as skills", options: ["--project", "--all", "--bundle", "--force", "--json"] },
-        { name: "uninstall [...ids]", description: "Remove installed skills", options: ["--project", "--confirm", "--json"] },
-        { name: "installed", description: "List installed skills", options: ["--personal", "--project", "--json"] },
-        { name: "update", description: "Update installed skills", options: ["--personal", "--project", "--dry-run", "--diff", "--force", "--json"] },
-        { name: "skills [action]", description: "Manage skills marketplace (premium)", options: ["--tool", "--category", "--mine", "--search", "--limit", "--force", "--stdout", "--output", "--name", "--description", "--json"] },
+        { name: "export [...ids]", description: "Export as markdown", options: ["--format", "--all", "--stdout", "--json"] },
       ],
       bundles: [
         { name: "bundles", description: "List available bundles", options: ["--json"] },
@@ -91,7 +84,7 @@ function getHelpData() {
       { command: "jfp list --category ideation", description: "List all ideation prompts" },
       { command: "jfp search 'readme documentation'", description: "Search for documentation prompts" },
       { command: "jfp show idea-wizard --raw", description: "Show raw prompt content" },
-      { command: "jfp install idea-wizard readme-reviser", description: "Install multiple prompts as skills" },
+      { command: "jfp export idea-wizard --format md", description: "Export a prompt as markdown" },
       { command: "jfp completion --shell zsh", description: "Generate zsh completion script" },
       { command: "jfp render my-prompt --VAR=value", description: "Render prompt with variable substitution" },
       { command: "jfp list --json | jq -r '.prompts[].id'", description: "Get all prompt IDs with jq" },
@@ -136,16 +129,7 @@ JeffreysPrompts CLI v${version}
   sections.push(chalk.yellow("  Copying & Exporting"));
   sections.push(formatCommand("copy <id>", "Copy prompt to clipboard"));
   sections.push(formatCommand("render <id>", "Render prompt with variables"));
-  sections.push(formatCommand("export [...ids]", "Export as SKILL.md or markdown"));
-  sections.push("");
-
-  // Installing Skills
-  sections.push(chalk.yellow("  Installing Skills"));
-  sections.push(formatCommand("install [...ids]", "Install prompts as skills"));
-  sections.push(formatCommand("uninstall [...ids]", "Remove installed skills"));
-  sections.push(formatCommand("installed", "List installed skills"));
-  sections.push(formatCommand("update", "Update installed skills"));
-  sections.push(formatCommand("skills [action]", "Manage skills marketplace"));
+  sections.push(formatCommand("export [...ids]", "Export as markdown"));
   sections.push("");
 
   // Bundles
@@ -185,7 +169,7 @@ JeffreysPrompts CLI v${version}
   sections.push(chalk.bold.white("EXAMPLES\n"));
   sections.push(formatExample("jfp list --category ideation --json", "List ideation prompts as JSON"));
   sections.push(formatExample("jfp search 'readme' --limit 5", "Search with limit"));
-  sections.push(formatExample("jfp install idea-wizard readme-reviser", "Install multiple prompts"));
+  sections.push(formatExample("jfp export idea-wizard --format md", "Export a prompt as markdown"));
   sections.push(formatExample("jfp completion --shell zsh", "Generate zsh completion script"));
   sections.push(formatExample("jfp render my-prompt --VAR=value", "Render with variables"));
   sections.push(formatExample("jfp copy idea-wizard --fill", "Copy with interactive variable fill"));

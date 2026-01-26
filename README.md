@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="illustration.webp" alt="JeffreysPrompts.com - A friendly robot shopping for prompts in a cozy prompt shop, with shelves of labeled prompt scrolls and a terminal showing 'jfp install idea-wizard'">
+<img src="illustration.webp" alt="JeffreysPrompts.com - A friendly robot shopping for prompts in a cozy prompt shop, with shelves of labeled prompt scrolls and a terminal showing 'jfp export idea-wizard'">
 
 # JeffreysPrompts.com
 
@@ -19,36 +19,33 @@
 
 ---
 
-**Browse. Copy. Install as Claude Code skills. Ship faster.**
+**Browse. Copy. Export markdown. Ship faster.**
 
 </div>
 
 ## What is JeffreysPrompts.com?
 
-JeffreysPrompts.com is a platform for discovering, copying, and installing curated prompts that supercharge your work with AI coding agents like Claude Code, Codex CLI, and Gemini CLI.
+JeffreysPrompts.com is a platform for discovering, copying, and exporting curated prompts that supercharge your work with AI coding agents like Claude Code, Codex CLI, and Gemini CLI.
 
-It's three things in one:
+It's two things in one:
 
 | Component | Purpose |
 |-----------|---------|
 | **Web App** | Beautiful UI to browse, search, filter, and copy prompts |
 | **CLI Tool (`jfp`)** | Agent-optimized command-line interface with JSON output |
-| **Claude Code Skills** | One-click installation of prompts as reusable Claude Code skills |
+
+Claude Code skills are managed separately in **Jeffrey's Skills.md** (`jsm`). JFP focuses on prompts and markdown export.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
-│   YOU                    jeffreysprompts.com                   CLAUDE   │
+│   YOU                    jeffreysprompts.com                   AGENT    │
 │    │                            │                                  │    │
 │    ├─── Browse prompts ────────►│                                  │    │
 │    │                            │                                  │    │
-│    ├─── Copy to clipboard ─────►│                                  │    │
-│    │                            │                                  │    │
-│    ├─── Install as skill ──────►│────── jfp install ──────────────►│    │
-│    │                            │                                  │    │
-│    │                            │       ~/.config/claude/skills/   │    │
-│    │                            │              │                   │    │
-│    │◄───── Agent uses skill ────│◄─────────────┘                   │    │
+│    ├─── Copy/export ───────────►│────── jfp export ───────────────►│    │
+│    │                            │            prompt.md             │    │
+│    │◄───── Agent uses prompt ───│◄─────────────────────────────────│    │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -86,11 +83,9 @@ Builds what the agent would want to use, because it WILL be using it. JSON outpu
 - [Quick Start](#quick-start)
   - [Web App](#web-app)
   - [CLI Tool](#cli-tool)
-  - [Claude Code Skills](#claude-code-skills)
 - [Features](#features)
   - [Web App Features](#web-app-features)
   - [CLI Features](#cli-features)
-  - [Skills Integration](#skills-integration)
 - [The jfp CLI](#the-jfp-cli)
   - [Installation](#cli-installation)
   - [Commands](#cli-commands)
@@ -118,7 +113,7 @@ Visit **[jeffreysprompts.com](https://jeffreysprompts.com)** to:
 1. Browse all prompts with search and filtering
 2. Click any prompt to copy it to your clipboard
 3. Add prompts to your basket for bulk export
-4. Download as markdown or Claude Code skills
+4. Download as markdown
 
 ### CLI Tool
 
@@ -145,26 +140,9 @@ jfp copy idea-wizard
 jfp i
 ```
 
-### Claude Code Skills
+### Skills (JSM)
 
-Install prompts directly as Claude Code skills:
-
-```bash
-# Install a single skill
-jfp install idea-wizard
-
-# Install all skills
-jfp install --all
-
-```
-
-Or use curl for bulk install:
-
-```bash
-curl -fsSL "https://jeffreysprompts.com/install.sh?$(date +%s)" | bash
-```
-
-Once installed, Claude Code automatically loads these skills and can invoke them by name.
+Claude Code skills are managed in **Jeffrey's Skills.md** (`jsm`). Use JFP for prompts and markdown export; use JSM for skills management.
 
 ---
 
@@ -181,7 +159,7 @@ Once installed, Claude Code automatically loads these skills and can invoke them
 | **Tag Filters** | Multi-select tags for precise filtering |
 | **Dark Mode** | Automatic theme detection with manual toggle |
 | **Mobile Optimized** | Touch-friendly UI with bottom sheets |
-| **Skills Export** | Download prompts as Claude Code SKILL.md files |
+| **Markdown Export** | Download prompts as .md files |
 
 ### CLI Features
 
@@ -193,16 +171,6 @@ Once installed, Claude Code automatically loads these skills and can invoke them
 | **TTY Detection** | Auto-switches to JSON when piped |
 | **Single Binary** | Bun-compiled, no runtime dependencies |
 | **Cross-Platform** | Linux, macOS, Windows builds |
-
-### Skills Integration
-
-| Feature | Description |
-|---------|-------------|
-| **One-Click Install** | Web UI generates terminal commands |
-| **Bulk Install** | `jfp install --all` or curl pipe to bash |
-| **Personal vs Project** | Install to `~/.config/claude/skills/` or `.claude/skills/` |
-| **Auto-Update** | `jfp update` refreshes all installed skills |
-| **Progressive Loading** | Skills load on-demand, not at startup |
 
 ---
 
@@ -253,16 +221,8 @@ jfp show idea-wizard --raw    # Just the prompt text
 
 jfp copy <id>                 # Copy to clipboard
 
-jfp export <id>               # Export as SKILL.md
-jfp export <id> --format md   # Export as markdown
-
-jfp install <id>...           # Install as Claude Code skills
-jfp install --all             # Install all skills
-jfp install --project         # Install to .claude/skills
-
-jfp uninstall <id>...         # Remove installed skills
-jfp installed                 # List installed skills
-jfp update                    # Update all installed skills
+jfp export <id>               # Export as markdown
+jfp export <id> --format md   # Export as markdown (explicit)
 
 jfp i                         # Interactive browser (fzf-style)
 
@@ -304,9 +264,9 @@ echo $results | jq '.results[0].id'
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Not found (prompt, skill) |
+| 1 | Not found (prompt) |
 | 2 | Invalid arguments |
-| 3 | Installation failed |
+| 3 | Export failed |
 | 4 | Network error |
 | 5 | Permission denied |
 
@@ -318,7 +278,7 @@ QUICK START:
   jfp list                    List all prompts
   jfp search "idea"           Fuzzy search
   jfp show idea-wizard        View full prompt
-  jfp install idea-wizard     Install as Claude Code skill
+  jfp export idea-wizard      Export as markdown
 
 ADD --json TO ANY COMMAND FOR MACHINE-READABLE OUTPUT
 
@@ -389,10 +349,10 @@ jeffreysprompts.com/
 ├── jfp.test.ts                    # CLI tests
 │
 ├── .claude/
-│   └── skills/
-│       ├── prompt-formatter/      # Skill: raw text → TypeScript
+│   └── skills/                    # Internal authoring helpers (not shipped)
+│       ├── prompt-formatter/
 │       │   └── SKILL.md
-│       └── skill-maker/           # Meta-skill: prompts → SKILL.md
+│       └── skill-maker/
 │           └── SKILL.md
 │
 ├── apps/
@@ -403,7 +363,7 @@ jeffreysprompts.com/
 │       │   └── lib/
 │       │       ├── prompts/       # Prompt types & registry
 │       │       ├── search/        # MiniSearch engine
-│       │       ├── export/        # Skills & markdown export
+│       │       ├── export/        # Markdown export
 │       │       └── transcript/    # Making-of page processing
 │       └── package.json
 │
@@ -502,14 +462,13 @@ The primary action is copying prompts:
 - One-click with visual feedback
 - Bulk export for collections
 
-### 3. Skills Are First-Class
+### 3. Prompts First, Skills Elsewhere
 
-Claude Code skills are not an afterthought:
+JFP is for prompt discovery, copying, and markdown export:
 
-- One-click install from web UI
-- CLI `install` command with `--all` flag
-- Bulk install via `curl | bash`
-- Update mechanism for keeping skills current
+- Clean, shareable markdown export
+- Clear boundary: prompts in JFP, skills in JSM
+- Agent-friendly CLI output
 
 ### 4. TypeScript-Native Data
 

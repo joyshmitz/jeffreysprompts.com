@@ -14,13 +14,9 @@ if (
 import { listCommand } from "./commands/list";
 import { searchCommand } from "./commands/search";
 import { showCommand } from "./commands/show";
-import { installCommand } from "./commands/install";
-import { uninstallCommand } from "./commands/uninstall";
 import { exportCommand } from "./commands/export";
 import { renderCommand } from "./commands/render";
 import { copyCommand } from "./commands/copy";
-import { installedCommand } from "./commands/installed";
-import { updateCommand } from "./commands/update";
 import { suggestCommand } from "./commands/suggest";
 import { interactiveCommand } from "./commands/interactive";
 import { bundlesCommand, bundleShowCommand } from "./commands/bundles";
@@ -56,14 +52,15 @@ import {
   collectionAddCommand,
   exportCollectionCommand,
 } from "./commands/collections";
-import {
-  skillsListCommand,
-  skillsInstallCommand,
-  skillsExportCommand,
-  skillsCreateCommand,
-} from "./commands/skills";
 
 export const cli = cac("jfp");
+const deprecatedSkillCommands = new Set([
+  "install",
+  "uninstall",
+  "installed",
+  "update",
+  "skills",
+]);
 
 // Global options (applied to all commands)
 cli.option("--no-color", "Disable colored output");
@@ -94,24 +91,8 @@ cli
   .action(showCommand);
 
 cli
-  .command("install [...ids]", "Install prompts as Claude Code skills")
-  .option("--project", "Install to current project (.claude/skills)")
-  .option("--all", "Install all prompts")
-  .option("--bundle <id>", "Install a bundle as a combined skill")
-  .option("--force", "Overwrite skills even if user modified them")
-  .option("--json", "Output JSON")
-  .action(installCommand);
-
-cli
-  .command("uninstall [...ids]", "Remove installed Claude Code skills")
-  .option("--project", "Remove from current project (.claude/skills)")
-  .option("--confirm", "Confirm removal (required in non-interactive mode)")
-  .option("--json", "Output JSON")
-  .action(uninstallCommand);
-
-cli
   .command("export [...ids]", "Export prompts to files")
-  .option("--format <format>", "Format: skill or md (default: skill)")
+  .option("--format <format>", "Format: md (default: md)")
   .option("--output-dir <dir>", "Directory to write exported files (default: current directory)")
   .option("--all", "Export all prompts")
   .option("--stdout", "Print to stdout")
@@ -133,22 +114,6 @@ cli
   .option("--json", "Output JSON")
   .action(copyCommand);
 
-cli
-  .command("installed", "List installed Claude Code skills")
-  .option("--personal", "Only show personal skills (~/.config/claude/skills)")
-  .option("--project", "Only show project skills (.claude/skills)")
-  .option("--json", "Output JSON")
-  .action(installedCommand);
-
-cli
-  .command("update", "Update all installed skills to latest versions")
-  .option("--personal", "Only update personal skills (~/.config/claude/skills)")
-  .option("--project", "Only update project skills (.claude/skills)")
-  .option("--dry-run", "Show what would be updated without making changes")
-  .option("--diff", "Show diff of changes (with --dry-run)")
-  .option("--force", "Overwrite even if user modified skills")
-  .option("--json", "Output JSON")
-  .action(updateCommand);
 
 cli
   .command("suggest <task>", "Suggest prompts for a task")
@@ -218,7 +183,7 @@ cli
   .command("collections [action] [name] [promptId]", "Manage user collections (premium)")
   .option("--add <prompt-id>", "Add prompt to collection (legacy)")
   .option("--export", "Export collection prompts to files")
-  .option("--format <format>", "Format: skill or md (default: skill)")
+  .option("--format <format>", "Format: md (default: md)")
   .option("--stdout", "Print exported content to stdout")
   .option("--description <text>", "Description for new collection")
   .option("--json", "Output JSON")
@@ -268,90 +233,6 @@ cli
           return exportCollectionCommand(action, options);
         }
         return collectionShowCommand(action, options);
-    }
-  });
-
-cli
-  .command("skills [action] [id]", "Skills marketplace (premium)")
-  .option("--tool <tool>", "Filter by tool (e.g., claude-code, cursor)")
-  .option("--category <category>", "Filter by category")
-  .option("--mine", "Show only your skills")
-  .option("--search <query>", "Search skills by name or description")
-  .option("--limit <n>", "Max results (default: 20)")
-  .option("--force", "Force install even if already installed")
-  .option("--stdout", "Output to stdout instead of file")
-  .option("--output <path>", "Output file or directory path")
-  .option("--name <name>", "Name for new skill (with create)")
-  .option("--description <text>", "Description for new skill (with create)")
-  .option("--json", "Output JSON")
-  .action((
-    action: string | undefined,
-    id: string | undefined,
-    options: {
-      tool?: string;
-      category?: string;
-      mine?: boolean;
-      search?: string;
-      limit?: number;
-      force?: boolean;
-      stdout?: boolean;
-      output?: string;
-      name?: string;
-      description?: string;
-      json?: boolean;
-    }
-  ) => {
-    const outputError = (code: string, message: string) => {
-      if (options.json) {
-        console.log(JSON.stringify({ error: true, code, message }));
-      } else {
-        console.error(message);
-      }
-      process.exit(1);
-    };
-
-    // Default action is list
-    if (!action || action === "list") {
-      return skillsListCommand({
-        tool: options.tool,
-        category: options.category,
-        mine: options.mine,
-        search: options.search,
-        limit: options.limit,
-        json: options.json,
-      });
-    }
-
-    switch (action) {
-      case "install":
-        if (!id) {
-          outputError("missing_argument", "Usage: jfp skills install <id>");
-          return;
-        }
-        return skillsInstallCommand(id, { json: options.json, force: options.force });
-      case "export":
-        if (!id) {
-          outputError("missing_argument", "Usage: jfp skills export <id>");
-          return;
-        }
-        return skillsExportCommand(id, {
-          json: options.json,
-          stdout: options.stdout,
-          output: options.output,
-        });
-      case "create":
-        return skillsCreateCommand({
-          name: options.name ?? id,
-          description: options.description,
-          tool: options.tool,
-          output: options.output,
-          json: options.json,
-        });
-      default:
-        outputError(
-          "unknown_action",
-          `Unknown skills action: ${action}. Available: list, install, export, create`
-        );
     }
   });
 
@@ -456,6 +337,31 @@ cli
   .command("help", "Show comprehensive documentation")
   .option("--json", "Output JSON")
   .action(helpCommand);
+
+cli.on("command:*", (commands) => {
+  const command = commands[0];
+  if (!command) {
+    return;
+  }
+
+  if (deprecatedSkillCommands.has(command)) {
+    const message =
+      command === "install"
+        ? "This command moved to jsm. Run: jsm install <skill>"
+        : "Skill management moved to jsm. Run: jsm --help";
+    const wantsJson = process.argv.includes("--json") || !process.stdout.isTTY;
+    if (wantsJson) {
+      console.log(JSON.stringify({ error: true, code: "deprecated_command", message }));
+    } else {
+      console.error(message);
+    }
+    process.exit(1);
+  }
+
+  console.error(`Unknown command: ${command}`);
+  cli.outputHelp();
+  process.exit(1);
+});
 
 cli.help();
 cli.version(version);

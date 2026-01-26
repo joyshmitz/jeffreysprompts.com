@@ -1,9 +1,8 @@
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
 import chalk from "chalk";
-import { shouldOutputJson } from "../lib/utils";
+import { exitWithDeprecatedSkillCommand, shouldOutputJson } from "../lib/utils";
 import { loadRegistry } from "../lib/registry-loader";
 
 interface ExportOptions {
@@ -15,8 +14,15 @@ interface ExportOptions {
 }
 
 export async function exportCommand(ids: string[], options: ExportOptions) {
-  const format = options.format || "skill";
+  const format = options.format || "md";
   const outputDir = options.outputDir || process.cwd();
+
+  if (format === "skill") {
+    exitWithDeprecatedSkillCommand(
+      options,
+      "Skill export moved to jsm. Run: jsm --help"
+    );
+  }
   
   // Load registry dynamically (SWR pattern)
   const registry = await loadRegistry();
@@ -62,14 +68,13 @@ export async function exportCommand(ids: string[], options: ExportOptions) {
   const failed: { id: string; error: string }[] = [];
 
   for (const prompt of promptsToExport) {
-    const content = format === "skill" ? generateSkillMd(prompt) : generatePromptMarkdown(prompt);
+    const content = generatePromptMarkdown(prompt);
 
     if (options.stdout) {
       console.log(content);
       if (promptsToExport.length > 1) console.log("\n---\n");
     } else {
-      const ext = format === "skill" ? "-SKILL.md" : ".md";
-      const filename = join(outputDir, `${prompt.id}${ext}`);
+      const filename = join(outputDir, `${prompt.id}.md`);
       try {
         writeFileSync(filename, content);
         results.push({ id: prompt.id, file: filename });
