@@ -73,7 +73,19 @@ curl -s "https://pro.jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+
 vercel alias set $PROD_URL pro.jeffreysprompts.com
 ```
 
-### Verification Checklist
+### Automatic Protection (GitHub Action)
+
+A GitHub Action (`.github/workflows/sync-vercel-aliases.yml`) automatically syncs aliases:
+- Runs after every successful CI on main
+- Runs every 6 hours as a safety net
+- Checks CSS chunk alignment between domains
+- Re-aliases pro subdomain if they differ
+
+**One-time setup required:**
+1. Generate a Vercel token: https://vercel.com/account/tokens
+2. Add it as `VERCEL_TOKEN` secret in GitHub repo settings
+
+### Manual Verification Checklist
 
 After every deployment:
 - [ ] Main site loads correctly

@@ -1,0 +1,107 @@
+name: Sync Vercel Aliases
+
+# This workflow ensures all production subdomains point to the same deployment.
+# Without this, pro.jeffreysprompts.com can become stale and show broken CSS.
+
+on:
+  # Run after CI completes on main (gives Vercel time to deploy)
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+  # Also allow manual trigger for emergency fixes
+  workflow_dispatch:
+
+  # Run on a schedule to catch any drift
+  schedule:
+    # Every 6 hours
+    - cron: '0 */6 * * *'
+
+jobs:
+  sync-aliases:
+    name: Sync Production Aliases
+    runs-on: ubuntu-latest
+    # Only run if CI succeeded (or manual/scheduled trigger)
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 5
+
+    steps:
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Wait for Vercel deployment
+        # Give Vercel time to complete the deployment after CI
+        if: github.event_name == 'workflow_run'
+        run: sleep 120
+
+      - name: Get production deployment URL
+        id: get-prod
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Get the current production deployment for jeffreysprompts.com
+          PROD_INFO=$(vercel inspect jeffreysprompts.com --token "$VERCEL_TOKEN" --scope dicklesworthstones-projects 2>&1 || true)
+          PROD_URL=$(echo "$PROD_INFO" | grep -oP 'url\s+https://\K[^\s]+' | head -1)
+
+          if [ -z "$PROD_URL" ]; then
+            echo "::error::Could not determine production URL"
+            exit 1
+          fi
+
+          echo "prod_url=$PROD_URL" >> "$GITHUB_OUTPUT"
+          echo "Production URL: $PROD_URL"
+
+      - name: Check CSS chunk alignment
+        id: check-css
+        run: |
+          # Get CSS chunks from both domains
+          MAIN_CSS=$(curl -s "https://jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u | head -5)
+          PRO_CSS=$(curl -s "https://pro.jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u | head -5)
+
+          echo "Main site CSS chunks:"
+          echo "$MAIN_CSS"
+          echo ""
+          echo "Pro site CSS chunks:"
+          echo "$PRO_CSS"
+
+          if [ "$MAIN_CSS" = "$PRO_CSS" ]; then
+            echo "aligned=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::CSS chunks are aligned - no action needed"
+          else
+            echo "aligned=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CSS chunks differ - will re-alias pro subdomain"
+          fi
+
+      - name: Sync pro subdomain alias
+        if: steps.check-css.outputs.aligned == 'false'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          PROD_URL="${{ steps.get-prod.outputs.prod_url }}"
+          echo "Aliasing $PROD_URL to pro.jeffreysprompts.com..."
+
+          vercel alias set "$PROD_URL" pro.jeffreysprompts.com \
+            --token "$VERCEL_TOKEN" \
+            --scope dicklesworthstones-projects
+
+          echo "::notice::Successfully synced pro.jeffreysprompts.com to $PROD_URL"
+
+      - name: Verify sync
+        if: steps.check-css.outputs.aligned == 'false'
+        run: |
+          # Wait for CDN propagation
+          sleep 10
+
+          # Verify CSS chunks now match
+          MAIN_CSS=$(curl -s "https://jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u | head -5)
+          PRO_CSS=$(curl -s "https://pro.jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u | head -5)
+
+          if [ "$MAIN_CSS" = "$PRO_CSS" ]; then
+            echo "::notice::Verification passed - CSS chunks now match"
+          else
+            echo "::error::Verification failed - CSS chunks still differ after alias update"
+            echo "Main: $MAIN_CSS"
+            echo "Pro: $PRO_CSS"
+            exit 1
+          fi
