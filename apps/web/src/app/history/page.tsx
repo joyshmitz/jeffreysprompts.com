@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { getPrompt } from "@jeffreysprompts/core/prompts";
-import { clearHistoryForUser, getOrCreateLocalUserId } from "@/lib/history/client";
+import { clearHistoryForUser, getOrCreateLocalUserId, listHistory } from "@/lib/history/client";
 import type { ViewHistoryEntry } from "@/lib/history/types";
 
 const LIMIT = 100;
@@ -35,15 +35,8 @@ export default function HistoryPage() {
     if (!userId) return;
 
     try {
-      const response = await fetch(
-        `/api/history?userId=${encodeURIComponent(userId)}&limit=${LIMIT}`,
-        { cache: "no-store" }
-      );
-      if (!response.ok) {
-        throw new Error("Failed to load history");
-      }
-      const payload = await response.json();
-      setItems(Array.isArray(payload.items) ? payload.items : []);
+      const historyItems = await listHistory(userId, { limit: LIMIT });
+      setItems(historyItems);
     } catch {
       setItems([]);
     } finally {
