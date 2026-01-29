@@ -215,8 +215,8 @@ enum Commands {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    // Handle no-color globally
-    let no_color = cli.no_color || std::env::var("JFP_NO_COLOR").is_ok() || std::env::var("NO_COLOR").is_ok();
+    // Handle no-color globally (will be used when color output is implemented)
+    let _no_color = cli.no_color || std::env::var("JFP_NO_COLOR").is_ok() || std::env::var("NO_COLOR").is_ok();
 
     // Determine if JSON output should be used
     let use_json = cli.json || !std::io::stdout().is_terminal();

@@ -19,7 +19,13 @@ pub fn run(use_json: bool) -> ExitCode {
             "categories": categories,
             "count": categories.len()
         });
-        println!("{}", serde_json::to_string_pretty(&json).unwrap());
+        match serde_json::to_string_pretty(&json) {
+            Ok(output) => println!("{}", output),
+            Err(e) => {
+                eprintln!("{{\"error\": \"Failed to serialize: {}\"}}", e);
+                return ExitCode::FAILURE;
+            }
+        }
     } else {
         println!("Categories ({}):", categories.len());
         for cat in &categories {

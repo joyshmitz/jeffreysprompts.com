@@ -14,7 +14,13 @@ pub fn run(use_json: bool) -> ExitCode {
             "website": "https://jeffreysprompts.com",
             "repository": "https://github.com/Dicklesworthstone/jeffreysprompts.com"
         });
-        println!("{}", serde_json::to_string_pretty(&about).unwrap());
+        match serde_json::to_string_pretty(&about) {
+            Ok(json) => println!("{}", json),
+            Err(e) => {
+                eprintln!("{{\"error\": \"Failed to serialize: {}\"}}", e);
+                return ExitCode::FAILURE;
+            }
+        }
     } else {
         println!("jfp v{}", VERSION);
         println!();
