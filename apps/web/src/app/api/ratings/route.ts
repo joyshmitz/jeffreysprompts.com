@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const contentType = searchParams.get("contentType") ?? "";
   const contentId = searchParams.get("contentId") ?? "";
-  const userId = searchParams.get("userId") ?? "";
+  const userId = searchParams.get("userId")?.trim() ?? "";
 
   if (!contentType || !contentId) {
     return NextResponse.json({ error: "contentType and contentId are required." }, { status: 400 });
