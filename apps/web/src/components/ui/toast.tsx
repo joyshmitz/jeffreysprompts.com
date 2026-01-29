@@ -447,6 +447,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Listen for event-based toasts (unification)
+  React.useEffect(() => {
+    const handleToast = (event: CustomEvent<Omit<Toast, "id">>) => {
+      addToast(event.detail);
+    };
+
+    window.addEventListener("toast" as string, handleToast as EventListener);
+    return () => {
+      window.removeEventListener("toast" as string, handleToast as EventListener);
+    };
+  }, [addToast]);
+
   const contextValue = React.useMemo(
     () => ({ toasts, addToast, removeToast, updateToast }),
     [toasts, addToast, removeToast, updateToast]

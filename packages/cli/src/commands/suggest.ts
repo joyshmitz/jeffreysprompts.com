@@ -43,6 +43,12 @@ export async function suggestCommand(task: string, options: SuggestOptions) {
     process.exit(1);
   }
 
+  // Clamp limit to prevent OOM/performance issues
+  const clampedLimit = Math.min(limit, 100);
+  if (limit > 100 && !shouldOutputJson(options)) {
+    console.warn(chalk.yellow(`Warning: Limit capped to 100 for performance.`));
+  }
+
   if (!task.trim()) {
     if (shouldOutputJson(options)) {
       console.log(JSON.stringify({ error: "empty_task", message: "Please provide a task description" }));
@@ -62,7 +68,7 @@ export async function suggestCommand(task: string, options: SuggestOptions) {
   const searchIndex = buildIndex(prompts);
 
   // Search using BM25 - get more results if semantic reranking will be applied
-  const searchLimit = options.semantic ? Math.max(limit * 3, 10) : limit;
+  const searchLimit = options.semantic ? Math.max(clampedLimit * 3, 10) : clampedLimit;
   let results = searchPrompts(task, { 
     limit: searchLimit,
     index: searchIndex,
@@ -105,10 +111,10 @@ export async function suggestCommand(task: string, options: SuggestOptions) {
         };
       })
       .filter((r): r is SearchResult => r !== null)
-      .slice(0, limit);
+      .slice(0, clampedLimit);
   } else {
     // Just trim to requested limit
-    results = results.slice(0, limit);
+    results = results.slice(0, clampedLimit);
   }
 
   if (shouldOutputJson(options)) {

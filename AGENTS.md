@@ -41,66 +41,27 @@ If that audit trail is missing, then you must act as if the operation never happ
 
 ---
 
-## CRITICAL: Vercel Subdomain Aliases
+## CRITICAL: Domain Ownership (Free vs Pro)
 
-**This project has multiple domains that MUST all point to the same production deployment:**
+**`jeffreysprompts.com` (this repo) is free/open-source.**  
+**`pro.jeffreysprompts.com` is premium and lives in the private repo (`jeffreysprompts-pro`).**
 
-| Domain | Purpose |
-|--------|---------|
-| `jeffreysprompts.com` | Main production site |
-| `pro.jeffreysprompts.com` | Pro/paid tier subdomain |
+### Hard Rule
+- **Never** alias `pro.jeffreysprompts.com` to this repo’s deployment.
+- **All pro-domain aliasing is managed in the premium repo only.**
 
-### The Problem That Must NEVER Happen Again
+### Why This Matters
+If this repo aliases the pro domain, the premium app disappears and Pro breaks.  
+This is the root cause of repeated “catastrophically broken CSS” incidents.
 
-On 2026-01-16, `pro.jeffreysprompts.com` was pointing to an **old deployment** (6 days stale) while the main site had newer CSS chunks. This caused CSS to completely break on the pro subdomain because the old deployment referenced non-existent CSS chunk hashes.
+### Workflow Note (This Repo)
+`.github/workflows/sync-vercel-aliases.yml` is **disabled** here by design.  
+Alias syncing now lives in the premium repo to prevent domain fights.
 
-### Mandatory Deployment Protocol
-
-**After ANY production deployment, you MUST verify ALL domains are updated:**
-
-```bash
-# 1. Deploy to production
-vercel --prod
-
-# 2. Get the new production URL
-PROD_URL=$(vercel ls --prod 2>/dev/null | head -1)
-
-# 3. Verify BOTH domains serve the same CSS chunks
-curl -s "https://jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u
-curl -s "https://pro.jeffreysprompts.com" | grep -oP '/_next/static/chunks/[^"]+\.css' | sort -u
-
-# 4. If they differ, re-alias the pro subdomain:
-vercel alias set $PROD_URL pro.jeffreysprompts.com
-```
-
-### Automatic Protection (GitHub Action)
-
-A GitHub Action (`.github/workflows/sync-vercel-aliases.yml`) automatically syncs aliases:
-- Runs after every successful CI on main
-- Runs every 6 hours as a safety net
-- Checks CSS chunk alignment between domains
-- Re-aliases pro subdomain if they differ
-- **Hard-fails if `VERCEL_TOKEN` is missing** (so drift never goes unnoticed)
-- **Verifies alias target alignment** (pro alias must point to the same deployment URL as the main site)
-- **Runs every 15 minutes** to aggressively correct drift
-
-**Critical drift source (must be eliminated):**
-If the **pro domain is attached to a separate Vercel project** (e.g. `jeffreysprompts-pro`), any deploy in that project can **reclaim the alias** and break CSS again.  
-**Fix:** Remove `pro.jeffreysprompts.com` from the pro project’s Vercel Domains, or disable automatic production aliasing there, so only the main project owns the pro subdomain.
-
-**One-time setup required:**
-1. Generate a Vercel token: https://vercel.com/account/tokens
-2. Add it as `VERCEL_TOKEN` secret in GitHub repo settings
-
-### Manual Verification Checklist
-
-After every deployment:
-- [ ] Main site loads correctly
-- [ ] Pro subdomain loads correctly
-- [ ] CSS chunk hashes match between domains
+### Manual Verification Checklist (Free Site Only)
+After any deployment of this repo:
+- [ ] `https://jeffreysprompts.com` loads correctly
 - [ ] No 404s on static assets
-
-**If CSS looks broken on any subdomain, the alias is stale. Fix it immediately.**
 
 ---
 

@@ -11,6 +11,9 @@ use std::process::ExitCode;
 mod cli;
 mod commands;
 mod config;
+mod registry;
+mod storage;
+mod types;
 
 /// jfp - Agent-optimized CLI for JeffreysPrompts.com
 ///
@@ -251,6 +254,9 @@ fn main() -> ExitCode {
         }
         Commands::About => {
             commands::about::run(use_json)
+        }
+        Commands::Random { category, tag, copy } => {
+            commands::random::run(category, tag, copy, use_json)
         }
         _ => {
             eprintln!("Command not yet implemented");

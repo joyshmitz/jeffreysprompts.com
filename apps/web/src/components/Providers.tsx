@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
 import { AlertTriangle } from "lucide-react";
 import { BasketProvider } from "@/contexts/basket-context";
-import { ToastProvider, Toaster } from "@/components/ui/toast";
+import { ToastProvider } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
@@ -167,7 +167,6 @@ export function Providers({ children }: ProvidersProps) {
             isRegistered={serviceWorker.isRegistered}
             hasUpdate={serviceWorker.hasUpdate}
           />
-          <Toaster />
           <FirstVisitWelcome
             show={isFirstVisit}
             onDismiss={completeFirstVisit}
