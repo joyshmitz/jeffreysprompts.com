@@ -57,7 +57,7 @@ This is the root cause of repeated “catastrophically broken CSS” incidents.
 ### Workflow Note (This Repo)
 `.github/workflows/sync-vercel-aliases.yml` is **disabled** here by design.  
 Alias syncing now lives in the premium repo to prevent domain fights.
-The premium repo workflow also verifies pro-domain CSS chunks and re-aliases if any are missing.
+The premium repo workflow also verifies pro-domain CSS chunks (minimum size guard), re-aliases on failure, and fails if CSS is still missing.
 
 ### Manual Verification Checklist (Free Site Only)
 After any deployment of this repo:
