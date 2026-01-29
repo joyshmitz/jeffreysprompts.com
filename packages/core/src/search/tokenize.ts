@@ -2,16 +2,10 @@
 // Tokenizer and stopwords for BM25 search
 
 // Common stopwords to exclude from search
+// Kept minimal because BM25's IDF naturally handles common words,
+// and many "stopwords" (it, do, for, while) are keywords in programming.
 const STOPWORDS = new Set([
-  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-  "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
-  "be", "have", "has", "had", "do", "does", "did", "will", "would", "could",
-  "should", "may", "might", "must", "shall", "can", "need", "dare", "ought",
-  "used", "it", "its", "this", "that", "these", "those", "i", "you", "he",
-  "she", "we", "they", "what", "which", "who", "whom", "whose", "where",
-  "when", "why", "how", "all", "each", "every", "both", "few", "more",
-  "most", "other", "some", "such", "no", "nor", "not", "only", "own",
-  "same", "so", "than", "too", "very", "just", "also", "now", "here",
+  "a", "an", "the", "and", "or", "but", "of", "is", "are", "was", "were", "be", "been",
 ]);
 
 // Single-letter words to preserve (e.g., programming languages)

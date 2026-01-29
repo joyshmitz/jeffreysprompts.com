@@ -39,8 +39,8 @@ export function buildIndex(prompts: Prompt[]): BM25Index {
       prompt.title, prompt.title, prompt.title,
       // Description gets 2x weight
       prompt.description, prompt.description,
-      // Tags get 1.5x weight
-      ...prompt.tags, ...prompt.tags.slice(0, Math.ceil(prompt.tags.length / 2)),
+      // Tags get 2x weight
+      ...prompt.tags, ...prompt.tags,
       // Content gets 1x weight
       prompt.content,
     ];
