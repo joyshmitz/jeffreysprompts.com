@@ -13,44 +13,37 @@ import {
   getSupportTicketsForEmail,
 } from "@/lib/support/ticket-store";
 import { checkContentForSpam } from "@/lib/moderation/spam-check";
+import { createRateLimiter, checkMultipleLimits } from "@/lib/rate-limit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_NAME_LENGTH = 80;
 const MAX_SUBJECT_LENGTH = 140;
 const MAX_MESSAGE_LENGTH = 2000;
-const MAX_TICKETS_PER_WINDOW = 5;
-const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-const ipBuckets = new Map<string, { count: number; resetAt: number }>();
-const emailBuckets = new Map<string, { count: number; resetAt: number }>();
+/**
+ * Rate limiters for support ticket creation.
+ *
+ * LIMITATION: These use in-memory storage which resets on Vercel deployments
+ * and serverless cold starts. This provides per-instance protection only.
+ * For stronger protection, configure Upstash Redis via environment variables.
+ *
+ * @see /src/lib/rate-limit/rate-limiter.ts for upgrade instructions
+ */
+const ipRateLimiter = createRateLimiter({
+  name: "support-ip",
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  maxRequests: 5,
+});
 
-function getClientKey(request: NextRequest) {
+const emailRateLimiter = createRateLimiter({
+  name: "support-email",
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  maxRequests: 5,
+});
+
+function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
-  const ip = forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
-  return ip;
-}
-
-function pruneBuckets(now: number) {
-  for (const [key, bucket] of ipBuckets) {
-    if (bucket.resetAt <= now) {
-      ipBuckets.delete(key);
-    }
-  }
-  for (const [key, bucket] of emailBuckets) {
-    if (bucket.resetAt <= now) {
-      emailBuckets.delete(key);
-    }
-  }
-}
-
-function getBucket(map: Map<string, { count: number; resetAt: number }>, key: string, now: number) {
-  const existing = map.get(key);
-  if (!existing || now > existing.resetAt) {
-    const bucket = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-    map.set(key, bucket);
-    return bucket;
-  }
-  return existing;
+  return forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
 }
 
 function normalizeText(value: string) {
@@ -58,9 +51,6 @@ function normalizeText(value: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const now = Date.now();
-  pruneBuckets(now);
-
   let payload: {
     name?: string;
     email?: string;
@@ -115,20 +105,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ipKey = getClientKey(request);
-  const ipBucket = getBucket(ipBuckets, ipKey, now);
-  ipBucket.count += 1;
+  const rateLimitResult = await checkMultipleLimits([
+    { limiter: ipRateLimiter, key: `ip:${getClientIp(request)}` },
+    { limiter: emailRateLimiter, key: `email:${email}` },
+  ]);
 
-  const emailBucket = getBucket(emailBuckets, email, now);
-  emailBucket.count += 1;
-
-  if (ipBucket.count > MAX_TICKETS_PER_WINDOW || emailBucket.count > MAX_TICKETS_PER_WINDOW) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((ipBucket.resetAt - now) / 1000));
+  if (!rateLimitResult.allowed) {
     return NextResponse.json(
       { error: "Support request limit reached. Please try again later." },
       {
         status: 429,
-        headers: { "Retry-After": retryAfterSeconds.toString() },
+        headers: { "Retry-After": rateLimitResult.retryAfterSeconds.toString() },
       }
     );
   }
