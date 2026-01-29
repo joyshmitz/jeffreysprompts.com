@@ -63,10 +63,15 @@ function touchLink(store: ShareLinkStore, linkId: string) {
   store.order = [linkId, ...store.order.filter((id) => id !== linkId)];
 }
 
+/**
+ * Generate a cryptographically secure link code.
+ * Uses randomBytes instead of Math.random() to prevent prediction attacks.
+ */
 function createLinkCode(): string {
+  const bytes = randomBytes(CODE_LENGTH);
   let code = "";
   for (let i = 0; i < CODE_LENGTH; i += 1) {
-    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    code += CODE_CHARS[bytes[i] % CODE_CHARS.length];
   }
   return code;
 }
@@ -144,7 +149,9 @@ export function createShareLink(input: {
     linkCode = createLinkCode();
     attempts += 1;
     if (attempts > MAX_CODE_ATTEMPTS) {
-      linkCode = `${createLinkCode()}${Math.floor(Math.random() * 10)}`.slice(0, CODE_LENGTH);
+      // Use cryptographically secure random for collision fallback
+      const extraByte = randomBytes(1)[0] % 10;
+      linkCode = `${createLinkCode()}${extraByte}`.slice(0, CODE_LENGTH);
     }
   }
 

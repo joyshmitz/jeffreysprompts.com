@@ -5,6 +5,8 @@
  * Uses in-memory storage pattern consistent with other stores.
  */
 
+import { randomBytes } from "crypto";
+
 export type ReferralStatus = "pending" | "converted" | "rewarded";
 
 export interface ReferralCode {
@@ -74,10 +76,15 @@ function getStore(): ReferralStore {
   return globalStore[STORE_KEY];
 }
 
+/**
+ * Generate a cryptographically secure referral code.
+ * Uses randomBytes instead of Math.random() for better security.
+ */
 function createReferralCode(): string {
+  const bytes = randomBytes(CODE_LENGTH);
   let code = "";
   for (let i = 0; i < CODE_LENGTH; i += 1) {
-    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    code += CODE_CHARS[bytes[i] % CODE_CHARS.length];
   }
   return code;
 }
@@ -103,8 +110,9 @@ export function getOrCreateReferralCode(userId: string): ReferralCode {
     code = createReferralCode();
     attempts += 1;
     if (attempts > MAX_CODE_ATTEMPTS) {
-      // Add extra randomness if collisions persist
-      code = `${createReferralCode()}${Math.floor(Math.random() * 10)}`.slice(0, CODE_LENGTH);
+      // Add cryptographically secure extra randomness if collisions persist
+      const extraByte = randomBytes(1)[0] % 10;
+      code = `${createReferralCode()}${extraByte}`.slice(0, CODE_LENGTH);
     }
   }
 

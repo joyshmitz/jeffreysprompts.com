@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { timingSafeEqual } from "crypto";
 
 export type AdminRole = "super_admin" | "admin" | "moderator" | "support";
 
@@ -65,6 +66,25 @@ function getTokenFromRequest(request: NextRequest): string | null {
   return request.headers.get("x-jfp-admin-token");
 }
 
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ * Returns true if strings are equal, false otherwise.
+ */
+function safeCompareTokens(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided, "utf8");
+  const expectedBuf = Buffer.from(expected, "utf8");
+
+  // If lengths differ, still do the comparison to maintain constant time
+  // but ensure we return false
+  if (providedBuf.length !== expectedBuf.length) {
+    // Compare against expected to prevent length-based timing leak
+    timingSafeEqual(expectedBuf, expectedBuf);
+    return false;
+  }
+
+  return timingSafeEqual(providedBuf, expectedBuf);
+}
+
 export function getAdminRoleFromHeaders(headers: HeaderAccessor): AdminRole {
   const raw = headers.get("x-jfp-admin-role");
   if (!raw) return "support";
@@ -129,7 +149,7 @@ export function checkAdminPermission(
   }
 
   const providedToken = getTokenFromRequest(request);
-  if (!providedToken || providedToken !== token) {
+  if (!providedToken || !safeCompareTokens(providedToken, token)) {
     return { ok: false, role, reason: "unauthorized" };
   }
 
