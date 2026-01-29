@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
-import { Providers } from "@/components/Providers";
-import { Nav } from "@/components/Nav";
-import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
 import { JsonLd, websiteJsonLd, softwareAppJsonLd } from "@/components/JsonLd";
-import { SkipLink } from "@/components/ui/skip-link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -85,17 +78,13 @@ export const metadata: Metadata = {
   category: "technology",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get locale and messages for i18n
-  const locale = await getLocale();
-  const messages = await getMessages();
-
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <JsonLd data={websiteJsonLd} />
         <JsonLd data={softwareAppJsonLd} />
@@ -103,17 +92,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextIntlClientProvider messages={messages}>
-          <Providers>
-            <SkipLink targetId="main-content" />
-            <Nav />
-            <main id="main-content" tabIndex={-1} className="min-h-screen pb-20 md:pb-0 focus:outline-none">
-              {children}
-            </main>
-            <Footer className="hidden md:block" />
-            <BottomNav />
-          </Providers>
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );
