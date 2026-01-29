@@ -267,6 +267,12 @@ fn main() -> ExitCode {
         Commands::Completion { shell } => {
             commands::completion::run(&shell, Cli::command())
         }
+        Commands::Config { action, key, value } => {
+            commands::config::run(&action, key, value, use_json)
+        }
+        Commands::Status => {
+            commands::status::run(use_json)
+        }
         _ => {
             eprintln!("Command not yet implemented");
             ExitCode::FAILURE
