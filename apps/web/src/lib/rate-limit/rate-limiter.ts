@@ -149,13 +149,26 @@ export function createRateLimiter(config: RateLimitConfig): RateLimiter {
 /**
  * Combine multiple rate limit checks. Returns the most restrictive result.
  * Useful for applying both IP and email-based limits.
+ *
+ * Note: All limiters are checked (and incremented) in parallel, even if one
+ * would deny. This is intentional - we want to track all attempts.
  */
 export async function checkMultipleLimits(
   checks: Array<{ limiter: RateLimiter; key: string }>
 ): Promise<RateLimitResult> {
+  if (checks.length === 0) {
+    // No limiters configured - allow everything
+    return {
+      allowed: true,
+      remaining: Infinity,
+      resetAt: Date.now(),
+      retryAfterSeconds: 0,
+    };
+  }
+
   const results = await Promise.all(checks.map(({ limiter, key }) => limiter.check(key)));
 
-  // Find the most restrictive result
+  // Find the most restrictive result (first denied, or fewest remaining)
   const denied = results.find((r) => !r.allowed);
   if (denied) return denied;
 
