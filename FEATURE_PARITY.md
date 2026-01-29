@@ -4,11 +4,11 @@ Status key: pending | wip | done | deferred
 
 | Area | Command / Feature | Status | Notes |
 | --- | --- | --- | --- |
-| Core | jfp (quick-start help) | pending | |
-| Core | help | pending | |
-| Core | list | pending | |
-| Core | search | pending | |
-| Core | show | pending | |
+| Core | jfp (quick-start help) | wip | Skeleton implemented, needs styled output |
+| Core | help | wip | Via clap derive, needs customization |
+| Core | list | wip | Command stubbed, needs registry integration |
+| Core | search | wip | Command stubbed, needs BM25 port |
+| Core | show | wip | Command stubbed, needs registry integration |
 | Core | copy | pending | |
 | Core | render | pending | |
 | Core | interactive (i) | pending | |
@@ -22,13 +22,13 @@ Status key: pending | wip | done | deferred
 | Skills | skills (list/install/export/create) | pending | |
 | Registry | status | pending | |
 | Registry | refresh | pending | |
-| Registry | categories | pending | |
-| Registry | tags | pending | |
+| Registry | categories | wip | Command stubbed with hardcoded list |
+| Registry | tags | wip | Command stubbed, needs registry integration |
 | Registry | random | pending | |
 | Registry | suggest | pending | |
 | Registry | open | pending | |
 | Registry | doctor | pending | |
-| Registry | about | pending | |
+| Registry | about | wip | Implemented with JSON/text output |
 | Registry | serve | pending | |
 | Auth | login | pending | |
 | Auth | logout | pending | |
