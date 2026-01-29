@@ -99,6 +99,11 @@ export function recordView(input: {
     if (!viewedMs) continue;
     if (nowMs - viewedMs > DEDUPE_WINDOW_MS) break;
     if (isDuplicateEntry(entry, input)) {
+      entry.viewedAt = nowIso;
+      if (input.source !== undefined) entry.source = input.source ?? null;
+      if (typeof input.duration === "number") entry.duration = input.duration;
+      store.entries.set(entry.id, entry);
+      touchEntry(store, input.userId, entry.id);
       return entry;
     }
   }

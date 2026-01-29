@@ -8,6 +8,8 @@ import {
   verifyPassword,
 } from "@/lib/share-links/share-link-store";
 
+const MAX_PASSWORD_LENGTH = 64;
+
 function getClientIp(request: NextRequest): string | null {
   const forwardedFor = request.headers.get("x-forwarded-for");
   return forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
@@ -60,6 +62,13 @@ export async function POST(
   }
 
   const password = payload.password?.trim() ?? "";
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: `Password must be ${MAX_PASSWORD_LENGTH} characters or fewer.` },
+      { status: 400 }
+    );
+  }
 
   if (!link.passwordHash) {
     return NextResponse.json({ error: "This share link is not password protected." }, { status: 400 });

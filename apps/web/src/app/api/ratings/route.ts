@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid content id." }, { status: 400 });
   }
 
+  if (userId && userId.length > MAX_USER_ID_LENGTH) {
+    return NextResponse.json({ error: "Invalid user id." }, { status: 400 });
+  }
+
   const summary = getRatingSummary({ contentType, contentId });
   const userRating = userId ? getUserRating({ contentType, contentId, userId }) : null;
 
