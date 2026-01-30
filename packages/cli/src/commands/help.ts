@@ -38,6 +38,8 @@ function getHelpData() {
     version,
     description: "JeffreysPrompts CLI - A curated collection of AI prompts",
     documentation: "https://jeffreysprompts.com/docs",
+    premium_notice:
+      "Premium commands require an active Pro subscription ($10/month): https://pro.jeffreysprompts.com/pricing",
     commands: {
       listing_searching: [
         { name: "list", description: "List all prompts", options: ["--category", "--tag", "--mine", "--saved", "--json"] },
@@ -146,6 +148,11 @@ JeffreysPrompts CLI v${version}
 
   // Premium
   sections.push(chalk.yellow("  Premium"));
+  sections.push(
+    chalk.dim(
+      "    Premium commands require an active Pro subscription ($10/month): https://pro.jeffreysprompts.com/pricing"
+    )
+  );
   sections.push(formatCommand("login", "Sign in to JeffreysPrompts Premium"));
   sections.push(formatCommand("logout", "Sign out from JeffreysPrompts Premium"));
   sections.push(formatCommand("whoami", "Show current logged-in user"));

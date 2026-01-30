@@ -9,6 +9,11 @@ The CLI provides a bridge between the free prompt registry and premium features:
 - **Free Tier**: Full access to the public prompt registry, install prompts as Claude Code skills
 - **Premium Tier**: Personal library, collections, skills marketplace, sync for offline access
 
+Premium features require an active Pro subscription (**$10/month**) at:
+https://pro.jeffreysprompts.com/pricing
+
+The `jfp` CLI itself is open source and free for the public prompt registry.
+
 ## Authentication Flow
 
 ### Local Browser-Based Login (Default)
