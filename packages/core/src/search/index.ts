@@ -32,3 +32,11 @@ export {
   resetModelState,
 } from "./semantic";
 export type { RankedResult, SemanticOptions } from "./semantic";
+
+// Recommendations
+export {
+  getRelatedRecommendations,
+  getRecommendationsFromHistory,
+  getForYouRecommendations,
+} from "./recommendations";
+export type { RecommendationResult } from "./recommendations";

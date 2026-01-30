@@ -14,7 +14,7 @@ import { PromptDetailModal } from "@/components/PromptDetailModal";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useFilterState } from "@/hooks/useFilterState";
-import { FeaturedPromptsSection } from "@/components/landing";
+import { FeaturedPromptsSection, ForYouPromptsSection } from "@/components/landing";
 import { RecentlyViewedSidebar } from "@/components/history/RecentlyViewedSidebar";
 import { AnimatedSection } from "@/components/AnimatedSection";
 import { trackEvent } from "@/lib/analytics";
@@ -204,6 +204,12 @@ function HomeContent() {
       <FeaturedPromptsSection
         prompts={featuredPrompts}
         totalCount={prompts.length}
+        onPromptClick={handlePromptClick}
+      />
+
+      {/* For You Section */}
+      <ForYouPromptsSection
+        prompts={prompts}
         onPromptClick={handlePromptClick}
       />
 

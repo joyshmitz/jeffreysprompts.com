@@ -18,6 +18,7 @@ import { exportCommand } from "./commands/export";
 import { renderCommand } from "./commands/render";
 import { copyCommand } from "./commands/copy";
 import { suggestCommand } from "./commands/suggest";
+import { recommendCommand } from "./commands/recommend";
 import { interactiveCommand } from "./commands/interactive";
 import { bundlesCommand, bundleShowCommand } from "./commands/bundles";
 import { statusCommand, refreshCommand } from "./commands/registry";
@@ -39,6 +40,7 @@ import { notesCommand } from "./commands/notes";
 import { saveCommand } from "./commands/save";
 import { syncCommand } from "./commands/sync";
 import { premiumPacksCommand } from "./commands/premium-packs";
+import { recommendCommand } from "./commands/recommend";
 import {
   configListCommand,
   configGetCommand,
@@ -146,6 +148,20 @@ cli
   .option("--limit <n>", "Max suggestions (default: 3)")
   .option("--semantic", "Enable semantic reranking (downloads MiniLM on first use)")
   .action(suggestCommand);
+
+cli
+  .command("recommend [id]", "Get personalized prompt recommendations")
+  .option("--limit <n>", "Max recommendations (default: 5)")
+  .option("--json", "Output JSON")
+  .action(recommendCommand);
+
+cli
+  .command("recommend [id]", "Personalized recommendations (Premium)")
+  .option("--limit <n>", "Max recommendations (default: 5)")
+  .option("--json", "Output JSON")
+  .action((id: string | undefined, options: { limit?: string; json?: boolean }) =>
+    recommendCommand(id, options)
+  );
 
 cli
   .command("bundles", "List all prompt bundles")

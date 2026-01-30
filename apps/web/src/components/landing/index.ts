@@ -4,3 +4,4 @@ export { TestimonialsSection } from "./TestimonialsSection";
 export { PricingPreviewSection } from "./PricingPreviewSection";
 export { FinalCtaSection } from "./FinalCtaSection";
 export { FeaturedPromptsSection } from "./FeaturedPromptsSection";
+export { ForYouPromptsSection } from "./ForYouPromptsSection";

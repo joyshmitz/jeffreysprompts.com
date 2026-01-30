@@ -33,6 +33,7 @@ COMMANDS:
   list           List all prompts
   show <id>      Show a specific prompt by ID
   search <query> Search prompts
+  recommend      Get prompt recommendations
   categories     List all categories
   export         Export prompts to files
   i              Interactive browser
@@ -77,6 +78,18 @@ jfp list --category debugging
 
 # List with JSON output
 jfp list --json`}</pre>
+
+        <h2>Recommendations</h2>
+        <p>
+          Use <code>recommend</code> to discover prompts you may like. If you have synced
+          your saved prompts, the results are personalized; otherwise you&apos;ll see featured
+          prompts.
+        </p>
+        <pre>{`# Personalized recommendations (uses saved prompts when available)
+jfp recommend
+
+# Related recommendations for a specific prompt
+jfp recommend idea-wizard`}</pre>
 
         <h2>Getting a specific prompt</h2>
         <p>

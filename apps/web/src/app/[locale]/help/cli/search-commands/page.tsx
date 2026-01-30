@@ -83,6 +83,20 @@ jfp search "debugging" --limit 5
 # Show first result only
 jfp search "debugging" --limit 1`}</pre>
 
+        <h2>Recommendations</h2>
+        <p>
+          Use <code>recommend</code> to discover prompts based on your saved library or to get
+          related suggestions for a specific prompt.
+        </p>
+        <pre>{`# Personalized recommendations (uses saved prompts when available)
+jfp recommend
+
+# Related prompts for a specific ID
+jfp recommend idea-wizard
+
+# JSON output
+jfp recommend --json`}</pre>
+
         <h2>JSON output for scripting</h2>
         <p>
           Use <code>--json</code> for programmatic access:

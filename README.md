@@ -190,6 +190,7 @@ If you are not subscribed, Pro commands still exist but will return a clear upgr
 **Premium (paid Pro required):**
 - `jfp login`, `jfp logout`, `jfp whoami`
 - `jfp save`, `jfp notes`, `jfp collections`, `jfp sync`
+- `jfp recommend`
 - `jfp list --mine`, `jfp search --mine`, `jfp list --saved`, `jfp search --saved`, `jfp search --all`
 
 **Build (free):**
@@ -243,6 +244,9 @@ jfp search "robot" --json     # JSON output
 jfp show <id>                 # Show full prompt
 jfp show idea-wizard --json   # JSON output
 jfp show idea-wizard --raw    # Just the prompt text
+
+jfp recommend                 # Personalized recommendations (Pro)
+jfp recommend idea-wizard     # Related prompts (Pro)
 
 jfp copy <id>                 # Copy to clipboard
 
