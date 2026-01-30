@@ -1,0 +1,371 @@
+import chalk from "chalk";
+import boxen from "boxen";
+import Table from "cli-table3";
+import { apiClient, isAuthError, isNotFoundError, requiresPremium } from "../lib/api-client";
+import { getCurrentUser, isLoggedIn } from "../lib/credentials";
+import { shouldOutputJson } from "../lib/utils";
+
+interface PackCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string | null;
+  color?: string | null;
+}
+
+interface PremiumPackSummary {
+  id: string;
+  title: string;
+  description?: string | null;
+  coverImage?: string | null;
+  version?: string | null;
+  installCount?: number | null;
+  promptCount: number;
+  isInstalled: boolean;
+  installedAt?: string | null;
+  publishedAt?: string | null;
+  category?: PackCategory | null;
+}
+
+interface PremiumPackDetail extends PremiumPackSummary {
+  changelog?: string | null;
+  prompts: Array<{
+    id: string;
+    title: string;
+    description?: string | null;
+    content?: string | null;
+    version?: string | null;
+    accessLevel?: string | null;
+    position?: number;
+  }>;
+}
+
+interface PacksListResponse {
+  packs: PremiumPackSummary[];
+  installedOnly: boolean;
+}
+
+interface PackDetailResponse {
+  pack: PremiumPackDetail;
+}
+
+interface PackInstallResponse {
+  installed: boolean;
+  alreadyInstalled?: boolean;
+  packId: string;
+  installedAt?: string | null;
+}
+
+interface PackUninstallResponse {
+  uninstalled: boolean;
+  removed: boolean;
+  packId: string;
+}
+
+export interface PacksOptions {
+  json?: boolean;
+  installed?: boolean;
+  tool?: string;
+}
+
+function writeJson(payload: Record<string, unknown>): void {
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+function writeJsonError(code: string, message: string, extra: Record<string, unknown> = {}): void {
+  writeJson({ error: true, code, message, ...extra });
+}
+
+async function requirePremiumAccess(options: PacksOptions): Promise<void> {
+  const loggedIn = await isLoggedIn();
+  if (!loggedIn) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("not_authenticated", "You must be logged in to manage premium packs", {
+        hint: "Run 'jfp login' to sign in",
+      });
+    } else {
+      console.log(chalk.yellow("You must be logged in to manage premium packs"));
+      console.log(chalk.dim("Run 'jfp login' to sign in"));
+    }
+    process.exit(1);
+  }
+
+  const user = await getCurrentUser();
+  if (user && user.tier !== "premium") {
+    if (shouldOutputJson(options)) {
+      writeJsonError("premium_required", "Premium packs require a Pro subscription", {
+        tier: user.tier,
+      });
+    } else {
+      console.log(chalk.yellow("Premium packs require a Pro subscription"));
+      console.log(chalk.dim("Upgrade at https://pro.jeffreysprompts.com/pricing"));
+    }
+    process.exit(1);
+  }
+}
+
+function handleApiError(
+  response: { status: number; error?: string },
+  options: PacksOptions,
+  fallbackMessage: string
+): void {
+  if (isAuthError(response)) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("not_authenticated", "Session expired. Please run 'jfp login' again.");
+    } else {
+      console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
+    }
+    process.exit(1);
+  }
+
+  if (requiresPremium(response)) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("premium_required", "Premium packs require a Pro subscription");
+    } else {
+      console.log(chalk.yellow("Premium packs require a Pro subscription"));
+      console.log(chalk.dim("Upgrade at https://pro.jeffreysprompts.com/pricing"));
+    }
+    process.exit(1);
+  }
+
+  if (isNotFoundError(response)) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("not_found", "Pack not found");
+    } else {
+      console.log(chalk.red("Pack not found"));
+    }
+    process.exit(1);
+  }
+
+  if (shouldOutputJson(options)) {
+    writeJsonError("api_error", response.error || fallbackMessage);
+  } else {
+    console.log(chalk.red(response.error || fallbackMessage));
+  }
+  process.exit(1);
+}
+
+async function listPremiumPacks(options: PacksOptions): Promise<void> {
+  await requirePremiumAccess(options);
+
+  const params = new URLSearchParams();
+  if (options.installed) {
+    params.set("installed", "true");
+  }
+
+  const endpoint = `/cli/premium-packs${params.toString() ? `?${params}` : ""}`;
+  const response = await apiClient.get<PacksListResponse>(endpoint);
+
+  if (!response.ok) {
+    handleApiError(response, options, "Failed to load premium packs");
+    return;
+  }
+
+  const packs = response.data?.packs ?? [];
+
+  if (shouldOutputJson(options)) {
+    writeJson({
+      packs,
+      count: packs.length,
+      installedOnly: options.installed ?? false,
+    });
+    return;
+  }
+
+  if (packs.length === 0) {
+    console.log(
+      chalk.yellow(options.installed ? "No installed premium packs yet." : "No premium packs found.")
+    );
+    return;
+  }
+
+  const table = new Table({
+    head: ["ID", "Title", "Prompts", "Installed", "Version"],
+    style: { head: ["cyan"] },
+  });
+
+  for (const pack of packs) {
+    table.push([
+      pack.id,
+      pack.title,
+      chalk.yellow(String(pack.promptCount)),
+      pack.isInstalled ? chalk.green("✓") : chalk.dim("—"),
+      pack.version ?? "1.0.0",
+    ]);
+  }
+
+  console.log(table.toString());
+  console.log(chalk.dim(`\nFound ${packs.length} premium packs.`));
+}
+
+async function showPremiumPack(id: string, options: PacksOptions): Promise<void> {
+  await requirePremiumAccess(options);
+
+  const response = await apiClient.get<PackDetailResponse>(`/cli/premium-packs/${id}`);
+  if (!response.ok) {
+    handleApiError(response, options, "Failed to load premium pack");
+    return;
+  }
+
+  const pack = response.data?.pack;
+  if (!pack) {
+    handleApiError({ status: 404 }, options, "Pack not found");
+    return;
+  }
+
+  if (shouldOutputJson(options)) {
+    writeJson({ pack });
+    return;
+  }
+
+  let content = `${chalk.bold.cyan(pack.title)} ${chalk.dim(`v${pack.version ?? "1.0.0"}`)}\n`;
+  if (pack.description) {
+    content += `${chalk.dim(pack.description)}\n`;
+  }
+  content += `\n${chalk.green("Prompts:")} ${pack.promptCount}`;
+  content += `\n${chalk.green("Installed:")} ${pack.isInstalled ? "yes" : "no"}`;
+  if (pack.installedAt) {
+    content += ` (${pack.installedAt})`;
+  }
+  if (pack.category?.name) {
+    content += `\n${chalk.green("Category:")} ${pack.category.name}`;
+  }
+  if (pack.installCount !== undefined && pack.installCount !== null) {
+    content += `\n${chalk.green("Installs:")} ${pack.installCount}`;
+  }
+
+  content += "\n\n" + chalk.dim("Included Prompts") + "\n";
+  if (pack.prompts.length === 0) {
+    content += chalk.dim("  (No prompts in this pack yet)");
+  } else {
+    for (const prompt of pack.prompts) {
+      content += `  ${chalk.cyan("•")} ${chalk.bold(prompt.title)} ${chalk.dim(`(${prompt.id})`)}\n`;
+      if (prompt.description) {
+        content += `    ${chalk.dim(prompt.description)}\n`;
+      }
+    }
+  }
+
+  console.log(
+    boxen(content, {
+      padding: 1,
+      borderStyle: "round",
+      borderColor: "cyan",
+    })
+  );
+}
+
+async function installPremiumPack(id: string, options: PacksOptions): Promise<void> {
+  await requirePremiumAccess(options);
+
+  const payload = options.tool ? { tool: options.tool } : undefined;
+  const response = await apiClient.post<PackInstallResponse>(
+    `/cli/premium-packs/${id}/install`,
+    payload
+  );
+
+  if (!response.ok) {
+    handleApiError(response, options, "Failed to install premium pack");
+    return;
+  }
+
+  const data = response.data;
+
+  if (shouldOutputJson(options)) {
+    writeJson(data ?? { installed: true, packId: id });
+    return;
+  }
+
+  if (data?.alreadyInstalled) {
+    console.log(chalk.yellow("Pack already installed."));
+    return;
+  }
+
+  console.log(chalk.green("✓") + " Pack installed.");
+}
+
+async function uninstallPremiumPack(id: string, options: PacksOptions): Promise<void> {
+  await requirePremiumAccess(options);
+
+  const response = await apiClient.delete<PackUninstallResponse>(`/cli/premium-packs/${id}/install`);
+  if (!response.ok) {
+    handleApiError(response, options, "Failed to uninstall premium pack");
+    return;
+  }
+
+  const data = response.data;
+  if (shouldOutputJson(options)) {
+    writeJson(data ?? { uninstalled: true, packId: id });
+    return;
+  }
+
+  if (data && data.removed === false) {
+    console.log(chalk.yellow("Pack was not installed."));
+    return;
+  }
+
+  console.log(chalk.green("✓") + " Pack uninstalled.");
+}
+
+export async function premiumPacksCommand(
+  action: string | undefined,
+  id: string | undefined,
+  options: PacksOptions
+): Promise<void> {
+  if (!action) {
+    return listPremiumPacks(options);
+  }
+
+  const normalized = action.toLowerCase();
+
+  if (normalized === "list") {
+    return listPremiumPacks(options);
+  }
+
+  if (normalized === "install") {
+    if (!id) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("missing_argument", "Usage: jfp packs install <pack-id>");
+      } else {
+        console.error("Usage: jfp packs install <pack-id>");
+      }
+      process.exit(1);
+    }
+    return installPremiumPack(id, options);
+  }
+
+  if (normalized === "uninstall" || normalized === "remove") {
+    if (!id) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("missing_argument", "Usage: jfp packs uninstall <pack-id>");
+      } else {
+        console.error("Usage: jfp packs uninstall <pack-id>");
+      }
+      process.exit(1);
+    }
+    return uninstallPremiumPack(id, options);
+  }
+
+  if (normalized === "show" || normalized === "info") {
+    if (!id) {
+      if (shouldOutputJson(options)) {
+        writeJsonError("missing_argument", "Usage: jfp packs show <pack-id>");
+      } else {
+        console.error("Usage: jfp packs show <pack-id>");
+      }
+      process.exit(1);
+    }
+    return showPremiumPack(id, options);
+  }
+
+  if (!id) {
+    return showPremiumPack(action, options);
+  }
+
+  if (shouldOutputJson(options)) {
+    writeJsonError("unknown_action", `Unknown packs action: ${action}`);
+  } else {
+    console.error(`Unknown packs action: ${action}`);
+  }
+  process.exit(1);
+}

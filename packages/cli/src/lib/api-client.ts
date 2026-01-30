@@ -93,13 +93,16 @@ export class ApiClient {
       }
 
       if (!response.ok) {
-        // Extract error message from response body if available
-        // Use type guards to safely extract string error messages
         const errorData = data as Record<string, unknown> | undefined;
         const errorField = errorData?.error;
         const messageField = errorData?.message;
+        const nestedMessage =
+          errorField && typeof errorField === "object" && "message" in errorField
+            ? (errorField as { message?: unknown }).message
+            : null;
         const errorMessage =
           (typeof errorField === "string" ? errorField : null) ||
+          (typeof nestedMessage === "string" ? nestedMessage : null) ||
           (typeof messageField === "string" ? messageField : null) ||
           response.statusText ||
           "Request failed";
@@ -118,6 +121,30 @@ export class ApiClient {
           status: response.status,
           error: `Invalid JSON response: ${jsonParseError}`,
         };
+      }
+
+      const isUnified =
+        data && typeof data === "object" && "ok" in data;
+      if (isUnified) {
+        const payload = data as { ok?: boolean; data?: unknown; error?: { message?: unknown } };
+        if (payload.ok === true && "data" in payload) {
+          return {
+            ok: true,
+            status: response.status,
+            data: payload.data as T,
+          };
+        }
+        if (payload.ok === false) {
+          const errorMessage =
+            typeof payload.error?.message === "string"
+              ? payload.error.message
+              : response.statusText || "Request failed";
+          return {
+            ok: false,
+            status: response.status,
+            error: errorMessage,
+          };
+        }
       }
 
       return {

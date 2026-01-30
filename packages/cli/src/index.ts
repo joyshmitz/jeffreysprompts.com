@@ -38,6 +38,7 @@ import { logoutCommand, whoamiCommand } from "./commands/auth";
 import { notesCommand } from "./commands/notes";
 import { saveCommand } from "./commands/save";
 import { syncCommand } from "./commands/sync";
+import { premiumPacksCommand } from "./commands/premium-packs";
 import {
   configListCommand,
   configGetCommand,
@@ -262,6 +263,17 @@ cli
     }
     return collectionShowCommand(action, options);
   });
+
+cli
+  .command("packs [action] [id]", "Manage premium packs (Pro)")
+  .option("--installed", "List installed packs only")
+  .option("--tool <tool>", "Associate install with a tool (optional)")
+  .option("--json", "Output JSON")
+  .action((
+    action: string | undefined,
+    id: string | undefined,
+    options: { installed?: boolean; tool?: string; json?: boolean }
+  ) => premiumPacksCommand(action, id, options));
 
 cli
   .command("i", "Interactive mode - fzf-style prompt picker")
