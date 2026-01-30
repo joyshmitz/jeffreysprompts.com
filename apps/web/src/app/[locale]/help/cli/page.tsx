@@ -40,6 +40,19 @@ export default function CLIPage() {
           <li>Works great with AI coding agents</li>
         </ul>
       </div>
+
+      <div className="mt-6 p-5 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
+        <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+          Free vs Pro
+        </h3>
+        <p className="text-sm text-amber-800/80 dark:text-amber-200/80">
+          The CLI is free to build and use with public prompts. Pro unlocks private vault access,
+          personal prompt search (<span className="font-mono">--mine</span>,{" "}
+          <span className="font-mono">--saved</span>,{" "}
+          <span className="font-mono">--all</span>), plus save, sync, notes, collections,
+          premium packs (<span className="font-mono">jfp packs</span>), and offline cache.
+        </p>
+      </div>
     </HelpLayout>
   );
 }

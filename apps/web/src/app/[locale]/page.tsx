@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useCallback, useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { AlertTriangle, Sparkles, X } from "lucide-react";
 import { prompts, categories, tags } from "@jeffreysprompts/core/prompts/registry";
 import { searchPrompts } from "@jeffreysprompts/core/search/engine";
@@ -336,12 +337,12 @@ function HomeContent() {
               >
                 GitHub
               </a>
-              <a href="/help" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+              <Link href="/help" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
                 Help
-              </a>
-              <a href="/contribute" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+              </Link>
+              <Link href="/contribute" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
                 Contribute
-              </a>
+              </Link>
             </div>
 
             {/* Pro Badge (subtle) */}
