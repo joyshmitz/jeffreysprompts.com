@@ -103,6 +103,23 @@ function searchOffline(query: string, limit: number): MergedSearchResult[] {
 }
 
 /**
+ * Check if error looks like a network error
+ */
+function isNetworkError(error: string | undefined, status?: number): boolean {
+  if (status === 0) return true;
+  if (!error) return false;
+  const errorLower = error.toLowerCase();
+  return (
+    errorLower.includes("network") ||
+    errorLower.includes("fetch") ||
+    errorLower.includes("econnrefused") ||
+    errorLower.includes("timeout") ||
+    errorLower.includes("timed out") ||
+    errorLower.includes("enotfound")
+  );
+}
+
+/**
  * Search personal prompts via API
  */
 async function searchPersonal(
@@ -110,50 +127,76 @@ async function searchPersonal(
   scopes: { mine: boolean; saved: boolean; all: boolean },
   limit: number
 ): Promise<{ results: MergedSearchResult[]; error?: string; offline?: boolean }> {
-  try {
-    const params = new URLSearchParams({ q: query, limit: String(limit) });
-    
-    let endpoint = "/cli/search";
-    if (scopes.mine && !scopes.saved && !scopes.all) endpoint = "/cli/search/mine";
-    else if (scopes.saved && !scopes.mine && !scopes.all) endpoint = "/cli/search/saved";
-    // Else (all, or both), use generic /cli/search if it exists, or default to mine? 
-    // AGENTS.md implies separate endpoints. Let's assume /cli/search handles combined scope if needed, 
-    // or just default to /cli/search/mine for now as a safe bet if 'all' is requested, 
-    // but likely 'all' implies querying multiple sources.
-    // Given the lack of clear API docs for 'all', we will try /cli/search which is standard convention.
-    
-    const response = await apiClient.get(`${endpoint}?${params.toString()}`);
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const queryString = `?${params.toString()}`;
+  const allowOffline = scopes.saved || scopes.all;
 
-    if (!response.ok) {
-      if (response.status === 401) return { results: [], error: "auth_expired" };
-      return { results: [], error: `API Error: ${response.status}` };
-    }
+  const resolveSource = (
+    raw: string | undefined,
+    fallback: "mine" | "saved"
+  ): "mine" | "saved" | "collection" => {
+    if (raw === "mine" || raw === "saved" || raw === "collection") return raw;
+    return fallback;
+  };
 
-    const data = response.data as { results: PersonalPromptResult[] };
+  const fetchResults = async (
+    endpoint: string,
+    fallbackSource: "mine" | "saved"
+  ): Promise<{ results: MergedSearchResult[]; error?: string; offline?: boolean }> => {
+    const response = await apiClient.get<unknown>(`${endpoint}${queryString}`);
 
-    return {
-      results: data.results.map((r) => ({
+    if (response.ok) {
+      const data = response.data as { results?: PersonalPromptResult[] };
+      const results = (data.results ?? []).map((r) => ({
         id: r.id,
         title: r.title,
         description: r.description,
         category: r.category,
         tags: r.tags,
         score: r.score,
-        source: r.source,
+        source: resolveSource(r.source, fallbackSource),
         matchedFields: [], // API might not return this yet
-      })),
-    };
-  } catch (err) {
-    // Offline fallback
-    if (hasOfflineLibrary()) {
+      }));
+      return { results };
+    }
+
+    if (isAuthError(response)) {
+      return { results: [], error: "auth_expired" };
+    }
+
+    if (allowOffline && isNetworkError(response.error, response.status) && hasOfflineLibrary()) {
       return {
         results: searchOffline(query, limit),
         offline: true,
         error: "Network unavailable",
       };
     }
-    return { results: [], error: String(err) };
+
+    return {
+      results: [],
+      error: response.error || `API Error: ${response.status}`,
+    };
+  };
+
+  // All/combined search: query both known endpoints and merge
+  if (scopes.all || (scopes.mine && scopes.saved)) {
+    const [mineResults, savedResults] = await Promise.all([
+      fetchResults("/cli/search/mine", "mine"),
+      fetchResults("/cli/search/saved", "saved"),
+    ]);
+
+    return {
+      results: [...mineResults.results, ...savedResults.results],
+      error: mineResults.error ?? savedResults.error,
+      offline: mineResults.offline || savedResults.offline,
+    };
   }
+
+  if (scopes.mine) {
+    return fetchResults("/cli/search/mine", "mine");
+  }
+
+  return fetchResults("/cli/search/saved", "saved");
 }
 
 function mergeResults(
