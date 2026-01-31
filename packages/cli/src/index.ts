@@ -43,6 +43,7 @@ import { saveCommand } from "./commands/save";
 import { syncCommand } from "./commands/sync";
 import { premiumPacksCommand } from "./commands/premium-packs";
 import { recommendCommand } from "./commands/recommend";
+import { costCommand } from "./commands/cost";
 import {
   configListCommand,
   configGetCommand,
@@ -155,6 +156,16 @@ cli
   .option("--limit <n>", "Max recommendations (default: 5)")
   .option("--json", "Output JSON")
   .action(recommendCommand);
+
+cli
+  .command("cost <prompt-id>", "Estimate token usage and cost (Premium)")
+  .option("--model <model>", "Model identifier (default: gpt-4o-mini)")
+  .option("--input-tokens <n>", "Override input token estimate")
+  .option("--output-tokens <n>", "Estimate output tokens (default: 0)")
+  .option("--price-in <usd>", "Override input price per 1k tokens")
+  .option("--price-out <usd>", "Override output price per 1k tokens")
+  .option("--json", "Output JSON")
+  .action(costCommand);
 
 cli
   .command("impact <prompt-id>", "Show downstream dependencies for a prompt")

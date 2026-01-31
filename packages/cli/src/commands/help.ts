@@ -78,6 +78,7 @@ function getHelpData() {
         { name: "collections", description: "Manage prompt collections", options: ["--add", "--export", "--format", "--stdout", "--json"] },
         { name: "packs", description: "Manage premium packs (list/install/update/changelog)", options: ["--installed", "--tool", "--json"] },
         { name: "recommend [id]", description: "Personalized recommendations (Premium)", options: ["--limit", "--json"] },
+        { name: "cost <prompt-id>", description: "Estimate tokens and cost (Premium)", options: ["--model", "--input-tokens", "--output-tokens", "--price-in", "--price-out", "--json"] },
         { name: "tags suggest <prompt-id>", description: "Suggest tags/categories (Pro)", options: ["--limit", "--similar", "--threshold", "--json"] },
         { name: "dedupe scan", description: "Scan for duplicate prompts (Pro)", options: ["--min-score", "--limit", "--json"] },
       ],
@@ -100,6 +101,7 @@ function getHelpData() {
       { command: "jfp list --json | jq -r '.prompts[].id'", description: "Get all prompt IDs with jq" },
       { command: "jfp suggest 'write a readme' --json", description: "Get prompt suggestions in JSON" },
       { command: "jfp recommend --json", description: "Get personalized recommendations in JSON" },
+      { command: "jfp cost idea-wizard --model gpt-4o-mini --json", description: "Estimate cost for a prompt (Pro)" },
       { command: "jfp impact idea-wizard --json", description: "Show dependencies for a prompt" },
       { command: "jfp graph export --json", description: "Export dependency graph as JSON" },
       { command: "jfp tags suggest idea-wizard --limit 6 --json", description: "Suggest tags/categories (Pro)" },
@@ -183,6 +185,7 @@ JeffreysPrompts CLI v${version}
   sections.push(formatCommand("collections", "Manage prompt collections"));
   sections.push(formatCommand("packs", "Manage premium packs"));
   sections.push(formatCommand("recommend [id]", "Personalized recommendations"));
+  sections.push(formatCommand("cost <id>", "Estimate tokens and cost"));
   sections.push(formatCommand("tags suggest <id>", "Suggest tags/categories/descriptions"));
   sections.push(formatCommand("dedupe scan", "Scan for duplicate prompts"));
   sections.push("");
@@ -209,6 +212,7 @@ JeffreysPrompts CLI v${version}
   sections.push(formatExample("jfp copy idea-wizard --fill", "Copy with interactive variable fill"));
   sections.push(formatExample("jfp list --json | jq -r '.prompts[].id'", "Pipe JSON to jq"));
   sections.push(formatExample("jfp recommend --json", "Get personalized recommendations"));
+  sections.push(formatExample("jfp cost idea-wizard --model gpt-4o-mini --json", "Estimate cost for a prompt (Pro)"));
   sections.push(formatExample("jfp impact idea-wizard --json", "Inspect downstream dependencies"));
   sections.push(formatExample("jfp graph export --json", "Export dependency graph"));
   sections.push(formatExample("jfp packs --installed", "List installed premium packs"));
