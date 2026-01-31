@@ -34,6 +34,8 @@ COMMANDS:
   show <id>      Show a specific prompt by ID
   search <query> Search prompts
   recommend      Get prompt recommendations
+  impact <id>    Show downstream dependencies
+  graph export   Export dependency graph
   categories     List all categories
   export         Export prompts to files
   i              Interactive browser
@@ -90,6 +92,16 @@ jfp recommend
 
 # Related recommendations for a specific prompt
 jfp recommend idea-wizard`}</pre>
+
+        <h2>Impact analysis</h2>
+        <p>
+          Use <code>impact</code> to see what depends on a prompt, or export the full dependency graph.
+        </p>
+        <pre>{`# Show downstream dependencies
+jfp impact idea-wizard
+
+# Export dependency graph as JSON
+jfp graph export --json`}</pre>
 
         <h2>Getting a specific prompt</h2>
         <p>

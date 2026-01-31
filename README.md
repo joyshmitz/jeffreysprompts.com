@@ -248,6 +248,9 @@ jfp show idea-wizard --raw    # Just the prompt text
 jfp recommend                 # Personalized recommendations (Pro)
 jfp recommend idea-wizard     # Related prompts (Pro)
 
+jfp impact <id>               # Show downstream dependencies
+jfp graph export              # Export prompt dependency graph
+
 jfp copy <id>                 # Copy to clipboard
 
 jfp export <id>               # Export as markdown

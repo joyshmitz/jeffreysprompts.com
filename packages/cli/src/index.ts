@@ -18,7 +18,6 @@ import { exportCommand } from "./commands/export";
 import { renderCommand } from "./commands/render";
 import { copyCommand } from "./commands/copy";
 import { suggestCommand } from "./commands/suggest";
-import { recommendCommand } from "./commands/recommend";
 import { interactiveCommand } from "./commands/interactive";
 import { bundlesCommand, bundleShowCommand } from "./commands/bundles";
 import { statusCommand, refreshCommand } from "./commands/registry";
@@ -143,7 +142,6 @@ cli
   .option("--json", "Output JSON")
   .action(copyCommand);
 
-
 cli
   .command("suggest <task>", "Suggest prompts for a task")
   .option("--json", "Output JSON")
@@ -152,7 +150,7 @@ cli
   .action(suggestCommand);
 
 cli
-  .command("recommend [id]", "Get personalized prompt recommendations")
+  .command("recommend [id]", "Personalized recommendations (Premium)")
   .option("--limit <n>", "Max recommendations (default: 5)")
   .option("--json", "Output JSON")
   .action(recommendCommand);
@@ -181,14 +179,6 @@ cli
     }
     outputError("unknown_action", `Unknown graph action: ${action}. Available: export`);
   });
-
-cli
-  .command("recommend [id]", "Personalized recommendations (Premium)")
-  .option("--limit <n>", "Max recommendations (default: 5)")
-  .option("--json", "Output JSON")
-  .action((id: string | undefined, options: { limit?: string; json?: boolean }) =>
-    recommendCommand(id, options)
-  );
 
 cli
   .command("bundles", "List all prompt bundles")

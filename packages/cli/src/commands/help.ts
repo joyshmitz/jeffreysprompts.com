@@ -45,7 +45,6 @@ function getHelpData() {
         { name: "list", description: "List all prompts (Pro: --mine/--saved)", options: ["--category", "--tag", "--mine", "--saved", "--json"] },
         { name: "search <query>", description: "Search prompts (Pro: --mine/--saved/--all)", options: ["--limit", "--mine", "--saved", "--all", "--local", "--json"] },
         { name: "suggest <task>", description: "Suggest prompts for a task", options: ["--limit", "--semantic", "--json"] },
-        { name: "recommend [id]", description: "Get personalized prompt recommendations", options: ["--limit", "--json"] },
       ],
       analysis: [
         { name: "impact <prompt-id>", description: "Show downstream dependencies for a prompt", options: ["--json"] },
@@ -78,7 +77,7 @@ function getHelpData() {
         { name: "notes <prompt-id>", description: "Manage personal notes on prompts", options: ["--add", "--delete", "--json"] },
         { name: "collections", description: "Manage prompt collections", options: ["--add", "--export", "--format", "--stdout", "--json"] },
         { name: "packs", description: "List/install premium packs", options: ["--installed", "--tool", "--json"] },
-        { name: "recommend [id]", description: "Personalized recommendations (optionally related to a prompt)", options: ["--limit", "--json"] },
+        { name: "recommend [id]", description: "Personalized recommendations (Premium)", options: ["--limit", "--json"] },
       ],
       utilities: [
         { name: "open <id>", description: "Open prompt in browser", options: [] },
@@ -128,7 +127,6 @@ JeffreysPrompts CLI v${version}
   sections.push(formatCommand("list", "List all prompts"));
   sections.push(formatCommand("search <query>", "Search prompts by query"));
   sections.push(formatCommand("suggest <task>", "Suggest prompts for a task"));
-  sections.push(formatCommand("recommend [id]", "Get personalized recommendations"));
   sections.push(chalk.dim("    Pro-only flags: list --mine/--saved, search --mine/--saved/--all"));
   sections.push("");
 
