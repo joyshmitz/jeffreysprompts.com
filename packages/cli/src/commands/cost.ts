@@ -149,7 +149,7 @@ export async function costCommand(
 
   const pricingTable =
     priceIn !== null && priceOut !== null
-      ? { [model]: { inputPer1k: priceIn, outputPer1k: priceOut, currency: "USD" } }
+      ? { [model]: { inputPer1k: priceIn, outputPer1k: priceOut, currency: "USD" as const } }
       : DEFAULT_PRICING_TABLE;
 
   const estimate = estimateCost({

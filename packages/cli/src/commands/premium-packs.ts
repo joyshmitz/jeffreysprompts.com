@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import boxen from "boxen";
 import Table from "cli-table3";
-import { apiClient, isAuthError, isNotFoundError, requiresPremium } from "../lib/api-client";
+import { apiClient, isAuthError, isNotFoundError, requiresPremium, type ApiResponse } from "../lib/api-client";
 import { getCurrentUser, isLoggedIn } from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
 
@@ -105,7 +105,7 @@ async function requirePremiumAccess(options: PacksOptions): Promise<void> {
 }
 
 function handleApiError(
-  response: { status: number; error?: string },
+  response: ApiResponse<unknown>,
   options: PacksOptions,
   fallbackMessage: string
 ): void {
@@ -209,7 +209,7 @@ async function fetchPremiumPackDetail(id: string, options: PacksOptions): Promis
 
   const pack = response.data?.pack;
   if (!pack) {
-    handleApiError({ status: 404 }, options, "Pack not found");
+    handleApiError({ ok: false, status: 404 }, options, "Pack not found");
     process.exit(1);
   }
 
@@ -343,7 +343,7 @@ async function uninstallPremiumPack(id: string, options: PacksOptions): Promise<
 
   const data = response.data;
   if (shouldOutputJson(options)) {
-    writeJson(data ?? { uninstalled: true, packId: id });
+    writeJson({ ...(data ?? { uninstalled: true, packId: id }) });
     return;
   }
 
