@@ -100,6 +100,15 @@ export function Nav() {
   const { items } = useBasket();
   const { isHidden, isScrolled } = useScrollHeader();
 
+  useEffect(() => {
+    const handleToggleBasket = () => {
+      setBasketOpen((prev) => !prev);
+    };
+
+    window.addEventListener("toggle-basket", handleToggleBasket);
+    return () => window.removeEventListener("toggle-basket", handleToggleBasket);
+  }, [setBasketOpen]);
+
   return (
     <header
       className={cn(

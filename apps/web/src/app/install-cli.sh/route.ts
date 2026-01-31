@@ -237,7 +237,7 @@ main() {
   echo "    jfp list          # List all prompts"
   echo "    jfp search <term> # Search prompts"
   echo "    jfp show <id>     # View a prompt"
-  echo "    curl -fsSL \"https://jeffreysprompts.com/install.sh\" | bash  # Install all skills"
+  echo '    curl -fsSL "https://jeffreysprompts.com/install.sh" | bash  # Install all skills'
   echo ""
 }
 

@@ -1,7 +1,6 @@
 // packages/core/src/search/semantic.ts
 // Optional semantic search using MiniLM or hash-based embeddings
 
-import { join } from "path";
 import { tokenize } from "./tokenize";
 
 /**
@@ -43,24 +42,45 @@ const transformerState: TransformerState = {
 };
 
 /**
+ * Join path segments without relying on Node.js "path" module.
+ * Uses "/" on most platforms; uses "\\" on Windows when process is available.
+ */
+function joinPath(...parts: string[]): string {
+  const sep = "/";
+
+  return parts
+    .filter((part) => typeof part === "string" && part.length > 0)
+    .map((part, index) => {
+      const normalized = part.replace(/[\\/]+/g, sep);
+      if (index === 0) {
+        return normalized.replace(/\/+$/, "");
+      }
+      return normalized.replace(/^\/+/, "").replace(/\/+$/, "");
+    })
+    .filter(Boolean)
+    .join(sep);
+}
+
+/**
  * Get the default model cache path using XDG standards
  */
 function getDefaultCachePath(): string {
-  if (process.env.XDG_CACHE_HOME) {
-    return join(process.env.XDG_CACHE_HOME, "jfp", "models");
+  const env = (typeof process !== "undefined" ? process.env : {}) as Record<
+    string,
+    string | undefined
+  >;
+
+  if (env.XDG_CACHE_HOME) {
+    return joinPath(env.XDG_CACHE_HOME, "jfp", "models");
   }
 
-  const home = process.env.HOME || process.env.USERPROFILE || "";
+  const home = env.HOME || env.USERPROFILE || "";
 
-  if (process.platform === "win32" && process.env.LOCALAPPDATA) {
-    return join(process.env.LOCALAPPDATA, "jfp", "models");
+  if (env.LOCALAPPDATA) {
+    return joinPath(env.LOCALAPPDATA, "jfp", "models");
   }
 
-  if (process.platform === "darwin") {
-    return join(home, "Library", "Caches", "jfp", "models");
-  }
-
-  return join(home, ".cache", "jfp", "models");
+  return joinPath(home, ".cache", "jfp", "models");
 }
 
 /**
@@ -174,11 +194,21 @@ async function loadTransformerPipeline(options: SemanticOptions = {}): Promise<u
     try {
       // Dynamic import without a static module reference so bundlers don't
       // require the optional dependency at build time.
-      // eslint-disable-next-line no-new-func -- avoid static import for optional dependency
-      const importer = new Function("modulePath", "return import(modulePath)") as (
-        modulePath: string
-      ) => Promise<{ pipeline: (task: string, model: string, options?: { quantized?: boolean }) => Promise<unknown>; env: { cacheDir: string; allowLocalModels: boolean } }>;
-      const { pipeline, env } = await importer("@xenova/transformers");
+      if (typeof window !== "undefined") {
+        throw new Error("Transformer pipeline is only available in Node runtimes.");
+      }
+      const modulePath: string = "@xenova/transformers";
+      const { pipeline, env } = (await import(
+        /* webpackIgnore: true */
+        modulePath
+      )) as {
+        pipeline: (
+          task: string,
+          model: string,
+          options?: { quantized?: boolean }
+        ) => Promise<unknown>;
+        env: { cacheDir: string; allowLocalModels: boolean };
+      };
 
       // Configure cache path
       env.cacheDir = cachePath;
