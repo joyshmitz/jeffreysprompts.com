@@ -62,6 +62,7 @@ import {
 import { generateInstallOneLiner } from "@jeffreysprompts/core/export/skills";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 import { RatingButton, RatingDisplay } from "@/components/ratings";
+import { CostBadge } from "@/components/CostBadge";
 
 interface PromptDetailModalProps {
   prompt: Prompt | null;
@@ -247,9 +248,16 @@ export function PromptDetailModal({
             </Badge>
           )}
           {prompt.estimatedTokens && (
-            <span className="text-xs text-muted-foreground/70 font-medium">
-              {prompt.estimatedTokens} tokens
-            </span>
+            <>
+              <span className="text-xs text-muted-foreground/70 font-medium">
+                {prompt.estimatedTokens} tokens
+              </span>
+              <CostBadge
+                tokens={prompt.estimatedTokens}
+                variant="compact"
+                className="font-medium"
+              />
+            </>
           )}
         </div>
 

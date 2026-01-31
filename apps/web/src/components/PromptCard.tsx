@@ -34,6 +34,7 @@ import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { Prompt, PromptDifficulty } from "@jeffreysprompts/core/prompts/types";
 import { RatingDisplay } from "@/components/ratings";
+import { CostBadge } from "@/components/CostBadge";
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -273,13 +274,16 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
 
             {/* Actions row - simplified to 2 primary actions */}
             <div className="flex items-center justify-between">
-              {/* Token count + Rating */}
+              {/* Token count + Cost + Rating */}
               <div className="flex items-center gap-3 text-xs text-neutral-400 dark:text-neutral-500">
                 {prompt.estimatedTokens && (
-                  <div className="flex items-center gap-1.5">
-                    <Zap className="w-3 h-3" />
-                    <span>{prompt.estimatedTokens} tokens</span>
-                  </div>
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="w-3 h-3" />
+                      <span>{prompt.estimatedTokens} tokens</span>
+                    </div>
+                    <CostBadge tokens={prompt.estimatedTokens} />
+                  </>
                 )}
                 <RatingDisplay
                   contentType="prompt"
