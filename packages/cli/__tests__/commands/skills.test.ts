@@ -1,8 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { installCommand } from "../../src/commands/install";
-import { uninstallCommand } from "../../src/commands/uninstall";
-import { installedCommand } from "../../src/commands/installed";
-import { updateCommand } from "../../src/commands/update";
 import { exportCommand } from "../../src/commands/export";
 
 let output: string[] = [];
@@ -12,6 +8,7 @@ let exitCode: number | undefined;
 const originalLog = console.log;
 const originalError = console.error;
 const originalExit = process.exit;
+const originalArgv = process.argv;
 
 beforeEach(() => {
   output = [];
@@ -34,6 +31,7 @@ afterEach(() => {
   console.log = originalLog;
   console.error = originalError;
   process.exit = originalExit;
+  process.argv = originalArgv;
 });
 
 async function expectExit(fn: () => Promise<void>): Promise<void> {
@@ -46,38 +44,31 @@ async function expectExit(fn: () => Promise<void>): Promise<void> {
   }
 }
 
+async function runDeprecatedCommand(command: string): Promise<void> {
+  process.argv = ["node", "jfp", command, "--json"];
+  const url = new URL("../../src/index.ts", import.meta.url);
+  url.searchParams.set("test", `${command}-${Date.now()}`);
+  await import(url.href);
+}
+
 describe("deprecated skill commands", () => {
   it("installCommand redirects to jsm", async () => {
-    await expectExit(() => installCommand(["idea-wizard"], { json: true }));
+    await expectExit(() => runDeprecatedCommand("install"));
     const payload = JSON.parse(output.join(""));
     expect(payload.code).toBe("deprecated_command");
     expect(payload.message).toContain("jsm install <skill>");
     expect(exitCode).toBe(1);
   });
 
-  it("uninstallCommand redirects to jsm", async () => {
-    await expectExit(() => uninstallCommand(["idea-wizard"], { json: true }));
-    const payload = JSON.parse(output.join(""));
-    expect(payload.code).toBe("deprecated_command");
-    expect(payload.message).toContain("jsm --help");
-    expect(exitCode).toBe(1);
-  });
-
-  it("installedCommand redirects to jsm", async () => {
-    await expectExit(() => installedCommand({ json: true }));
-    const payload = JSON.parse(output.join(""));
-    expect(payload.code).toBe("deprecated_command");
-    expect(payload.message).toContain("jsm --help");
-    expect(exitCode).toBe(1);
-  });
-
-  it("updateCommand redirects to jsm", async () => {
-    await expectExit(() => updateCommand({ json: true }));
-    const payload = JSON.parse(output.join(""));
-    expect(payload.code).toBe("deprecated_command");
-    expect(payload.message).toContain("jsm --help");
-    expect(exitCode).toBe(1);
-  });
+  for (const command of ["uninstall", "installed", "update", "skills"]) {
+    it(`${command} command redirects to jsm`, async () => {
+      await expectExit(() => runDeprecatedCommand(command));
+      const payload = JSON.parse(output.join(""));
+      expect(payload.code).toBe("deprecated_command");
+      expect(payload.message).toContain("jsm --help");
+      expect(exitCode).toBe(1);
+    });
+  }
 });
 
 describe("exportCommand", () => {
