@@ -11,7 +11,7 @@
 
 import { homedir } from "os";
 import { join, dirname } from "path";
-import { readFile, unlink } from "fs/promises";
+import { readFile, unlink, mkdir, chmod } from "fs/promises";
 import { existsSync } from "fs";
 import { z } from "zod";
 import { atomicWriteFile } from "./utils";
@@ -113,6 +113,17 @@ export function needsRefresh(creds: Credentials): boolean {
 export async function saveCredentials(creds: Credentials, env = process.env): Promise<void> {
   const path = getCredentialsPath(env);
   const content = JSON.stringify(creds, null, 2);
+
+  // Ensure credentials directory uses secure permissions
+  const dir = dirname(path);
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  if (process.platform !== "win32") {
+    try {
+      await chmod(dir, 0o700);
+    } catch {
+      // Ignore chmod errors on filesystems that do not support it
+    }
+  }
 
   // Write with secure permissions (0o600)
   await atomicWriteFile(path, content, { mode: 0o600 });

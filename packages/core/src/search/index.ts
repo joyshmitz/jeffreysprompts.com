@@ -40,3 +40,20 @@ export {
   getForYouRecommendations,
 } from "./recommendations";
 export type { RecommendationResult } from "./recommendations";
+
+// Metadata assistant helpers
+export {
+  findSimilarPrompts,
+  suggestPromptMetadata,
+  findDuplicateCandidates,
+} from "./metadata";
+export type {
+  SimilarPrompt,
+  TagSuggestion,
+  CategorySuggestion,
+  DescriptionSuggestion,
+  MetadataSuggestions,
+  DuplicateCandidate,
+  MetadataOptions,
+  DuplicateOptions,
+} from "./metadata";

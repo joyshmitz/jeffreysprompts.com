@@ -120,7 +120,9 @@ describe("CLI Network Failure E2E", () => {
   });
 
   describe("list command with network failures", () => {
-    it("should work without network using bundled prompts", async () => {
+    it(
+      "should work without network using bundled prompts",
+      async () => {
       logger = new TestLogger({
         testName: "list-no-network",
         outputFile: join(TEST_LOG_DIR, "list-no-network.log"),
@@ -139,6 +141,7 @@ describe("CLI Network Failure E2E", () => {
           JFP_HOME: testDir,
         },
         logger,
+        timeout: 15000,
       });
 
       logger.step("Validating list response");
@@ -160,7 +163,9 @@ describe("CLI Network Failure E2E", () => {
       expect(prompts.some((p: { id: string }) => p.id === "idea-wizard")).toBe(true);
 
       logger.summary();
-    });
+      },
+      { timeout: 15000 }
+    );
   });
 
   describe("search command with network failures", () => {

@@ -29,6 +29,7 @@ import {
   doctorCommand,
   aboutCommand,
 } from "./commands/utilities";
+import { tagsSuggestCommand, dedupeScanCommand } from "./commands/metadata-assistant";
 import { randomCommand } from "./commands/random";
 import { helpCommand } from "./commands/help";
 import { serveCommand } from "./commands/serve";
@@ -327,9 +328,57 @@ cli
   .action(categoriesCommand);
 
 cli
-  .command("tags", "List all tags with counts")
+  .command("tags [action] [id]", "List tags or suggest tags (Pro)")
+  .option("--limit <n>", "Max tag suggestions (default: 6)")
+  .option("--similar <n>", "Max similar prompts (default: 5)")
+  .option("--threshold <n>", "Similarity threshold (default: 0.35)")
   .option("--json", "Output JSON")
-  .action(tagsCommand);
+  .action((action: string | undefined, id: string | undefined, options: { limit?: string; similar?: string; threshold?: string; json?: boolean }) => {
+    const outputError = (code: string, message: string) => {
+      if (options.json) {
+        console.log(JSON.stringify({ error: true, code, message }));
+      } else {
+        console.error(message);
+      }
+      process.exit(1);
+    };
+
+    if (!action || action === "list") {
+      return tagsCommand(options);
+    }
+
+    if (action === "suggest") {
+      if (!id) {
+        outputError("missing_argument", "Usage: jfp tags suggest <prompt-id>");
+        return;
+      }
+      return tagsSuggestCommand(id, options);
+    }
+
+    outputError("unknown_action", `Unknown tags action: ${action}. Available: list, suggest`);
+  });
+
+cli
+  .command("dedupe [action]", "Duplicate detection utilities (Pro)")
+  .option("--min-score <n>", "Minimum similarity (default: 0.85)")
+  .option("--limit <n>", "Max pairs (default: 50)")
+  .option("--json", "Output JSON")
+  .action((action: string | undefined, options: { minScore?: string; limit?: string; json?: boolean }) => {
+    const outputError = (code: string, message: string) => {
+      if (options.json) {
+        console.log(JSON.stringify({ error: true, code, message }));
+      } else {
+        console.error(message);
+      }
+      process.exit(1);
+    };
+
+    if (!action || action === "scan") {
+      return dedupeScanCommand(options);
+    }
+
+    outputError("unknown_action", `Unknown dedupe action: ${action}. Available: scan`);
+  });
 
 cli
   .command("open <id>", "Open prompt in browser")

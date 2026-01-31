@@ -78,6 +78,8 @@ function getHelpData() {
         { name: "collections", description: "Manage prompt collections", options: ["--add", "--export", "--format", "--stdout", "--json"] },
         { name: "packs", description: "Manage premium packs (list/install/update/changelog)", options: ["--installed", "--tool", "--json"] },
         { name: "recommend [id]", description: "Personalized recommendations (Premium)", options: ["--limit", "--json"] },
+        { name: "tags suggest <prompt-id>", description: "Suggest tags/categories (Pro)", options: ["--limit", "--similar", "--threshold", "--json"] },
+        { name: "dedupe scan", description: "Scan for duplicate prompts (Pro)", options: ["--min-score", "--limit", "--json"] },
       ],
       utilities: [
         { name: "open <id>", description: "Open prompt in browser", options: [] },
@@ -100,6 +102,8 @@ function getHelpData() {
       { command: "jfp recommend --json", description: "Get personalized recommendations in JSON" },
       { command: "jfp impact idea-wizard --json", description: "Show dependencies for a prompt" },
       { command: "jfp graph export --json", description: "Export dependency graph as JSON" },
+      { command: "jfp tags suggest idea-wizard --limit 6 --json", description: "Suggest tags/categories (Pro)" },
+      { command: "jfp dedupe scan --min-score 0.9 --json", description: "Scan for duplicates (Pro)" },
     ],
   };
 }
@@ -179,6 +183,8 @@ JeffreysPrompts CLI v${version}
   sections.push(formatCommand("collections", "Manage prompt collections"));
   sections.push(formatCommand("packs", "Manage premium packs"));
   sections.push(formatCommand("recommend [id]", "Personalized recommendations"));
+  sections.push(formatCommand("tags suggest <id>", "Suggest tags/categories/descriptions"));
+  sections.push(formatCommand("dedupe scan", "Scan for duplicate prompts"));
   sections.push("");
 
   // Utilities
@@ -198,6 +204,8 @@ JeffreysPrompts CLI v${version}
   sections.push(formatExample("jfp export idea-wizard --format md", "Export a prompt as markdown"));
   sections.push(formatExample("jfp completion --shell zsh", "Generate zsh completion script"));
   sections.push(formatExample("jfp render my-prompt --VAR=value", "Render with variables"));
+  sections.push(formatExample("jfp tags suggest idea-wizard --limit 6 --json", "Suggest tags/categories (Pro)"));
+  sections.push(formatExample("jfp dedupe scan --min-score 0.9 --json", "Scan for duplicates (Pro)"));
   sections.push(formatExample("jfp copy idea-wizard --fill", "Copy with interactive variable fill"));
   sections.push(formatExample("jfp list --json | jq -r '.prompts[].id'", "Pipe JSON to jq"));
   sections.push(formatExample("jfp recommend --json", "Get personalized recommendations"));

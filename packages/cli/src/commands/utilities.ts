@@ -2,7 +2,10 @@
  * Utility CLI commands: categories, tags, open, doctor, about
  */
 
-import { type Prompt } from "@jeffreysprompts/core/prompts";
+import {
+  findDuplicateCandidates,
+  suggestPromptMetadata,
+} from "@jeffreysprompts/core/prompts";
 import chalk from "chalk";
 import boxen from "boxen";
 import { spawn } from "child_process";
@@ -10,11 +13,70 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { platform } from "os";
 import { getHomeDir } from "../lib/config";
+import { isLoggedIn, loadCredentials } from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
 import { loadRegistry } from "../lib/registry-loader";
 
 interface JsonOptions {
   json?: boolean;
+}
+
+interface TagSuggestOptions {
+  json?: boolean;
+  limit?: string;
+  similar?: string;
+  threshold?: string;
+}
+
+interface DedupeOptions {
+  json?: boolean;
+  minScore?: string;
+  limit?: string;
+}
+
+function parseNumber(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function requirePremium(options: { json?: boolean }, action: string): Promise<void> {
+  const loggedIn = await isLoggedIn();
+  if (!loggedIn) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({
+          error: true,
+          code: "not_authenticated",
+          message: `${action} requires login.`,
+          hint: "Run 'jfp login' to sign in",
+        })
+      );
+    } else {
+      console.log(chalk.yellow(`${action} requires login.`));
+      console.log(chalk.dim("Run 'jfp login' to sign in to JeffreysPrompts Premium"));
+    }
+    process.exit(1);
+  }
+
+  const creds = await loadCredentials();
+  if (creds?.tier === "premium") return;
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify({
+        error: true,
+        code: "premium_required",
+        message: `${action} requires a JeffreysPrompts Pro subscription.`,
+        hint: "Visit https://pro.jeffreysprompts.com/pricing to upgrade",
+      })
+    );
+  } else {
+    console.log(chalk.yellow(`${action} requires a JeffreysPrompts Pro subscription.`));
+    console.log(chalk.dim("Upgrade at https://pro.jeffreysprompts.com/pricing"));
+    console.log(chalk.dim("Run 'jfp login' after upgrading."));
+  }
+  process.exit(1);
 }
 
 /**
@@ -87,6 +149,356 @@ export async function tagsCommand(options: JsonOptions): Promise<void> {
     const count = counts[tag] ?? 0;
     console.log(`  ${chalk.green("#" + tag.padEnd(20))} ${chalk.dim(`(${count})`)}`);
   }
+  console.log();
+}
+
+/**
+ * Suggest tags, categories, and descriptions for a prompt (Premium)
+ */
+export async function tagsSuggestCommand(
+  id: string | undefined,
+  options: TagSuggestOptions
+): Promise<void> {
+  if (!id) {
+    if (shouldOutputJson(options)) {
+      console.log(
+        JSON.stringify({ error: true, code: "missing_prompt", message: "Provide a prompt id to suggest tags for." })
+      );
+    } else {
+      console.error(chalk.red("Missing prompt id. Example: jfp tags suggest idea-wizard"));
+    }
+    process.exit(1);
+  }
+
+  await requirePremium(options, "Tag suggestions");
+
+  const maxTags = parseNumber(options.limit, 6);
+  const maxSimilar = parseNumber(options.similar, 5);
+  const similarityThreshold = parseNumber(options.threshold, 0.35);
+  const threshold = parseNumber(options.threshold, 0.35);
+
+  if (!Number.isFinite(maxTags) || maxTags <= 0) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "invalid_limit", message: "Invalid --limit value." }));
+    } else {
+      console.error(chalk.red("Invalid --limit value. Provide a positive number."));
+    }
+    process.exit(1);
+  }
+
+  if (!Number.isFinite(maxSimilar) || maxSimilar <= 0) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "invalid_similar", message: "Invalid --similar value." }));
+    } else {
+      console.error(chalk.red("Invalid --similar value. Provide a positive number."));
+    }
+    process.exit(1);
+  }
+
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "invalid_threshold", message: "Invalid --threshold value." }));
+    } else {
+      console.error(chalk.red("Invalid --threshold value. Provide a number between 0 and 1."));
+    }
+    process.exit(1);
+  }
+
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === id);
+
+  if (!prompt) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "prompt_not_found", message: `Prompt not found: ${id}` }));
+    } else {
+      console.error(chalk.red(`Prompt not found: ${id}`));
+    }
+    process.exit(1);
+  }
+
+  const suggestions = suggestPromptMetadata(prompt, registry.prompts, {
+    maxTagSuggestions: maxTags,
+    maxSimilar,
+    similarityThreshold: threshold,
+  });
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify(
+        {
+          promptId: prompt.id,
+          promptTitle: prompt.title,
+          suggestions: {
+            tags: suggestions.tags,
+            categories: suggestions.categories,
+            descriptions: suggestions.descriptions,
+          },
+          similar: suggestions.similar.map((item) => ({
+            id: item.prompt.id,
+            title: item.prompt.title,
+            score: item.score,
+            sharedTags: item.sharedTags,
+            sharedTokens: item.sharedTokens,
+            titleMatch: item.titleMatch,
+          })),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(chalk.bold.cyan(`\nTag suggestions for ${prompt.title}\n`));
+
+  if (suggestions.tags.length === 0) {
+    console.log(chalk.dim("No tag suggestions found."));
+  } else {
+    for (const tag of suggestions.tags) {
+      console.log(`  ${chalk.green("#" + tag.tag)} ${chalk.dim(tag.reasons.join(" | "))}`);
+    }
+  }
+
+  if (suggestions.categories.length > 0) {
+    const top = suggestions.categories[0];
+    console.log(chalk.bold.cyan("\nCategory suggestion\n"));
+    console.log(`  ${chalk.yellow(top.category)} ${chalk.dim(top.reasons.join(" | "))}`);
+  }
+
+  if (suggestions.descriptions.length > 0) {
+    console.log(chalk.bold.cyan("\nDescription suggestions\n"));
+    for (const desc of suggestions.descriptions) {
+      console.log(`  ${chalk.white(desc.description)} ${chalk.dim(desc.reason)}`);
+    }
+  }
+
+  if (suggestions.similar.length > 0) {
+    console.log(chalk.bold.cyan("\nMost similar prompts\n"));
+    for (const item of suggestions.similar) {
+      console.log(
+        `  ${chalk.cyan(item.score.toFixed(3))} ${item.prompt.title} ${chalk.dim(item.sharedTags.join(", "))}`
+      );
+    }
+  }
+
+  console.log();
+}
+
+/**
+ * Scan for duplicate prompts (Premium)
+ */
+export async function dedupeScanCommand(options: DedupeOptions): Promise<void> {
+  await requirePremium(options, "Duplicate scanning");
+
+  const minScore = parseNumber(options.minScore, 0.85);
+  const maxPairs = parseNumber(options.limit, 50);
+
+  if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "invalid_min_score", message: "Invalid --min-score value." }));
+    } else {
+      console.error(chalk.red("Invalid --min-score value. Provide a number between 0 and 1."));
+    }
+    process.exit(1);
+  }
+
+  if (!Number.isFinite(maxPairs) || maxPairs <= 0) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "invalid_limit", message: "Invalid --limit value." }));
+    } else {
+      console.error(chalk.red("Invalid --limit value. Provide a positive number."));
+    }
+    process.exit(1);
+  }
+
+  const registry = await loadRegistry();
+  const duplicates = findDuplicateCandidates(registry.prompts, {
+    minScore,
+    maxPairs,
+  });
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify(
+        duplicates.map((candidate) => ({
+          promptA: { id: candidate.promptA.id, title: candidate.promptA.title },
+          promptB: { id: candidate.promptB.id, title: candidate.promptB.title },
+          score: candidate.score,
+          reasons: candidate.reasons,
+          sharedTags: candidate.sharedTags,
+          sharedTokens: candidate.sharedTokens,
+          titleMatch: candidate.titleMatch,
+        })),
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(chalk.bold.cyan("\nDuplicate scan results\n"));
+  if (duplicates.length === 0) {
+    console.log(chalk.dim("No duplicates detected with current threshold."));
+    console.log();
+    return;
+  }
+
+  for (const candidate of duplicates) {
+    const score = candidate.score.toFixed(3);
+    console.log(`  ${chalk.cyan(score)} ${candidate.promptA.title} <-> ${candidate.promptB.title}`);
+    if (candidate.reasons.length > 0) {
+      console.log(`    ${chalk.dim(candidate.reasons.join(" | "))}`);
+    }
+  }
+
+  console.log();
+}
+
+function formatSimilarityLine(candidate: DuplicateCandidate): string {
+  const title = `${candidate.promptA.title} <-> ${candidate.promptB.title}`;
+  const score = candidate.score.toFixed(3);
+  return `${chalk.cyan(score)} ${title}`;
+}
+
+/**
+ * Suggest tags for a given prompt (Premium)
+ */
+export async function tagsSuggestCommand(
+  id: string,
+  options: TagSuggestOptions
+): Promise<void> {
+  await requirePremium(options, "Tag suggestions");
+
+  const registry = await loadRegistry();
+  const prompt = registry.prompts.find((p) => p.id === id);
+
+  if (!prompt) {
+    if (shouldOutputJson(options)) {
+      console.log(JSON.stringify({ error: true, code: "prompt_not_found", message: `Prompt not found: ${id}` }));
+    } else {
+      console.log(chalk.red(`Prompt not found: ${id}`));
+    }
+    process.exit(1);
+  }
+
+  const maxTags = parseNumber(options.limit, 6);
+  const maxSimilar = parseNumber(options.similar, 5);
+
+  const suggestions = suggestPromptMetadata(prompt, registry.prompts, {
+    maxTagSuggestions: maxTags,
+    maxSimilar,
+    similarityThreshold,
+  });
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify(
+        {
+          prompt: { id: prompt.id, title: prompt.title },
+          suggestions: {
+            tags: suggestions.tags,
+            categories: suggestions.categories,
+            descriptions: suggestions.descriptions,
+          },
+          similar: suggestions.similar.map((item) => ({
+            id: item.prompt.id,
+            title: item.prompt.title,
+            score: item.score,
+            sharedTags: item.sharedTags,
+            sharedTokens: item.sharedTokens,
+            titleMatch: item.titleMatch,
+          })),
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(chalk.bold.cyan(`\nTag suggestions for ${prompt.title}\n`));
+
+  if (suggestions.tags.length === 0) {
+    console.log(chalk.dim("No tag suggestions found."));
+  } else {
+    for (const tag of suggestions.tags) {
+      console.log(`  ${chalk.green("#" + tag.tag)} ${chalk.dim(tag.reasons.join(" | "))}`);
+    }
+  }
+
+  if (suggestions.categories.length > 0) {
+    const top = suggestions.categories[0];
+    console.log(chalk.bold.cyan("\nCategory suggestion\n"));
+    console.log(`  ${chalk.yellow(top.category)} ${chalk.dim(top.reasons.join(" | "))}`);
+  }
+
+  if (suggestions.descriptions.length > 0) {
+    console.log(chalk.bold.cyan("\nDescription suggestions\n"));
+    for (const desc of suggestions.descriptions) {
+      console.log(`  ${chalk.white(desc.description)} ${chalk.dim(desc.reason)}`);
+    }
+  }
+
+  if (suggestions.similar.length > 0) {
+    console.log(chalk.bold.cyan("\nMost similar prompts\n"));
+    for (const item of suggestions.similar) {
+      console.log(
+        `  ${chalk.cyan(item.score.toFixed(3))} ${item.prompt.title} ${chalk.dim(item.sharedTags.join(", "))}`
+      );
+    }
+  }
+
+  console.log();
+}
+
+/**
+ * Scan for duplicate prompts (Premium)
+ */
+export async function dedupeScanCommand(options: DedupeOptions): Promise<void> {
+  await requirePremium(options, "Duplicate scanning");
+
+  const registry = await loadRegistry();
+  const minScore = parseNumber(options.minScore, 0.85);
+  const maxPairs = parseNumber(options.limit, 50);
+
+  const duplicates = findDuplicateCandidates(registry.prompts, {
+    minScore,
+    maxPairs,
+  });
+
+  if (shouldOutputJson(options)) {
+    console.log(
+      JSON.stringify(
+        duplicates.map((candidate) => ({
+          promptA: { id: candidate.promptA.id, title: candidate.promptA.title },
+          promptB: { id: candidate.promptB.id, title: candidate.promptB.title },
+          score: candidate.score,
+          reasons: candidate.reasons,
+          sharedTags: candidate.sharedTags,
+          sharedTokens: candidate.sharedTokens,
+          titleMatch: candidate.titleMatch,
+        })),
+        null,
+        2
+      )
+    );
+    return;
+  }
+
+  console.log(chalk.bold.cyan("\nDuplicate scan results\n"));
+  if (duplicates.length === 0) {
+    console.log(chalk.dim("No duplicates detected with current threshold."));
+    console.log();
+    return;
+  }
+
+  for (const candidate of duplicates) {
+    console.log(`  ${formatSimilarityLine(candidate)}`);
+    if (candidate.reasons.length > 0) {
+      console.log(`    ${chalk.dim(candidate.reasons.join(" | "))}`);
+    }
+  }
+
   console.log();
 }
 

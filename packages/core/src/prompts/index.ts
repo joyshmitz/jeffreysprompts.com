@@ -43,6 +43,23 @@ export {
 export type { Workflow, WorkflowStep } from "./workflows";
 export { workflows, getWorkflow } from "./workflows";
 
+// Metadata suggestions + duplicate detection
+export type {
+  SimilarPrompt,
+  TagSuggestion,
+  CategorySuggestion,
+  DescriptionSuggestion,
+  MetadataSuggestions,
+  DuplicateCandidate,
+  MetadataOptions,
+  DuplicateOptions,
+} from "./metadata";
+export {
+  findSimilarPrompts,
+  suggestPromptMetadata,
+  findDuplicateCandidates,
+} from "./metadata";
+
 // Schema validation
 export {
   PromptSchema,
