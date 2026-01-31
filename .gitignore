@@ -123,3 +123,14 @@ a.out
 
 # Screenshots (browser snipping tool artifacts)
 Snipping_*.png
+
+# ------------------------------------------------------------------------------
+# Agent ephemeral files (created by AI coding agents, not meant for commits)
+# ------------------------------------------------------------------------------
+.codex_dummy
+dummy
+noop
+_
+ignore
+mcp_agent_mail
+.mcp_agent_mail_stub
