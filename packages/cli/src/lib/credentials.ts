@@ -171,24 +171,27 @@ async function refreshAccessToken(refreshToken: string, env = process.env): Prom
       return null;
     }
 
-    const data = (await response.json()) as {
-      access_token: string;
-      refresh_token?: string;
-      expires_at: string;
-      email: string;
-      tier: "free" | "premium";
-      user_id: string;
-    };
+    const data = await response.json();
 
-    debugLog(`Refresh successful, new token expires: ${data.expires_at}`, env);
+    // Validate response with Zod schema (refresh_token may be omitted)
+    const RefreshResponseSchema = CredentialsSchema.extend({
+      refresh_token: z.string().optional(),
+    });
+    const result = RefreshResponseSchema.safeParse(data);
+    if (!result.success) {
+      debugLog(`Invalid refresh response: ${result.error.message}`, env);
+      return null;
+    }
+
+    debugLog(`Refresh successful, new token expires: ${result.data.expires_at}`, env);
 
     return {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token ?? refreshToken, // Keep old refresh token if not provided
-      expires_at: data.expires_at,
-      email: data.email,
-      tier: data.tier,
-      user_id: data.user_id,
+      access_token: result.data.access_token,
+      refresh_token: result.data.refresh_token ?? refreshToken, // Keep old refresh token if not provided
+      expires_at: result.data.expires_at,
+      email: result.data.email,
+      tier: result.data.tier,
+      user_id: result.data.user_id,
     };
   } catch (err) {
     // Network error - return null to fail gracefully

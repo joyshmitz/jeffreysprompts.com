@@ -138,9 +138,16 @@ export function formatSyncAge(isoDate: string | undefined | null): string {
   if (Number.isNaN(date.getTime())) return "unknown";
   const ms = Date.now() - date.getTime();
   if (ms < 60000) return "just now";
-  if (ms < 3600000) return `${Math.floor(ms / 60000)} min ago`;
-  if (ms < 86400000) return `${Math.floor(ms / 3600000)} hours ago`;
-  return `${Math.floor(ms / 86400000)} days ago`;
+  if (ms < 3600000) {
+    const mins = Math.floor(ms / 60000);
+    return `${mins} min ago`;
+  }
+  if (ms < 86400000) {
+    const hours = Math.floor(ms / 3600000);
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  }
+  const days = Math.floor(ms / 86400000);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
 /**

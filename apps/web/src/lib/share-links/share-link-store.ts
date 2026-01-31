@@ -104,7 +104,14 @@ export function hashPassword(password: string): string {
  * - Returns true if no password is required (hash is null/undefined)
  */
 export function verifyPassword(password: string, hash: string | null | undefined): boolean {
-  if (!hash) return true;
+  // Constant-time branch: always compute a hash to prevent timing attacks
+  // that could reveal whether a share link has a password set
+  if (!hash) {
+    // Dummy hash computation to match timing of password-protected case
+    const dummySalt = Buffer.alloc(SALT_LENGTH, 0);
+    pbkdf2Sync(password || "dummy", dummySalt, PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH, "sha256");
+    return true;
+  }
 
   // Check if this is the new salt:hash format
   if (hash.includes(":")) {

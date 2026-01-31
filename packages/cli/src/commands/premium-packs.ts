@@ -204,13 +204,15 @@ async function fetchPremiumPackDetail(id: string, options: PacksOptions): Promis
   const response = await apiClient.get<PackDetailResponse>(`/cli/premium-packs/${id}`);
   if (!response.ok) {
     handleApiError(response, options, "Failed to load premium pack");
-    process.exit(1);
+    // handleApiError calls process.exit(1), but TypeScript doesn't know that
+    throw new Error("unreachable");
   }
 
   const pack = response.data?.pack;
   if (!pack) {
     handleApiError({ ok: false, status: 404 }, options, "Pack not found");
-    process.exit(1);
+    // handleApiError calls process.exit(1), but TypeScript doesn't know that
+    throw new Error("unreachable");
   }
 
   return pack;
