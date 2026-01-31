@@ -87,7 +87,7 @@ export function CostBadge({
         <span className="font-medium">{formattedCost}</span>
         <span className="text-neutral-400 dark:text-neutral-500">est.</span>
       </div>
-      <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
+      <span className="text-xs text-neutral-400 dark:text-neutral-500">
         {model} @ {tokens} tokens
       </span>
     </div>
