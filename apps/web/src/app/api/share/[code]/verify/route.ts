@@ -8,24 +8,22 @@ import {
   verifyPassword,
 } from "@/lib/share-links/share-link-store";
 
-const MAX_PASSWORD_LENGTH = 64;
-
 function getClientIp(request: NextRequest): string | null {
   const forwardedFor = request.headers.get("x-forwarded-for");
   return forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip");
 }
 
 function resolveContent(contentType: string, contentId: string): unknown | null {
-  switch (contentType) {
-    case "prompt":
-      return getPrompt(contentId) ?? null;
-    case "bundle":
-      return getBundle(contentId) ?? null;
-    case "workflow":
-      return getWorkflow(contentId) ?? null;
-    default:
-      return null;
+  if (contentType === "prompt") {
+    return getPrompt(contentId) ?? null;
   }
+  if (contentType === "bundle") {
+    return getBundle(contentId) ?? null;
+  }
+  if (contentType === "workflow") {
+    return getWorkflow(contentId) ?? null;
+  }
+  return null;
 }
 
 function isExpired(expiresAt?: string | null): boolean {
@@ -45,6 +43,18 @@ export async function POST(
     return NextResponse.json({ error: "Missing share code." }, { status: 400 });
   }
 
+  let payload: { password?: string };
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const password = payload.password?.trim() ?? "";
+  if (!password) {
+    return NextResponse.json({ error: "Password is required." }, { status: 400 });
+  }
+
   const link = getShareLinkByCode(code);
   if (!link || !link.isActive) {
     return NextResponse.json({ error: "Share link not found." }, { status: 404 });
@@ -54,28 +64,8 @@ export async function POST(
     return NextResponse.json({ error: "Share link expired." }, { status: 410 });
   }
 
-  let payload: { password?: string };
-  try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  const password = payload.password?.trim() ?? "";
-
-  if (password.length > MAX_PASSWORD_LENGTH) {
-    return NextResponse.json(
-      { error: `Password must be ${MAX_PASSWORD_LENGTH} characters or fewer.` },
-      { status: 400 }
-    );
-  }
-
-  if (!link.passwordHash) {
-    return NextResponse.json({ error: "This share link is not password protected." }, { status: 400 });
-  }
-
   if (!verifyPassword(password, link.passwordHash)) {
-    return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
+    return NextResponse.json({ error: "Invalid password." }, { status: 401 });
   }
 
   const content = resolveContent(link.contentType, link.contentId);
@@ -89,15 +79,22 @@ export async function POST(
     userAgent: request.headers.get("user-agent"),
   });
 
-  return NextResponse.json({
-    link: {
-      code: link.linkCode,
-      contentType: link.contentType,
-      contentId: link.contentId,
-      viewCount: link.viewCount,
-      expiresAt: link.expiresAt,
-      createdAt: link.createdAt,
+  return NextResponse.json(
+    {
+      link: {
+        code: link.linkCode,
+        contentType: link.contentType,
+        contentId: link.contentId,
+        viewCount: link.viewCount,
+        expiresAt: link.expiresAt,
+        createdAt: link.createdAt,
+      },
+      content,
     },
-    content,
-  });
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }
