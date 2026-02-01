@@ -74,6 +74,13 @@ describe("costCommand", () => {
     expect(payload.cost.total).toBe(0.7);
   });
 
+  it("lists priced models without requiring a prompt id", async () => {
+    await costCommand(undefined, { json: true, listModels: true }, mockEnv);
+    const payload = JSON.parse(output.join(""));
+    expect(payload.models).toContain("gpt-4o-mini");
+    expect(payload.defaultModel).toBe("gpt-4o-mini");
+  });
+
   it("returns error payload when model pricing is missing", () => {
     expect(() => costCommand("idea-wizard", { json: true, model: "unknown-model" }, mockEnv)).toThrow();
     const payload = JSON.parse(output.join(""));

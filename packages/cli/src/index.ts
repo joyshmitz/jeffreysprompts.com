@@ -158,12 +158,13 @@ cli
   .action(recommendCommand);
 
 cli
-  .command("cost <prompt-id>", "Estimate token usage and cost (Premium)")
+  .command("cost [prompt-id]", "Estimate token usage and cost (Premium)")
   .option("--model <model>", "Model identifier (default: gpt-4o-mini)")
   .option("--input-tokens <n>", "Override input token estimate")
   .option("--output-tokens <n>", "Estimate output tokens (default: 0)")
   .option("--price-in <usd>", "Override input price per 1k tokens")
   .option("--price-out <usd>", "Override output price per 1k tokens")
+  .option("--list-models", "List supported models")
   .option("--json", "Output JSON")
   .action(costCommand);
 

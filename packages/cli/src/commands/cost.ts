@@ -5,6 +5,8 @@ import {
   estimateCost,
   estimatePromptTokens,
   listPricedModels,
+  type CostEstimate,
+  type PricingTable,
 } from "@jeffreysprompts/core";
 import { loadRegistry } from "../lib/registry-loader";
 import { shouldOutputJson } from "../lib/utils";
@@ -17,6 +19,7 @@ interface CostOptions {
   inputTokens?: string;
   priceIn?: string;
   priceOut?: string;
+  listModels?: boolean;
 }
 
 function writeJson(payload: Record<string, unknown>): void {
@@ -25,6 +28,26 @@ function writeJson(payload: Record<string, unknown>): void {
 
 function writeJsonError(code: string, message: string, extra: Record<string, unknown> = {}): void {
   writeJson({ error: true, code, message, ...extra });
+}
+
+function outputModelList(options: CostOptions): void {
+  const models = listPricedModels(DEFAULT_PRICING_TABLE);
+  if (shouldOutputJson(options)) {
+    writeJson({
+      models,
+      count: models.length,
+      defaultModel: DEFAULT_MODEL,
+    });
+    return;
+  }
+
+  console.log(chalk.bold.cyan("\nSupported pricing models\n"));
+  for (const model of models) {
+    console.log(`  ${chalk.yellow(model)}`);
+  }
+  console.log();
+  console.log(chalk.dim(`Default model: ${DEFAULT_MODEL}`));
+  console.log(chalk.dim("Use --price-in/--price-out to override pricing for other models."));
 }
 
 function parseNumber(value: string | undefined): number | null {
@@ -76,21 +99,89 @@ function formatCurrency(amount: number, currency: string): string {
   return `$${amount.toFixed(6)}`;
 }
 
+function outputEstimate(input: {
+  estimate: CostEstimate;
+  prompt: { id: string; title: string };
+  tokenSource: string;
+  model: string;
+  pricingTable: PricingTable;
+  options: CostOptions;
+}): void {
+  const { estimate, prompt, tokenSource, model, pricingTable, options } = input;
+
+  if (shouldOutputJson(options)) {
+    writeJson({
+      prompt: { id: prompt.id, title: prompt.title },
+      model: estimate.model,
+      tokens: {
+        input: estimate.inputTokens,
+        output: estimate.outputTokens,
+        total: estimate.totalTokens,
+        source: tokenSource,
+      },
+      pricing: {
+        inputPer1k: pricingTable[model].inputPer1k,
+        outputPer1k: pricingTable[model].outputPer1k,
+        currency: pricingTable[model].currency,
+        unit: estimate.unit,
+      },
+      cost: {
+        input: estimate.inputCost,
+        output: estimate.outputCost,
+        total: estimate.totalCost,
+        currency: estimate.currency,
+      },
+    });
+    return;
+  }
+
+  console.log(chalk.bold.cyan(`\nCost estimate for "${prompt.title}" (${prompt.id})`));
+  console.log(chalk.dim(`Model: ${estimate.model}`));
+  console.log(
+    chalk.dim(
+      `Tokens: input ${estimate.inputTokens} (${tokenSource}), output ${estimate.outputTokens}, total ${estimate.totalTokens}`
+    )
+  );
+  console.log(
+    chalk.dim(
+      `Pricing: ${formatCurrency(pricingTable[model].inputPer1k, estimate.currency)}/1k input, ` +
+        `${formatCurrency(pricingTable[model].outputPer1k, estimate.currency)}/1k output`
+    )
+  );
+  console.log(chalk.green(`Estimated cost: ${formatCurrency(estimate.totalCost, estimate.currency)}`));
+  console.log();
+}
+
 export async function costCommand(
-  promptId: string,
+  promptId: string | undefined,
   options: CostOptions = {},
   env: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
+  if (options.listModels) {
+    outputModelList(options);
+    return;
+  }
+
+  const resolvedPromptId = promptId?.trim();
+  if (!resolvedPromptId) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("missing_prompt_id", "Usage: jfp cost <prompt-id>");
+    } else {
+      console.error(chalk.red("Missing prompt id. Usage: jfp cost <prompt-id>"));
+    }
+    process.exit(1);
+  }
+
   await requirePremium(options, env);
 
   const registry = await loadRegistry();
-  const prompt = registry.prompts.find((item) => item.id === promptId);
+  const prompt = registry.prompts.find((item) => item.id === resolvedPromptId);
 
   if (!prompt) {
     if (shouldOutputJson(options)) {
-      writeJsonError("prompt_not_found", `No prompt with id '${promptId}'`);
+      writeJsonError("prompt_not_found", `No prompt with id '${resolvedPromptId}'`);
     } else {
-      console.error(chalk.red(`No prompt with id '${promptId}'`));
+      console.error(chalk.red(`No prompt with id '${resolvedPromptId}'`));
     }
     process.exit(1);
   }
@@ -174,47 +265,15 @@ export async function costCommand(
       console.error(chalk.dim("Use --price-in/--price-out to provide pricing overrides."));
     }
     process.exit(1);
-  }
-
-  if (shouldOutputJson(options)) {
-    writeJson({
-      prompt: { id: prompt.id, title: prompt.title },
-      model: estimate.model,
-      tokens: {
-        input: estimate.inputTokens,
-        output: estimate.outputTokens,
-        total: estimate.totalTokens,
-        source: tokenSource,
-      },
-      pricing: {
-        inputPer1k: pricingTable[model].inputPer1k,
-        outputPer1k: pricingTable[model].outputPer1k,
-        currency: pricingTable[model].currency,
-        unit: estimate.unit,
-      },
-      cost: {
-        input: estimate.inputCost,
-        output: estimate.outputCost,
-        total: estimate.totalCost,
-        currency: estimate.currency,
-      },
-    });
     return;
   }
 
-  console.log(chalk.bold.cyan(`\nCost estimate for "${prompt.title}" (${prompt.id})`));
-  console.log(chalk.dim(`Model: ${estimate.model}`));
-  console.log(
-    chalk.dim(
-      `Tokens: input ${estimate.inputTokens} (${tokenSource}), output ${estimate.outputTokens}, total ${estimate.totalTokens}`
-    )
-  );
-  console.log(
-    chalk.dim(
-      `Pricing: ${formatCurrency(pricingTable[model].inputPer1k, estimate.currency)}/1k input, ` +
-        `${formatCurrency(pricingTable[model].outputPer1k, estimate.currency)}/1k output`
-    )
-  );
-  console.log(chalk.green(`Estimated cost: ${formatCurrency(estimate.totalCost, estimate.currency)}`));
-  console.log();
+  outputEstimate({
+    estimate,
+    prompt,
+    tokenSource,
+    model,
+    pricingTable,
+    options,
+  });
 }
