@@ -43,14 +43,21 @@ export async function POST(
     return NextResponse.json({ error: "Missing share code." }, { status: 400 });
   }
 
-  let payload: { password?: string };
+  let payload: { password?: string | null };
   try {
     payload = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const password = payload.password?.trim() ?? "";
+  let password = "";
+  if (payload.password === undefined || payload.password === null) {
+    password = "";
+  } else if (typeof payload.password === "string") {
+    password = payload.password.trim();
+  } else {
+    return NextResponse.json({ error: "Invalid password value." }, { status: 400 });
+  }
   if (!password) {
     return NextResponse.json({ error: "Password is required." }, { status: 400 });
   }

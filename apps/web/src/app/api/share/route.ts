@@ -16,18 +16,10 @@ const CONTENT_TYPE_MAP: Record<string, ShareContentType> = {
 };
 
 function resolveContent(type: ShareContentType, id: string): unknown | null {
-  switch (type) {
-    case "prompt":
-      return getPrompt(id) ?? null;
-    case "bundle":
-      return getBundle(id) ?? null;
-    case "workflow":
-      return getWorkflow(id) ?? null;
-    case "collection":
-      return null;
-    default:
-      return null;
-  }
+  if (type === "prompt") return getPrompt(id) ?? null;
+  if (type === "bundle") return getBundle(id) ?? null;
+  if (type === "workflow") return getWorkflow(id) ?? null;
+  return null;
 }
 
 function parseExpiresAt(
@@ -90,7 +82,14 @@ export async function POST(request: NextRequest) {
 
   const rawType = payload.contentType?.trim() ?? "";
   const contentId = payload.contentId?.trim() ?? "";
-  const password = payload.password?.trim();
+  let password: string | null = null;
+  if (payload.password === undefined || payload.password === null) {
+    password = null;
+  } else if (typeof payload.password === "string") {
+    password = payload.password.trim();
+  } else {
+    return NextResponse.json({ error: "Invalid password value." }, { status: 400 });
+  }
 
   if (!rawType || !contentId) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -130,7 +129,7 @@ export async function POST(request: NextRequest) {
     userId: getUserId(request),
     contentType: mappedType,
     contentId,
-    password: password ?? null,
+    password: password === "" ? null : password,
     expiresAt: expiresAt || null,
   });
 

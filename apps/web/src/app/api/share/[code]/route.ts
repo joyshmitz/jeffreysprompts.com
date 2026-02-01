@@ -33,16 +33,10 @@ function isOwner(link: ShareLink, userId: string | null): boolean {
 }
 
 function resolveContent(contentType: string, contentId: string): unknown | null {
-  switch (contentType) {
-    case "prompt":
-      return getPrompt(contentId) ?? null;
-    case "bundle":
-      return getBundle(contentId) ?? null;
-    case "workflow":
-      return getWorkflow(contentId) ?? null;
-    default:
-      return null;
-  }
+  if (contentType === "prompt") return getPrompt(contentId) ?? null;
+  if (contentType === "bundle") return getBundle(contentId) ?? null;
+  if (contentType === "workflow") return getWorkflow(contentId) ?? null;
+  return null;
 }
 
 function isExpired(expiresAt?: string | null): boolean {
@@ -151,7 +145,17 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const password = payload.password === undefined ? undefined : payload.password?.trim();
+  let password: string | null | undefined;
+  if (payload.password === undefined) {
+    password = undefined;
+  } else if (payload.password === null) {
+    password = null;
+  } else if (typeof payload.password === "string") {
+    password = payload.password.trim();
+  } else {
+    return NextResponse.json({ error: "Invalid password value." }, { status: 400 });
+  }
+
   if (password && password.length > MAX_PASSWORD_LENGTH) {
     return NextResponse.json(
       { error: `Password must be ${MAX_PASSWORD_LENGTH} characters or fewer.` },
