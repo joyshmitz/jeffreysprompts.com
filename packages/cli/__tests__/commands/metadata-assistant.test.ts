@@ -101,10 +101,31 @@ describe("metadata assistant commands", () => {
     expect(Array.isArray(payload)).toBe(true);
   });
 
+  it("returns error JSON and exits for invalid min score", () => {
+    expect(() => dedupeScanCommand({ json: true, minScore: "2" })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("invalid_min_score");
+    expect(exitCode).toBe(1);
+  });
+
+  it("returns error JSON and exits for invalid scan limit", () => {
+    expect(() => dedupeScanCommand({ json: true, limit: "0" })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("invalid_limit");
+    expect(exitCode).toBe(1);
+  });
+
   it("returns error JSON and exits for invalid threshold", () => {
     expect(() => tagsSuggestCommand("idea-wizard", { json: true, threshold: "2" })).toThrow();
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_threshold");
+    expect(exitCode).toBe(1);
+  });
+
+  it("returns error JSON and exits for missing prompt id", () => {
+    expect(() => tagsSuggestCommand(undefined, { json: true })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("missing_prompt");
     expect(exitCode).toBe(1);
   });
 });
