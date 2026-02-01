@@ -38,7 +38,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { RelatedPrompts } from "@/components/RelatedPrompts";
 import { ChangelogAccordion } from "@/components/ChangelogAccordion";
 import { trackEvent } from "@/lib/analytics";
-import { trackHistoryView } from "@/lib/history/client";
+import { getOrCreateLocalUserId, trackHistoryView } from "@/lib/history/client";
 import type { RatingSummary, RatingValue } from "@/lib/ratings/rating-store";
 import {
   renderPrompt,
@@ -106,14 +106,7 @@ export function PromptContent({ prompt }: PromptContentProps) {
   }, [prompt.id]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = "jfp-rating-user-id";
-    let stored = window.localStorage.getItem(key);
-    if (!stored) {
-      stored = crypto.randomUUID();
-      window.localStorage.setItem(key, stored);
-    }
-    setRatingUserId(stored);
+    setRatingUserId(getOrCreateLocalUserId());
   }, []);
 
   useEffect(() => {

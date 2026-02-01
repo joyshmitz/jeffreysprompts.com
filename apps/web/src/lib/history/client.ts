@@ -3,6 +3,7 @@
 import type { HistoryResourceType, ViewHistoryEntry } from "./types";
 
 const LOCAL_USER_ID_KEY = "jfpUserId";
+const LEGACY_RATING_USER_ID_KEY = "jfp-rating-user-id";
 const HISTORY_STORAGE_KEY = "jfpHistoryV1";
 const MAX_QUERY_LENGTH = 500;
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
@@ -13,11 +14,18 @@ export function getOrCreateLocalUserId(): string | null {
 
   let userId = window.localStorage.getItem(LOCAL_USER_ID_KEY);
   if (!userId) {
+    const legacyUserId = window.localStorage.getItem(LEGACY_RATING_USER_ID_KEY);
+    if (legacyUserId) {
+      window.localStorage.setItem(LOCAL_USER_ID_KEY, legacyUserId);
+      return legacyUserId;
+    }
+
     userId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : `user-${Math.random().toString(36).slice(2, 9)}`;
     window.localStorage.setItem(LOCAL_USER_ID_KEY, userId);
+    window.localStorage.setItem(LEGACY_RATING_USER_ID_KEY, userId);
   }
 
   return userId;
