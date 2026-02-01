@@ -352,7 +352,7 @@ export function getForYouRecommendations(
   const runSignals = normalizeSignals(userHistory.runs, "run");
 
   for (const signal of savedSignals) {
-    sourcePrompts.push(signal, { ...signal });
+    sourcePrompts.push(signal);
     excludeIds.add(signal.prompt.id);
   }
 
