@@ -192,6 +192,7 @@ If you are not subscribed, Pro commands still exist but will return a clear upgr
 - `jfp login`, `jfp logout`, `jfp whoami`
 - `jfp save`, `jfp notes`, `jfp collections`, `jfp sync`
 - `jfp recommend`
+- `jfp packs`
 - `jfp cost`
 - `jfp tags suggest`, `jfp dedupe scan`
 - `jfp list --mine`, `jfp search --mine`, `jfp list --saved`, `jfp search --saved`, `jfp search --all`
