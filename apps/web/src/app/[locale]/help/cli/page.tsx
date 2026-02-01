@@ -69,7 +69,8 @@ jfp graph export --include-collections --json`}
           personal prompt search (<span className="font-mono">--mine</span>,{" "}
           <span className="font-mono">--saved</span>,{" "}
           <span className="font-mono">--all</span>), plus save, sync, notes, collections,
-          premium packs (<span className="font-mono">jfp packs</span>), and offline cache.
+          premium packs (<span className="font-mono">jfp packs</span>), cost estimates (
+          <span className="font-mono">jfp cost</span>), and offline cache.
         </p>
       </div>
     </HelpLayout>
