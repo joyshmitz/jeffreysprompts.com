@@ -171,6 +171,7 @@ Claude Code skills are managed in **Jeffrey's Skills.md** (`jsm`). Use JFP for p
 | **TTY Detection** | Auto-switches to JSON when piped |
 | **Single Binary** | Bun-compiled, no runtime dependencies |
 | **Cross-Platform** | Linux, macOS, Windows builds |
+| **Cost Estimator (Pro)** | Estimate tokens and USD cost per prompt |
 
 ### CLI: Free vs Premium (Paid)
 
@@ -191,6 +192,7 @@ If you are not subscribed, Pro commands still exist but will return a clear upgr
 - `jfp login`, `jfp logout`, `jfp whoami`
 - `jfp save`, `jfp notes`, `jfp collections`, `jfp sync`
 - `jfp recommend`
+- `jfp cost`
 - `jfp tags suggest`, `jfp dedupe scan`
 - `jfp list --mine`, `jfp search --mine`, `jfp list --saved`, `jfp search --saved`, `jfp search --all`
 
@@ -248,6 +250,7 @@ jfp show idea-wizard --raw    # Just the prompt text
 
 jfp recommend                 # Personalized recommendations (Pro)
 jfp recommend idea-wizard     # Related prompts (Pro)
+jfp cost idea-wizard          # Estimate tokens + cost (Pro)
 
 jfp impact <id>               # Show downstream dependencies
 jfp graph export              # Export prompt dependency graph
