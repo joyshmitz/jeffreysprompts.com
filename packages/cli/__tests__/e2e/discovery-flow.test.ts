@@ -337,19 +337,19 @@ describe("CLI Discovery Flow E2E", () => {
 
       if (result.success) {
         // Clipboard worked - raw content output
-        expect(result.stdout).toContain("improvement");
-        expect(result.stdout).toContain("ultrathink");
+        expect(result.stdout).toContain("Come up with your very best ideas");
+        expect(result.stdout).toContain("systematically and critically evaluate");
       } else {
         // Headless environment - JSON with fallback
         try {
           const output = JSON.parse(result.stdout);
-          expect(output.fallback).toContain("improvement");
-          expect(output.fallback).toContain("ultrathink");
+          expect(output.fallback).toContain("Come up with your very best ideas");
+          expect(output.fallback).toContain("systematically and critically evaluate");
           logger.info("Running in headless mode - using fallback content");
         } catch {
           // If not JSON, check raw stdout for expected content
-          expect(result.stdout).toContain("improvement");
-          expect(result.stdout).toContain("ultrathink");
+          expect(result.stdout).toContain("Come up with your very best ideas");
+          expect(result.stdout).toContain("systematically and critically evaluate");
         }
       }
 

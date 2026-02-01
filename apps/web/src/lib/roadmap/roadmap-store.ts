@@ -101,16 +101,20 @@ declare global {
   }
 }
 
+const globalStore = globalThis as typeof globalThis & {
+  __jfp_roadmap_store__?: RoadmapStore;
+};
+
 function getStore(): RoadmapStore {
-  if (!globalThis.__jfp_roadmap_store__) {
-    globalThis.__jfp_roadmap_store__ = {
+  if (!globalStore.__jfp_roadmap_store__) {
+    globalStore.__jfp_roadmap_store__ = {
       features: new Map(),
       votes: new Map(),
       comments: new Map(),
     };
     initializeSeedData();
   }
-  return globalThis.__jfp_roadmap_store__;
+  return globalStore.__jfp_roadmap_store__;
 }
 
 // =============================================================================
@@ -118,7 +122,7 @@ function getStore(): RoadmapStore {
 // =============================================================================
 
 function initializeSeedData(): void {
-  const store = globalThis.__jfp_roadmap_store__!;
+  const store = globalStore.__jfp_roadmap_store__!;
 
   const seedFeatures: FeatureRequest[] = [
     {

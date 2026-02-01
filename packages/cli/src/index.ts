@@ -180,22 +180,29 @@ cli
 cli
   .command("graph [action]", "Dependency graph utilities")
   .option("--format <format>", "Format: json|dot|mermaid (default: json)")
+  .option("--include-meta", "Include category/tag nodes in the graph")
+  .option("--include-collections", "Include collection nodes (requires login)")
   .option("--json", "Output JSON")
-  .action((action: string | undefined, options: { format?: string; json?: boolean }) => {
-    const outputError = (code: string, message: string) => {
-      if (options.json) {
-        console.log(JSON.stringify({ error: true, code, message }));
-      } else {
-        console.error(message);
-      }
-      process.exit(1);
-    };
+  .action(
+    (
+      action: string | undefined,
+      options: { format?: string; json?: boolean; includeMeta?: boolean; includeCollections?: boolean }
+    ) => {
+      const outputError = (code: string, message: string) => {
+        if (options.json) {
+          console.log(JSON.stringify({ error: true, code, message }));
+        } else {
+          console.error(message);
+        }
+        process.exit(1);
+      };
 
-    if (action === undefined || action === "export") {
-      return graphExportCommand(options);
+      if (action === undefined || action === "export") {
+        return graphExportCommand(options);
+      }
+      outputError("unknown_action", `Unknown graph action: ${action}. Available: export`);
     }
-    outputError("unknown_action", `Unknown graph action: ${action}. Available: export`);
-  });
+  );
 
 cli
   .command("bundles", "List all prompt bundles")
