@@ -659,6 +659,19 @@ describe("XDG_CONFIG_HOME", () => {
     }
   });
 
+  it("getCredentialsPath respects JFP_HOME when XDG_CONFIG_HOME is not set", () => {
+    const { testDir, mockEnv, cleanup } = setupTestEnv();
+    try {
+      const customHome = join(testDir, "custom-home");
+      const jfpEnv = { ...mockEnv, JFP_HOME: customHome };
+
+      const path = credentials.getCredentialsPath(jfpEnv);
+      expect(path).toBe(join(customHome, ".config", "jfp", "credentials.json"));
+    } finally {
+      cleanup();
+    }
+  });
+
   it("getCredentialsPath uses HOME/.config without XDG_CONFIG_HOME", () => {
     const { fakeHome, mockEnv, cleanup } = setupTestEnv();
     try {

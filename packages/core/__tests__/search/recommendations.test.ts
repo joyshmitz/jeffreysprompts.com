@@ -66,7 +66,7 @@ describe("recommendations", () => {
 
   it("respects excluded categories when recommending", () => {
     const results = getForYouRecommendations(
-      { preferences: { excludeCategories: ["documentation"] } },
+      { preferences: { excludeCategories: ["Documentation"] } },
       prompts,
       { limit: 3 }
     );

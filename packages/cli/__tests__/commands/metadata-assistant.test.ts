@@ -27,8 +27,20 @@ function parseJson<T = Record<string, unknown>>(payload: string): T {
   }
 }
 
+async function expectExit(promise: Promise<void>) {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof Error && error.message === "process.exit") {
+      return;
+    }
+    throw error;
+  }
+  throw new Error("Expected process.exit");
+}
+
 beforeAll(async () => {
-  const testHome = join(tmpdir(), "jfp-test-home");
+  const testHome = join(tmpdir(), `jfp-test-home-${randomUUID()}`);
   process.env.HOME = testHome;
   process.env.XDG_CONFIG_HOME = join(testHome, ".config");
   if (process.env.JFP_TOKEN) {
@@ -140,56 +152,56 @@ describe("metadata assistant commands", () => {
     }
   });
 
-  it("returns error JSON and exits for invalid min score", () => {
-    expect(() => dedupeScanCommand({ json: true, minScore: "2" })).toThrow();
+  it("returns error JSON and exits for invalid min score", async () => {
+    await expectExit(dedupeScanCommand({ json: true, minScore: "2" }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_min_score");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for invalid scan limit", () => {
-    expect(() => dedupeScanCommand({ json: true, limit: "0" })).toThrow();
+  it("returns error JSON and exits for invalid scan limit", async () => {
+    await expectExit(dedupeScanCommand({ json: true, limit: "0" }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_limit");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for invalid threshold", () => {
-    expect(() => tagsSuggestCommand("idea-wizard", { json: true, threshold: "2" })).toThrow();
+  it("returns error JSON and exits for invalid threshold", async () => {
+    await expectExit(tagsSuggestCommand("idea-wizard", { json: true, threshold: "2" }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_threshold");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for missing prompt id", () => {
-    expect(() => tagsSuggestCommand(undefined, { json: true })).toThrow();
+  it("returns error JSON and exits for missing prompt id", async () => {
+    await expectExit(tagsSuggestCommand(undefined, { json: true }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("missing_prompt");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for invalid tag limit", () => {
-    expect(() => tagsSuggestCommand("idea-wizard", { json: true, limit: "0" })).toThrow();
+  it("returns error JSON and exits for invalid tag limit", async () => {
+    await expectExit(tagsSuggestCommand("idea-wizard", { json: true, limit: "0" }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_limit");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for invalid similar limit", () => {
-    expect(() => tagsSuggestCommand("idea-wizard", { json: true, similar: "0" })).toThrow();
+  it("returns error JSON and exits for invalid similar limit", async () => {
+    await expectExit(tagsSuggestCommand("idea-wizard", { json: true, similar: "0" }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("invalid_similar");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits for unknown prompt id", () => {
-    expect(() => tagsSuggestCommand("not-a-prompt", { json: true })).toThrow();
+  it("returns error JSON and exits for unknown prompt id", async () => {
+    await expectExit(tagsSuggestCommand("not-a-prompt", { json: true }));
     const payload = parseJson<Record<string, unknown>>(output.join(""));
     expect(payload.code).toBe("prompt_not_found");
     expect(exitCode).toBe(1);
   });
 
-  it("returns error JSON and exits when not authenticated", () => {
+  it("returns error JSON and exits when not authenticated", async () => {
     const prevHome = process.env.HOME;
     const prevXdg = process.env.XDG_CONFIG_HOME;
     const prevToken = process.env.JFP_TOKEN;
@@ -202,7 +214,7 @@ describe("metadata assistant commands", () => {
         delete process.env.JFP_TOKEN;
       }
 
-      expect(() => tagsSuggestCommand("idea-wizard", { json: true })).toThrow();
+      await expectExit(tagsSuggestCommand("idea-wizard", { json: true }));
       const payload = parseJson<Record<string, unknown>>(output.join(""));
       expect(payload.code).toBe("not_authenticated");
       expect(exitCode).toBe(1);
@@ -235,7 +247,7 @@ describe("metadata assistant commands", () => {
     );
 
     try {
-      expect(() => dedupeScanCommand({ json: true })).toThrow();
+      await expectExit(dedupeScanCommand({ json: true }));
       const payload = parseJson<Record<string, unknown>>(output.join(""));
       expect(payload.code).toBe("premium_required");
       expect(exitCode).toBe(1);

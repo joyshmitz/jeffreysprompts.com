@@ -39,8 +39,9 @@ export type Credentials = z.infer<typeof CredentialsSchema>;
  */
 export function getCredentialsPath(env = process.env): string {
   const xdgConfig = env.XDG_CONFIG_HOME;
-  // Use env.HOME directly for testability (homedir() caches)
-  const home = env.HOME || homedir();
+  // Prefer JFP_HOME when provided to keep CLI state isolated (matches config.ts behavior).
+  // Fall back to HOME or system homedir() for default resolution.
+  const home = env.JFP_HOME || env.HOME || homedir();
   const configDir = xdgConfig || join(home, ".config");
   return join(configDir, "jfp", "credentials.json");
 }

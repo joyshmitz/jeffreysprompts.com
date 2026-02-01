@@ -46,6 +46,10 @@ function normalizeTag(tag: string): string {
   return tag.toLowerCase().trim();
 }
 
+function normalizeCategory(category: string): string {
+  return category.toLowerCase().trim();
+}
+
 function addWeight(map: Map<string, number>, key: string, weight: number): void {
   map.set(key, (map.get(key) ?? 0) + weight);
 }
@@ -242,8 +246,9 @@ export function getRecommendationsFromHistory(
       addWeight(tagWeights, normalized, weight);
       addSourceWeight(tagSources, normalized, signal.kind, weight);
     }
-    addWeight(categoryWeights, signal.prompt.category, weight);
-    addSourceWeight(categorySources, signal.prompt.category, signal.kind, weight);
+    const normalizedCategory = normalizeCategory(signal.prompt.category);
+    addWeight(categoryWeights, normalizedCategory, weight);
+    addSourceWeight(categorySources, normalizedCategory, signal.kind, weight);
   }
 
   const preferences = options?.preferences;
@@ -257,13 +262,14 @@ export function getRecommendationsFromHistory(
 
   if (preferences?.categories?.length) {
     for (const category of preferences.categories) {
-      addWeight(categoryWeights, category, CONFIG.preferenceCategoryBoost);
-      addSourceWeight(categorySources, category, "preference", CONFIG.preferenceCategoryBoost);
+      const normalizedCategory = normalizeCategory(category);
+      addWeight(categoryWeights, normalizedCategory, CONFIG.preferenceCategoryBoost);
+      addSourceWeight(categorySources, normalizedCategory, "preference", CONFIG.preferenceCategoryBoost);
     }
   }
 
   const excludedTags = new Set((preferences?.excludeTags ?? []).map(normalizeTag));
-  const excludedCategories = new Set(preferences?.excludeCategories ?? []);
+  const excludedCategories = new Set((preferences?.excludeCategories ?? []).map(normalizeCategory));
 
   const maxTagWeight = Math.max(1, ...tagWeights.values());
   const maxCatWeight = Math.max(1, ...categoryWeights.values());
@@ -272,7 +278,8 @@ export function getRecommendationsFromHistory(
 
   for (const candidate of allPrompts) {
     if (excludeIds.has(candidate.id)) continue;
-    if (excludedCategories.has(candidate.category)) continue;
+    const candidateCategory = normalizeCategory(candidate.category);
+    if (excludedCategories.has(candidateCategory)) continue;
     if (candidate.tags.some((tag) => excludedTags.has(normalizeTag(tag)))) continue;
 
     const reasons: string[] = [];
@@ -301,10 +308,10 @@ export function getRecommendationsFromHistory(
       reasons.push(tagReason(source, matchedTags));
     }
 
-    const catWeight = categoryWeights.get(candidate.category) ?? 0;
+    const catWeight = categoryWeights.get(candidateCategory) ?? 0;
     if (catWeight > 0) {
       score += (catWeight / maxCatWeight) * CONFIG.categoryWeight;
-      const source = pickTopSource(categorySources.get(candidate.category));
+      const source = pickTopSource(categorySources.get(candidateCategory));
       reasons.push(categoryReason(source, candidate.category));
     }
 
@@ -366,11 +373,11 @@ export function getForYouRecommendations(
   if (sourcePrompts.length === 0 && !hasPreferences) {
     const preferences = userHistory.preferences;
     const excludedTags = new Set((preferences?.excludeTags ?? []).map(normalizeTag));
-    const excludedCategories = new Set(preferences?.excludeCategories ?? []);
+    const excludedCategories = new Set((preferences?.excludeCategories ?? []).map(normalizeCategory));
 
     return allPrompts
       .filter((prompt) => !excludeIds.has(prompt.id))
-      .filter((prompt) => !excludedCategories.has(prompt.category))
+      .filter((prompt) => !excludedCategories.has(normalizeCategory(prompt.category)))
       .filter((prompt) => !prompt.tags.some((tag) => excludedTags.has(normalizeTag(tag))))
       .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)))
       .slice(0, limit)
