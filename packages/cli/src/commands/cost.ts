@@ -1,4 +1,6 @@
 import chalk from "chalk";
+import { appendFileSync, mkdirSync } from "fs";
+import { join } from "path";
 import {
   DEFAULT_MODEL,
   DEFAULT_PRICING_TABLE,
@@ -8,6 +10,7 @@ import {
   type CostEstimate,
   type PricingTable,
 } from "@jeffreysprompts/core";
+import { getConfigDir, loadConfig } from "../lib/config";
 import { loadRegistry } from "../lib/registry-loader";
 import { shouldOutputJson } from "../lib/utils";
 import { isLoggedIn, loadCredentials } from "../lib/credentials";
@@ -20,6 +23,21 @@ interface CostOptions {
   priceIn?: string;
   priceOut?: string;
   listModels?: boolean;
+}
+
+type BudgetAlertType = "per_run" | "monthly";
+
+interface BudgetAlert {
+  type: BudgetAlertType;
+  capUsd: number;
+  totalCostUsd: number;
+  currency: string;
+  promptId: string;
+  promptTitle: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  createdAt: string;
 }
 
 function writeJson(payload: Record<string, unknown>): void {
@@ -99,6 +117,73 @@ function formatCurrency(amount: number, currency: string): string {
   return `$${amount.toFixed(6)}`;
 }
 
+function normalizeCap(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  if (value <= 0) return null;
+  return value;
+}
+
+function recordBudgetAlert(alert: BudgetAlert): void {
+  try {
+    const configDir = getConfigDir();
+    mkdirSync(configDir, { recursive: true });
+    const alertPath = join(configDir, "budget-alerts.jsonl");
+    appendFileSync(alertPath, JSON.stringify(alert) + "\n");
+  } catch {
+    // Silent failure: alert logging should not crash the command
+  }
+}
+
+function evaluateBudgetAlerts(input: {
+  estimate: CostEstimate;
+  prompt: { id: string; title: string };
+  model: string;
+  budgets: { monthlyCapUsd: number | null; perRunCapUsd: number | null };
+  alertsEnabled: boolean;
+}): BudgetAlert[] {
+  if (!input.alertsEnabled) return [];
+
+  const perRunCap = normalizeCap(input.budgets.perRunCapUsd);
+  const monthlyCap = normalizeCap(input.budgets.monthlyCapUsd);
+  const totalCostUsd = input.estimate.totalCost;
+
+  const alerts: BudgetAlert[] = [];
+  if (perRunCap !== null && totalCostUsd > perRunCap) {
+    alerts.push({
+      type: "per_run",
+      capUsd: perRunCap,
+      totalCostUsd,
+      currency: input.estimate.currency,
+      promptId: input.prompt.id,
+      promptTitle: input.prompt.title,
+      model: input.model,
+      inputTokens: input.estimate.inputTokens,
+      outputTokens: input.estimate.outputTokens,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  if (monthlyCap !== null && totalCostUsd > monthlyCap) {
+    alerts.push({
+      type: "monthly",
+      capUsd: monthlyCap,
+      totalCostUsd,
+      currency: input.estimate.currency,
+      promptId: input.prompt.id,
+      promptTitle: input.prompt.title,
+      model: input.model,
+      inputTokens: input.estimate.inputTokens,
+      outputTokens: input.estimate.outputTokens,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  for (const alert of alerts) {
+    recordBudgetAlert(alert);
+  }
+
+  return alerts;
+}
+
 function outputEstimate(input: {
   estimate: CostEstimate;
   prompt: { id: string; title: string };
@@ -106,8 +191,10 @@ function outputEstimate(input: {
   model: string;
   pricingTable: PricingTable;
   options: CostOptions;
+  alerts: BudgetAlert[];
+  budgets: { monthlyCapUsd: number | null; perRunCapUsd: number | null };
 }): void {
-  const { estimate, prompt, tokenSource, model, pricingTable, options } = input;
+  const { estimate, prompt, tokenSource, model, pricingTable, options, alerts, budgets } = input;
 
   if (shouldOutputJson(options)) {
     writeJson({
@@ -131,6 +218,17 @@ function outputEstimate(input: {
         total: estimate.totalCost,
         currency: estimate.currency,
       },
+      budgets: {
+        monthlyCapUsd: budgets.monthlyCapUsd,
+        perRunCapUsd: budgets.perRunCapUsd,
+      },
+      alerts: alerts.map((alert) => ({
+        type: alert.type,
+        capUsd: alert.capUsd,
+        totalCostUsd: alert.totalCostUsd,
+        currency: alert.currency,
+        createdAt: alert.createdAt,
+      })),
     });
     return;
   }
@@ -149,6 +247,17 @@ function outputEstimate(input: {
     )
   );
   console.log(chalk.green(`Estimated cost: ${formatCurrency(estimate.totalCost, estimate.currency)}`));
+
+  if (alerts.length > 0) {
+    for (const alert of alerts) {
+      const label = alert.type === "per_run" ? "per-run budget" : "monthly budget";
+      console.log(
+        chalk.yellow(
+          `⚠ Estimated cost exceeds ${label} ($${alert.capUsd.toFixed(2)}).`
+        )
+      );
+    }
+  }
   console.log();
 }
 
@@ -268,6 +377,19 @@ export async function costCommand(
     return;
   }
 
+  const config = loadConfig();
+  const budgets = {
+    monthlyCapUsd: normalizeCap(config.budgets.monthlyCapUsd),
+    perRunCapUsd: normalizeCap(config.budgets.perRunCapUsd),
+  };
+  const alerts = evaluateBudgetAlerts({
+    estimate,
+    prompt,
+    model,
+    budgets,
+    alertsEnabled: config.budgets.alertsEnabled !== false,
+  });
+
   outputEstimate({
     estimate,
     prompt,
@@ -275,5 +397,7 @@ export async function costCommand(
     model,
     pricingTable,
     options,
+    alerts,
+    budgets,
   });
 }

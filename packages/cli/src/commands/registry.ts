@@ -153,6 +153,11 @@ export async function statusCommand(options: StatusOptions) {
         enabled: config.localPrompts.enabled,
         dir: config.localPrompts.dir,
       },
+      budgets: {
+        monthlyCapUsd: config.budgets.monthlyCapUsd,
+        perRunCapUsd: config.budgets.perRunCapUsd,
+        alertsEnabled: config.budgets.alertsEnabled,
+      },
     }, null, 2));
     return;
   }
@@ -188,6 +193,11 @@ export async function statusCommand(options: StatusOptions) {
   content += "\n" + chalk.green("Local Prompts:") + "\n";
   content += `  Enabled: ${config.localPrompts.enabled ? chalk.green("yes") : chalk.dim("no")}\n`;
   content += `  Directory: ${chalk.dim(config.localPrompts.dir)}\n`;
+
+  content += "\n" + chalk.green("Budgets:") + "\n";
+  content += `  Monthly cap: ${config.budgets.monthlyCapUsd ? `$${config.budgets.monthlyCapUsd}` : chalk.dim("not set")}\n`;
+  content += `  Per-run cap: ${config.budgets.perRunCapUsd ? `$${config.budgets.perRunCapUsd}` : chalk.dim("not set")}\n`;
+  content += `  Alerts: ${config.budgets.alertsEnabled ? chalk.green("enabled") : chalk.dim("disabled")}\n`;
 
   content += "\n" + chalk.green("Auth:") + "\n";
   if (!authStatus.authenticated) {

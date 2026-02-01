@@ -13,6 +13,7 @@ let mockEnv: NodeJS.ProcessEnv;
 const originalLog = console.log;
 const originalError = console.error;
 const originalExit = process.exit;
+const originalJfpHome = process.env.JFP_HOME;
 
 type CredentialSetup = {
   tier?: "free" | "premium";
@@ -41,6 +42,7 @@ function setupTestEnv(options: CredentialSetup = {}) {
   const { tier = "premium", withCredentials = true } = options;
   const testDir = join(tmpdir(), "jfp-cost-test-" + randomUUID());
   const fakeHome = join(testDir, "home");
+  process.env.JFP_HOME = fakeHome;
   if (withCredentials) {
     const credDir = join(fakeHome, ".config", "jfp");
     mkdirSync(credDir, { recursive: true });
@@ -83,6 +85,11 @@ afterEach(() => {
   console.log = originalLog;
   console.error = originalError;
   process.exit = originalExit;
+  if (originalJfpHome === undefined) {
+    delete process.env.JFP_HOME;
+  } else {
+    process.env.JFP_HOME = originalJfpHome;
+  }
 });
 
 describe("costCommand", () => {
@@ -171,5 +178,31 @@ describe("costCommand", () => {
     const payload = JSON.parse(output.join(""));
     expect(payload.code).toBe("unknown_model");
     expect(exitCode).toBe(1);
+  });
+
+  it("emits budget alerts when estimate exceeds caps", async () => {
+    const configDir = join(process.env.JFP_HOME ?? "", ".config", "jfp");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      join(configDir, "config.json"),
+      JSON.stringify({
+        budgets: {
+          monthlyCapUsd: 0.2,
+          perRunCapUsd: 0.1,
+          alertsEnabled: true,
+        },
+      })
+    );
+
+    await costCommand(
+      "idea-wizard",
+      { json: true, model: "test-model", priceIn: "1", priceOut: "1" },
+      mockEnv
+    );
+    const payload = JSON.parse(output.join(""));
+    expect(payload.alerts.length).toBe(2);
+    const types = payload.alerts.map((alert: { type: string }) => alert.type);
+    expect(types).toContain("per_run");
+    expect(types).toContain("monthly");
   });
 });

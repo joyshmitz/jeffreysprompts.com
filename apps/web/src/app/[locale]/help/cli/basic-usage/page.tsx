@@ -60,7 +60,8 @@ FLAGS:
             <strong>Pro:</strong> personal prompts (<code>list --mine</code>, <code>list --saved</code>,
             <code>search --mine</code>, <code>search --saved</code>, <code>search --all</code>),
             plus <code>save</code>, <code>sync</code>, <code>notes</code>, <code>collections</code>,
-            <code>packs</code> (premium pack installs), and <code>cost</code> (token/cost estimates)
+            <code>packs</code> (premium pack installs), <code>cost</code> (token/cost estimates),
+            and metadata tools (<code>tags suggest</code>, <code>dedupe scan</code>)
           </li>
         </ul>
         <p>
@@ -105,6 +106,16 @@ jfp cost idea-wizard --model gpt-4o-mini --output-tokens 500
 
 # List supported pricing models
 jfp cost --list-models`}</pre>
+
+        <h2>Metadata tools (Pro)</h2>
+        <p>
+          Use the metadata assistant to suggest tags or find likely duplicate prompts.
+        </p>
+        <pre>{`# Suggest tags/categories/descriptions for a prompt
+jfp tags suggest idea-wizard
+
+# Scan for near-duplicate prompts
+jfp dedupe scan --min-score 0.9 --limit 10`}</pre>
 
         <h2>Impact analysis</h2>
         <p>

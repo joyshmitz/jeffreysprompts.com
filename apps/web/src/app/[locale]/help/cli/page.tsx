@@ -70,7 +70,9 @@ jfp graph export --include-collections --json`}
           <span className="font-mono">--saved</span>,{" "}
           <span className="font-mono">--all</span>), plus save, sync, notes, collections,
           premium packs (<span className="font-mono">jfp packs</span>), cost estimates (
-          <span className="font-mono">jfp cost</span>), and offline cache.
+          <span className="font-mono">jfp cost</span>), metadata tools (
+          <span className="font-mono">jfp tags suggest</span>,{" "}
+          <span className="font-mono">jfp dedupe scan</span>), and offline cache.
         </p>
       </div>
     </HelpLayout>

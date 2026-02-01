@@ -39,6 +39,11 @@ export interface JfpConfig {
   analytics: {
     enabled: boolean;
   };
+  budgets: {
+    monthlyCapUsd: number | null;
+    perRunCapUsd: number | null;
+    alertsEnabled: boolean;
+  };
 }
 
 // Allow overriding home directory for testing via JFP_HOME env var
@@ -97,6 +102,11 @@ export function createDefaultConfig(): JfpConfig {
     analytics: {
       enabled: false,
     },
+    budgets: {
+      monthlyCapUsd: null,
+      perRunCapUsd: null,
+      alertsEnabled: true,
+    },
   };
 }
 
@@ -146,9 +156,10 @@ export function loadStoredConfig(): JfpConfig {
       updates: { ...defaultConfig.updates, ...parsed.updates },
       skills: { ...defaultConfig.skills, ...parsed.skills },
       output: { ...defaultConfig.output, ...parsed.output },
-      localPrompts: { ...defaultConfig.localPrompts, ...parsed.localPrompts },
-      analytics: { ...defaultConfig.analytics, ...parsed.analytics },
-    };
+    localPrompts: { ...defaultConfig.localPrompts, ...parsed.localPrompts },
+    analytics: { ...defaultConfig.analytics, ...parsed.analytics },
+    budgets: { ...defaultConfig.budgets, ...parsed.budgets },
+  };
     return merged;
   } catch {
     return defaultConfig;
@@ -172,6 +183,7 @@ export function saveConfig(config: Partial<JfpConfig>): void {
     output: { ...base.output, ...config.output },
     localPrompts: { ...base.localPrompts, ...config.localPrompts },
     analytics: { ...base.analytics, ...config.analytics },
+    budgets: { ...base.budgets, ...config.budgets },
   };
   
   const content = JSON.stringify(merged, null, 2);

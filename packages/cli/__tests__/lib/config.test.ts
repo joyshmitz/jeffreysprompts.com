@@ -108,6 +108,7 @@ describe("createDefaultConfig", () => {
     expect(config.output).toBeDefined();
     expect(config.localPrompts).toBeDefined();
     expect(config.analytics).toBeDefined();
+    expect(config.budgets).toBeDefined();
   });
 
   it("has correct default registry URL", () => {
@@ -130,6 +131,7 @@ describe("createDefaultConfig", () => {
     expect(config.updates.channel).toBe("stable");
     expect(config.output.color).toBe(true);
     expect(config.analytics.enabled).toBe(false);
+    expect(config.budgets.alertsEnabled).toBe(true);
   });
 });
 
@@ -339,6 +341,11 @@ describe("config file roundtrip", () => {
       analytics: {
         enabled: true,
       },
+      budgets: {
+        monthlyCapUsd: 25,
+        perRunCapUsd: 2,
+        alertsEnabled: false,
+      },
     };
 
     saveConfig(fullConfig);
@@ -358,5 +365,6 @@ describe("config file roundtrip", () => {
     expect(loaded.output.json).toBe(fullConfig.output.json);
     expect(loaded.localPrompts.enabled).toBe(fullConfig.localPrompts.enabled);
     expect(loaded.analytics.enabled).toBe(fullConfig.analytics.enabled);
+    expect(loaded.budgets.monthlyCapUsd).toBe(fullConfig.budgets.monthlyCapUsd);
   });
 });
