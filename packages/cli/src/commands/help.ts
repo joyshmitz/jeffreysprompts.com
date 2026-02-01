@@ -82,7 +82,7 @@ function getHelpData() {
         { name: "collections", description: "Manage prompt collections", options: ["--add", "--export", "--format", "--stdout", "--json"] },
         { name: "packs", description: "Manage premium packs (list/install/update/changelog)", options: ["--installed", "--tool", "--json"] },
         { name: "recommend [id]", description: "Personalized recommendations (Premium)", options: ["--limit", "--json"] },
-        { name: "cost <prompt-id>", description: "Estimate tokens and cost (Premium)", options: ["--model", "--input-tokens", "--output-tokens", "--price-in", "--price-out", "--list-models", "--json"] },
+        { name: "cost [prompt-id]", description: "Estimate tokens and cost (Premium)", options: ["--model", "--input-tokens", "--output-tokens", "--price-in", "--price-out", "--list-models", "--json"] },
         { name: "tags suggest <prompt-id>", description: "Suggest tags/categories (Pro)", options: ["--limit", "--similar", "--threshold", "--json"] },
         { name: "dedupe scan", description: "Scan for duplicate prompts (Pro)", options: ["--min-score", "--limit", "--json"] },
       ],
