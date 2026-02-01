@@ -638,6 +638,18 @@ describe("getCurrentUser", () => {
       cleanup();
     }
   });
+
+  it("returns null when JFP_TOKEN is set", async () => {
+    const { mockEnv, cleanup } = setupTestEnv({ JFP_TOKEN: "env-token" });
+    try {
+      await credentials.saveCredentials(validCredentials, mockEnv);
+
+      const user = await credentials.getCurrentUser(mockEnv);
+      expect(user).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
 });
 
 describe("XDG_CONFIG_HOME", () => {

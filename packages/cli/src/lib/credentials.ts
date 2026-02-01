@@ -263,6 +263,9 @@ export async function isLoggedIn(env = process.env): Promise<boolean> {
  * - Refresh failed and credentials are expired
  */
 export async function getCurrentUser(env = process.env): Promise<{ email: string; tier: string; userId: string } | null> {
+  if (env.JFP_TOKEN) {
+    return null;
+  }
   // Trigger auto-refresh if needed (this may update the credentials file)
   await getAccessToken(env);
 
