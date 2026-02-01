@@ -78,36 +78,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process each item
-    const results: BulkActionResult[] = [];
     const now = new Date().toISOString();
 
-    for (const reportId of itemIds) {
-      // Check if report exists
+    const processReport = (reportId: string): BulkActionResult => {
       const report = getContentReport(reportId);
       if (!report) {
-        results.push({
-          reportId,
-          success: false,
-          error: "Report not found",
-        });
-        continue;
+        return { reportId, success: false, error: "Report not found" };
       }
-
-      // Skip already processed reports
       if (report.status !== "pending") {
-        results.push({
+        return {
           reportId,
           success: false,
           error: `Report already processed (status: ${report.status})`,
-        });
-        continue;
+        };
       }
 
-      // Map bulk action to report action
-      const reportAction: ReportAction = action === "dismiss" ? "dismiss" : action === "warn" ? "warn" : "remove";
+      const reportAction: ReportAction =
+        action === "dismiss" ? "dismiss" : action === "warn" ? "warn" : "remove";
 
-      // Update the report
       const updated = updateContentReport({
         reportId,
         action: reportAction,
@@ -115,20 +103,14 @@ export async function POST(request: NextRequest) {
         notes: reason ?? `Bulk ${action} by ${auth.role} at ${now}`,
       });
 
-      if (updated) {
-        results.push({
-          reportId,
-          success: true,
-          action: reportAction,
-        });
-      } else {
-        results.push({
-          reportId,
-          success: false,
-          error: "Failed to update report",
-        });
+      if (!updated) {
+        return { reportId, success: false, error: "Failed to update report" };
       }
-    }
+
+      return { reportId, success: true, action: reportAction };
+    };
+
+    const results = itemIds.map(processReport);
 
     // Calculate summary
     const succeeded = results.filter((r) => r.success).length;
