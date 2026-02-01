@@ -128,4 +128,25 @@ describe("metadata assistant commands", () => {
     expect(payload.code).toBe("missing_prompt");
     expect(exitCode).toBe(1);
   });
+
+  it("returns error JSON and exits for invalid tag limit", () => {
+    expect(() => tagsSuggestCommand("idea-wizard", { json: true, limit: "0" })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("invalid_limit");
+    expect(exitCode).toBe(1);
+  });
+
+  it("returns error JSON and exits for invalid similar limit", () => {
+    expect(() => tagsSuggestCommand("idea-wizard", { json: true, similar: "0" })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("invalid_similar");
+    expect(exitCode).toBe(1);
+  });
+
+  it("returns error JSON and exits for unknown prompt id", () => {
+    expect(() => tagsSuggestCommand("not-a-prompt", { json: true })).toThrow();
+    const payload = parseJson<Record<string, unknown>>(output.join(""));
+    expect(payload.code).toBe("prompt_not_found");
+    expect(exitCode).toBe(1);
+  });
 });
