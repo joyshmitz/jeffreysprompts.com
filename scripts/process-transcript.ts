@@ -18,6 +18,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
+import { redactTranscript } from "./redact-transcript";
 
 
 interface ProcessOptions {
@@ -107,7 +108,7 @@ function formatDuration(start: string, end: string): string {
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
 
-  if (isNaN(startMs) || isNaN(endMs)) {
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
     return "0m";
   }
 
@@ -329,15 +330,16 @@ async function main() {
 
   // Output
   const output = JSON.stringify(processed, null, 2);
+  const { result: redactedOutput } = redactTranscript(output);
 
   if (options.stdout) {
-    console.log(output);
+    console.log(redactedOutput);
   } else {
     const outputDir = dirname(resolve(options.output));
     if (!existsSync(outputDir)) {
       mkdirSync(outputDir, { recursive: true });
     }
-    writeFileSync(options.output, output);
+    writeFileSync(options.output, redactedOutput);
     console.log("Wrote output to:", options.output);
   }
 }

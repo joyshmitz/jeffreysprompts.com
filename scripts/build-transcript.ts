@@ -11,6 +11,7 @@
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
+import { redactTranscript } from "./redact-transcript";
 
 // ============================================================================
 // Types (matching lib/transcript/types.ts)
@@ -453,9 +454,10 @@ async function main() {
     mkdirSync(outputDir, { recursive: true });
   }
 
-  // Write output
+  // Write output (redact secrets before saving)
   const json = JSON.stringify(processed, null, 2);
-  writeFileSync(outputPath, json, "utf-8");
+  const { result: redactedJson, applied } = redactTranscript(json);
+  writeFileSync(outputPath, redactedJson, "utf-8");
 
   const outputStat = statSync(outputPath);
   console.log(`\nOutput written to: ${outputPath}`);

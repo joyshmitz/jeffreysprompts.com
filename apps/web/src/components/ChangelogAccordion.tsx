@@ -48,7 +48,7 @@ const defaultConfig = {
 function formatDate(isoDate: string): string {
   try {
     const date = new Date(isoDate);
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       return isoDate;
     }
     return date.toLocaleDateString(undefined, {

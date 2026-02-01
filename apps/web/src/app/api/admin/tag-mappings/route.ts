@@ -9,16 +9,19 @@ import {
 
 export const runtime = "nodejs";
 
-function authError(request: NextRequest, permission: Parameters<typeof checkAdminPermission>[1]) {
+function requirePermission(
+  request: NextRequest,
+  permission: Parameters<typeof checkAdminPermission>[1]
+): { response: NextResponse | null; auth: ReturnType<typeof checkAdminPermission> } {
   const auth = checkAdminPermission(request, permission);
-  if (auth.ok) return null;
+  if (auth.ok) return { response: null, auth };
   const status = auth.reason === "unauthorized" ? 401 : 403;
-  return NextResponse.json({ error: auth.reason ?? "forbidden" }, { status });
+  return { response: NextResponse.json({ error: auth.reason ?? "forbidden" }, { status }), auth };
 }
 
 export async function GET(request: NextRequest) {
-  const authResponse = authError(request, "content.view_reported");
-  if (authResponse) return authResponse;
+  const { response } = requirePermission(request, "content.view_reported");
+  if (response) return response;
 
   const mappings = listTagMappings();
 
@@ -38,13 +41,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResponse = authError(request, "content.moderate");
-  if (authResponse) return authResponse;
+  const { response, auth } = requirePermission(request, "content.moderate");
+  if (response) return response;
 
   const body = await request.json().catch(() => null) as {
     alias?: string;
     canonical?: string;
-    updatedBy?: string;
   } | null;
 
   if (!body?.alias || !body?.canonical) {
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
     const mapping = upsertTagMapping({
       alias: body.alias,
       canonical: body.canonical,
-      updatedBy: body.updatedBy ?? "admin",
+      updatedBy: auth.role,
     });
 
     return NextResponse.json({
@@ -83,8 +85,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authResponse = authError(request, "content.moderate");
-  if (authResponse) return authResponse;
+  const { response } = requirePermission(request, "content.moderate");
+  if (response) return response;
 
   const aliasParam = request.nextUrl.searchParams.get("alias");
   const body = await request.json().catch(() => null) as { alias?: string } | null;

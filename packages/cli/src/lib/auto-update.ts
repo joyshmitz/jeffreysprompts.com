@@ -27,7 +27,7 @@ interface GithubRelease {
 function shouldCheck(lastCheck: string | null): boolean {
   if (!lastCheck) return true;
   const lastCheckDate = new Date(lastCheck);
-  if (isNaN(lastCheckDate.getTime())) return true;
+  if (Number.isNaN(lastCheckDate.getTime())) return true;
   return Date.now() - lastCheckDate.getTime() > CHECK_INTERVAL_MS;
 }
 

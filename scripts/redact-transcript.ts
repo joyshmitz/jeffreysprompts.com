@@ -69,7 +69,7 @@ function resolveOutputPath(inputPath: string, outputArg?: string): string {
   return join(dir, `${name}.redacted${ext}`);
 }
 
-function redact(content: string): { result: string; applied: string[] } {
+export function redactTranscript(content: string): { result: string; applied: string[] } {
   let output = content;
   const applied: string[] = [];
 
@@ -94,7 +94,7 @@ function main() {
   }
 
   const raw = readFileSync(inputPath, "utf-8");
-  const { result, applied } = redact(raw);
+  const { result, applied } = redactTranscript(raw);
 
   writeFileSync(outputPath, result, "utf-8");
 
@@ -103,4 +103,6 @@ function main() {
   console.log(`Applied rules: ${labels}`);
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
