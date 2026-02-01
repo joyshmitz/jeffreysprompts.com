@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { randomUUID } from "crypto";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -47,7 +48,7 @@ async function expectExit(promise: Promise<void>) {
 
 function setupTestEnv(options: CredentialSetup = {}) {
   const { tier = "premium", withCredentials = true } = options;
-  const testDir = join(tmpdir(), "jfp-premium-packs-test-" + Date.now().toString(36));
+  const testDir = join(tmpdir(), "jfp-premium-packs-test-" + randomUUID());
   const fakeHome = join(testDir, "home");
   mkdirSync(fakeHome, { recursive: true });
 
@@ -128,6 +129,28 @@ describe("premiumPacksCommand", () => {
     expect(payload.installedOnly).toBe(false);
   });
 
+  it("passes installed filter when requested", async () => {
+    let captured: URL | null = null;
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = new URL(input.toString());
+      captured = url;
+      if (url.pathname.endsWith("/cli/premium-packs")) {
+        return Promise.resolve(
+          jsonResponse({
+            packs: [],
+            installedOnly: true,
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse({ error: "not found" }, 404));
+    });
+
+    await premiumPacksCommand(undefined, undefined, { json: true, installed: true });
+    const payload = parseOutput();
+    expect(payload.installedOnly).toBe(true);
+    expect(captured?.searchParams.get("installed")).toBe("true");
+  });
+
   it("shows a premium pack in JSON mode", async () => {
     globalThis.fetch = mock((input: RequestInfo | URL) => {
       const url = new URL(input.toString());
@@ -166,6 +189,49 @@ describe("premiumPacksCommand", () => {
     const payload = parseOutput();
     expect(payload.packId).toBe("starter-pack");
     expect(payload.action).toBe("subscribe");
+  });
+
+  it("uninstalls a pack in JSON mode", async () => {
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input.toString());
+      if (url.pathname.endsWith("/cli/premium-packs/starter-pack/install") && init?.method === "DELETE") {
+        return Promise.resolve(jsonResponse({ uninstalled: true, removed: true, packId: "starter-pack" }));
+      }
+      return Promise.resolve(jsonResponse({ error: "not found" }, 404));
+    });
+
+    await premiumPacksCommand("uninstall", "starter-pack", { json: true });
+    const payload = parseOutput();
+    expect(payload.packId).toBe("starter-pack");
+    expect(payload.uninstalled).toBe(true);
+  });
+
+  it("returns changelog in JSON mode", async () => {
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = new URL(input.toString());
+      if (url.pathname.endsWith("/cli/premium-packs/starter-pack")) {
+        return Promise.resolve(
+          jsonResponse({
+            pack: {
+              id: "starter-pack",
+              title: "Starter Pack",
+              version: "1.2.3",
+              promptCount: 2,
+              isInstalled: true,
+              changelog: "Added prompts",
+              prompts: [],
+            },
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse({ error: "not found" }, 404));
+    });
+
+    await premiumPacksCommand("changelog", "starter-pack", { json: true });
+    const payload = parseOutput();
+    expect(payload.packId).toBe("starter-pack");
+    expect(payload.version).toBe("1.2.3");
+    expect(payload.hasChangelog).toBe(true);
   });
 
   it("returns not_authenticated when credentials are missing", async () => {
