@@ -16,3 +16,26 @@ export function safeJsonStringify(value: unknown): string {
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
 }
+
+/**
+ * Safely parse a date string to milliseconds timestamp.
+ * Returns null if the string is invalid or produces an invalid date.
+ *
+ * Use this instead of `new Date(str).getTime()` to avoid NaN propagation.
+ */
+export function safeDateMs(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  const ms = date.getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Safely parse a date string to Date object.
+ * Returns null if the string is invalid or produces an invalid date.
+ */
+export function safeParseDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return Number.isFinite(date.getTime()) ? date : null;
+}

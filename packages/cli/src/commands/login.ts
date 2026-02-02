@@ -216,10 +216,23 @@ async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
       }
     });
 
+    // Configure server timeouts to prevent hung connections
+    // Keep-alive timeout: close idle connections after 5 seconds
+    server.keepAliveTimeout = 5000;
+    // Headers timeout: reject slow clients after 10 seconds
+    server.headersTimeout = 10000;
+    // Request timeout: 30 seconds max per request
+    server.requestTimeout = 30000;
+
     // Find available port by listening on port 0
     server.listen(0, "127.0.0.1", () => {
       const addr = server.address();
       const port = typeof addr === "object" && addr ? addr.port : 0;
+
+      if (port === 0) {
+        rejectToken(new Error("Failed to bind to a port"));
+        return;
+      }
 
       // Set timeout
       const timeoutId = setTimeout(() => {

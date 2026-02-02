@@ -21,6 +21,8 @@ import {
   readOfflineLibrary,
   readSyncMeta,
   formatSyncAge,
+  acquireSyncLock,
+  releaseSyncLock,
 } from "../lib/offline";
 
 export interface SyncOptions {
@@ -150,7 +152,17 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
     process.exit(1);
   }
 
-  // Step 3: Get current meta for incremental sync (unless --force)
+  // Step 3: Acquire sync lock to prevent concurrent sync operations
+  if (!acquireSyncLock()) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("sync_in_progress", "Another sync operation is in progress. Please wait and try again.");
+    } else {
+      console.error(chalk.yellow("Another sync operation is in progress. Please wait and try again."));
+    }
+    process.exit(1);
+  }
+
+  // Step 4: Get current meta for incremental sync (unless --force)
   const meta = options.force ? null : readSyncMeta();
   const spinner = shouldOutputJson(options) ? null : ora("Syncing library...").start();
 
@@ -169,6 +181,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
 
       // Handle auth errors
       if (isAuthError(response)) {
+        releaseSyncLock();
         if (shouldOutputJson(options)) {
           writeJsonError("session_expired", "Your session has expired. Please log in again.", {
             hint: "Run 'jfp login' to sign in",
@@ -182,6 +195,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
 
       // Handle permission errors
       if (isPermissionError(response)) {
+        releaseSyncLock();
         if (shouldOutputJson(options)) {
           writeJsonError("requires_premium", "Library sync requires a premium subscription");
         } else {
@@ -192,6 +206,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
       }
 
       // Other errors
+      releaseSyncLock();
       if (shouldOutputJson(options)) {
         writeJsonError("sync_failed", response.error || "Failed to sync library");
       } else {
@@ -249,6 +264,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
     }
   } catch (err) {
     spinner?.fail("Sync failed");
+    releaseSyncLock();
     if (shouldOutputJson(options)) {
       writeJsonError("sync_failed", err instanceof Error ? err.message : "Unknown error");
     } else {
@@ -256,4 +272,7 @@ export async function syncCommand(options: SyncOptions = {}): Promise<void> {
     }
     process.exit(1);
   }
+
+  // Release the lock on success
+  releaseSyncLock();
 }

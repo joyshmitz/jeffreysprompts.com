@@ -3,7 +3,64 @@
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { z } from "zod";
 import { atomicWriteFileSync } from "./utils";
+
+// Zod schema for config validation
+const RegistryConfigSchema = z.object({
+  url: z.string().url().optional(),
+  remote: z.string().url().optional(),
+  manifestUrl: z.string().url().optional(),
+  cachePath: z.string().optional(),
+  metaPath: z.string().optional(),
+  autoRefresh: z.boolean().optional(),
+  cacheTtl: z.number().int().min(0).max(86400 * 30).optional(), // Max 30 days
+  timeoutMs: z.number().int().min(100).max(60000).optional(), // 100ms to 60s
+}).strict().partial();
+
+const UpdatesConfigSchema = z.object({
+  autoCheck: z.boolean().optional(),
+  autoUpdate: z.boolean().optional(),
+  channel: z.enum(["stable", "beta"]).optional(),
+  lastCheck: z.string().nullable().optional(),
+  latestKnownVersion: z.string().nullable().optional(),
+}).strict().partial();
+
+const SkillsConfigSchema = z.object({
+  personalDir: z.string().optional(),
+  projectDir: z.string().optional(),
+  preferProject: z.boolean().optional(),
+}).strict().partial();
+
+const OutputConfigSchema = z.object({
+  color: z.boolean().optional(),
+  json: z.boolean().optional(),
+}).strict().partial();
+
+const LocalPromptsConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  dir: z.string().optional(),
+}).strict().partial();
+
+const AnalyticsConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+}).strict().partial();
+
+const BudgetsConfigSchema = z.object({
+  monthlyCapUsd: z.number().min(0).max(100000).nullable().optional(),
+  perRunCapUsd: z.number().min(0).max(10000).nullable().optional(),
+  alertsEnabled: z.boolean().optional(),
+}).strict().partial();
+
+const PartialConfigSchema = z.object({
+  registry: RegistryConfigSchema.optional(),
+  updates: UpdatesConfigSchema.optional(),
+  skills: SkillsConfigSchema.optional(),
+  output: OutputConfigSchema.optional(),
+  localPrompts: LocalPromptsConfigSchema.optional(),
+  analytics: AnalyticsConfigSchema.optional(),
+  budgets: BudgetsConfigSchema.optional(),
+}).strict().partial();
 
 export interface JfpConfig {
   registry: {
@@ -148,7 +205,20 @@ export function loadStoredConfig(): JfpConfig {
   }
   try {
     const raw = readFileSync(configFile, "utf-8");
-    const parsed = JSON.parse(raw) as Partial<JfpConfig>;
+    const jsonParsed = JSON.parse(raw);
+
+    // Validate with Zod schema - invalid fields are stripped, valid fields are kept
+    const validated = PartialConfigSchema.safeParse(jsonParsed);
+    if (!validated.success) {
+      // Log validation errors in debug mode
+      if (process.env.JFP_DEBUG) {
+        console.warn("[Config] Validation errors:", validated.error.flatten());
+      }
+      // Fall back to defaults for invalid config
+      return defaultConfig;
+    }
+
+    const parsed = validated.data;
     const merged: JfpConfig = {
       ...defaultConfig,
       ...parsed,
@@ -156,10 +226,10 @@ export function loadStoredConfig(): JfpConfig {
       updates: { ...defaultConfig.updates, ...parsed.updates },
       skills: { ...defaultConfig.skills, ...parsed.skills },
       output: { ...defaultConfig.output, ...parsed.output },
-    localPrompts: { ...defaultConfig.localPrompts, ...parsed.localPrompts },
-    analytics: { ...defaultConfig.analytics, ...parsed.analytics },
-    budgets: { ...defaultConfig.budgets, ...parsed.budgets },
-  };
+      localPrompts: { ...defaultConfig.localPrompts, ...parsed.localPrompts },
+      analytics: { ...defaultConfig.analytics, ...parsed.analytics },
+      budgets: { ...defaultConfig.budgets, ...parsed.budgets },
+    };
     return merged;
   } catch {
     return defaultConfig;

@@ -8,6 +8,10 @@ interface HistoryStore {
 const STORE_KEY = "__jfp_view_history_store__";
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
 const HISTORY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 60 * 1000; // Only prune once per minute per user
+
+// Track last prune time per user to avoid O(n) scan on every call
+const lastPruneTime = new Map<string, number>();
 
 function getStore(): HistoryStore {
   const globalStore = globalThis as typeof globalThis & {
@@ -34,18 +38,37 @@ function safeDateMs(value: string): number | null {
   return Number.isFinite(ms) ? ms : null;
 }
 
-function pruneUserHistory(store: HistoryStore, userId: string) {
+/**
+ * Prune expired history entries for a user.
+ *
+ * Throttled to run at most once per PRUNE_INTERVAL_MS to avoid
+ * O(n) scans on every view. The entries list is kept sorted by
+ * recency (most recent first), so expired entries accumulate at
+ * the end and are cleaned up periodically.
+ */
+function pruneUserHistory(store: HistoryStore, userId: string, force = false) {
+  const now = Date.now();
+
+  // Skip if we pruned recently (unless forced)
+  if (!force) {
+    const lastPrune = lastPruneTime.get(userId) ?? 0;
+    if (now - lastPrune < PRUNE_INTERVAL_MS) {
+      return;
+    }
+  }
+  lastPruneTime.set(userId, now);
+
   const entries = store.entriesByUser.get(userId) ?? [];
   if (entries.length === 0) return;
 
-  const cutoff = Date.now() - HISTORY_TTL_MS;
+  const cutoff = now - HISTORY_TTL_MS;
   const kept: string[] = [];
 
   for (const entryId of entries) {
     const entry = store.entries.get(entryId);
     if (!entry) continue;
 
-    const viewedMs = safeDateMs(entry.viewedAt) ?? Date.now();
+    const viewedMs = safeDateMs(entry.viewedAt) ?? now;
     if (viewedMs < cutoff) {
       store.entries.delete(entryId);
       continue;

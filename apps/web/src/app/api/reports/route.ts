@@ -17,7 +17,25 @@ type RateLimitBucket = {
   resetAt: number;
 };
 
+/**
+ * In-memory rate limit storage.
+ *
+ * IMPORTANT: This resets on serverless cold starts, providing only
+ * per-instance protection. For production with multiple instances or
+ * serverless environments, consider using Redis/Upstash for durable
+ * rate limiting. The content-level deduplication via hasRecentReport()
+ * provides additional protection against spam.
+ */
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
+
+// Log warning once at startup in production
+if (process.env.NODE_ENV === "production" && !process.env.RATE_LIMIT_WARNED) {
+  console.warn(
+    "[Reports API] Using in-memory rate limiting. " +
+    "Consider Redis for production multi-instance deployments."
+  );
+  (process.env as Record<string, string>).RATE_LIMIT_WARNED = "1";
+}
 
 function getClientKey(request: NextRequest) {
   const forwardedFor = request.headers.get("x-forwarded-for");

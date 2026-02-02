@@ -4,8 +4,8 @@
  * Provides network detection and cached data fallback for CLI commands.
  */
 
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "fs";
+import { join, dirname } from "path";
 import type { Prompt, PromptCategory } from "@jeffreysprompts/core/prompts";
 import { getConfigDir } from "./config";
 
@@ -65,6 +65,88 @@ export function getLibraryPath(): string {
  */
 export function getMetaPath(): string {
   return join(getLibraryDir(), "sync.meta.json");
+}
+
+/**
+ * Get the path to the sync lock file
+ */
+export function getLockPath(): string {
+  return join(getLibraryDir(), ".sync.lock");
+}
+
+/**
+ * Lock file timeout in milliseconds (stale locks older than this are ignored)
+ */
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Acquire a lock for sync operations.
+ * Returns true if lock acquired, false if another sync is in progress.
+ *
+ * Uses a simple file-based lock with timestamp to handle stale locks
+ * from crashed processes.
+ */
+export function acquireSyncLock(): boolean {
+  const lockPath = getLockPath();
+  const lockDir = dirname(lockPath);
+
+  // Ensure directory exists
+  mkdirSync(lockDir, { recursive: true });
+
+  // Check for existing lock
+  if (existsSync(lockPath)) {
+    try {
+      const lockContent = readFileSync(lockPath, "utf-8");
+      const lockTime = Number.parseInt(lockContent, 10);
+
+      // If lock is stale (older than timeout), we can take it
+      if (Number.isFinite(lockTime) && Date.now() - lockTime < LOCK_TIMEOUT_MS) {
+        return false; // Lock is held by another process
+      }
+      // Lock is stale, fall through to acquire it
+    } catch {
+      // Can't read lock file, try to acquire anyway
+    }
+  }
+
+  // Acquire lock by writing our timestamp
+  try {
+    writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
+    return true;
+  } catch (err) {
+    // If file already exists (race condition), check if it's stale
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      // Another process beat us to it - try to check if their lock is stale
+      try {
+        const lockContent = readFileSync(lockPath, "utf-8");
+        const lockTime = Number.parseInt(lockContent, 10);
+        if (Number.isFinite(lockTime) && Date.now() - lockTime >= LOCK_TIMEOUT_MS) {
+          // Stale lock, overwrite it
+          writeFileSync(lockPath, String(Date.now()));
+          return true;
+        }
+      } catch {
+        // Can't read/write, give up
+      }
+      return false;
+    }
+    // Some other error (permissions, etc), proceed without lock
+    return true;
+  }
+}
+
+/**
+ * Release the sync lock.
+ */
+export function releaseSyncLock(): void {
+  const lockPath = getLockPath();
+  try {
+    if (existsSync(lockPath)) {
+      unlinkSync(lockPath);
+    }
+  } catch {
+    // Ignore errors during cleanup
+  }
 }
 
 /**
