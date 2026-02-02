@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAdminPermission } from "@/lib/admin/permissions";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 /**
  * GET /api/admin/stats
  * Returns dashboard statistics for the admin panel.
@@ -35,9 +37,5 @@ export async function GET(request: NextRequest) {
     generatedAt: new Date().toISOString(),
   };
 
-  return NextResponse.json(stats, {
-    headers: {
-      "Cache-Control": "private, max-age=60",
-    },
-  });
+  return NextResponse.json(stats, { headers: ADMIN_HEADERS });
 }

@@ -11,6 +11,8 @@ import {
   getActionTypeLabel,
 } from "@/lib/moderation/action-store";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 /**
  * GET /api/admin/appeals
  * Returns appeals queue for admin review.
@@ -118,5 +120,5 @@ export async function GET(request: NextRequest) {
       denied: stats.denied,
       overdue: stats.overdueCount,
     },
-  });
+  }, { headers: ADMIN_HEADERS });
 }

@@ -7,6 +7,8 @@ import {
   updateContentReport,
 } from "@/lib/reporting/report-store";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 /**
  * GET /api/admin/reports
  * Returns content moderation reports queue.
@@ -103,7 +105,7 @@ export async function GET(request: NextRequest) {
       actioned: reportStats.actioned,
       dismissed: reportStats.dismissed,
     },
-  });
+  }, { headers: ADMIN_HEADERS });
 }
 
 /**
@@ -165,7 +167,7 @@ export async function PUT(request: NextRequest) {
       notes: updated.reviewNotes,
       processedAt: updated.reviewedAt,
       message: `Report ${updated.id} has been processed with action: ${action}`,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },

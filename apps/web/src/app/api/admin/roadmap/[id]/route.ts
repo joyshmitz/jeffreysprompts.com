@@ -13,6 +13,7 @@ const VALID_STATUSES: FeatureStatus[] = [
   "shipped",
   "declined",
 ];
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
 
 function isValidStatus(value: unknown): value is FeatureStatus {
   return typeof value === "string" && VALID_STATUSES.includes(value as FeatureStatus);
@@ -47,7 +48,7 @@ export async function GET(
     success: true,
     feature,
     adminRole: auth.role,
-  });
+  }, { headers: ADMIN_HEADERS });
 }
 
 /**
@@ -109,7 +110,7 @@ export async function PATCH(
       success: true,
       feature,
       message: `Feature status updated to ${status}`,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch {
     return NextResponse.json(
       { error: "invalid_json", message: "Invalid JSON body" },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAdminPermission } from "@/lib/admin/permissions";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 /**
  * GET /api/admin/users
  * Returns paginated list of users with optional filtering.
@@ -119,5 +121,5 @@ export async function GET(request: NextRequest) {
       tier,
       status,
     },
-  });
+  }, { headers: ADMIN_HEADERS });
 }

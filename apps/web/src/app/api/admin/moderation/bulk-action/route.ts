@@ -6,6 +6,8 @@ import {
   type ReportAction,
 } from "@/lib/reporting/report-store";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 interface BulkActionRequest {
   itemIds: string[];
   action: "dismiss" | "warn" | "remove";
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
         failed,
       },
       message: `Processed ${succeeded} of ${itemIds.length} reports with action: ${action}`,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },

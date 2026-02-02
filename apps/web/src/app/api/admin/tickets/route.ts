@@ -17,6 +17,8 @@ import {
   updateSupportTicketStatus,
 } from "@/lib/support/ticket-store";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 export async function GET(request: NextRequest) {
   const auth = checkAdminPermission(request, "support.view");
   if (!auth.ok) {
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
       priorities: SUPPORT_PRIORITIES,
     },
     stats,
-  });
+  }, { headers: ADMIN_HEADERS });
 }
 
 export async function PUT(request: NextRequest) {
@@ -142,5 +144,5 @@ export async function PUT(request: NextRequest) {
   return NextResponse.json({
     success: true,
     ticket: updatedTicket,
-  });
+  }, { headers: ADMIN_HEADERS });
 }

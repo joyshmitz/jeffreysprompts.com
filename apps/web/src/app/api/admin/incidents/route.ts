@@ -14,6 +14,7 @@ import {
 
 const VALID_IMPACTS: IncidentImpact[] = ["none", "minor", "major", "critical"];
 const VALID_STATUSES: IncidentStatus[] = ["investigating", "identified", "monitoring", "resolved"];
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
 
 export async function GET(request: NextRequest) {
   const auth = checkAdminPermission(request, "support.view");
@@ -27,11 +28,14 @@ export async function GET(request: NextRequest) {
 
   if (action === "stats") {
     const stats = getIncidentStats();
-    return NextResponse.json({ stats });
+    return NextResponse.json({ stats }, { headers: ADMIN_HEADERS });
   }
 
   const incidents = listIncidents({ limit: 100 });
-  return NextResponse.json({ incidents, total: incidents.length });
+  return NextResponse.json(
+    { incidents, total: incidents.length },
+    { headers: ADMIN_HEADERS }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
     message: message.trim(),
   });
 
-  return NextResponse.json({ success: true, incident });
+  return NextResponse.json({ success: true, incident }, { headers: ADMIN_HEADERS });
 }
 
 export async function PUT(request: NextRequest) {
@@ -147,10 +151,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Failed to update incident." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, incident: updated });
+    return NextResponse.json(
+      { success: true, incident: updated },
+      { headers: ADMIN_HEADERS }
+    );
   }
 
   // Return current state if only impact was updated
   const refreshed = getIncident(incidentId);
-  return NextResponse.json({ success: true, incident: refreshed });
+  return NextResponse.json(
+    { success: true, incident: refreshed },
+    { headers: ADMIN_HEADERS }
+  );
 }

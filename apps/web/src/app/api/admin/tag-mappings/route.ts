@@ -9,6 +9,7 @@ import {
 } from "@/lib/metadata/tag-mapping-store";
 
 export const runtime = "nodejs";
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
 
 function requirePermission(
   request: NextRequest,
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       },
     },
     {
-      headers: { "Cache-Control": "no-store" },
+      headers: ADMIN_HEADERS,
     }
   );
 }
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: mapping,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch (error) {
     const message = error instanceof Error ? error.message : "invalid_payload";
     return NextResponse.json(
@@ -119,5 +120,5 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true }, { headers: ADMIN_HEADERS });
 }

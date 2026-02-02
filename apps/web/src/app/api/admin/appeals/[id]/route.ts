@@ -12,6 +12,8 @@ import {
   getActionTypeLabel,
 } from "@/lib/moderation/action-store";
 
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
+
 /**
  * GET /api/admin/appeals/[id]
  * Get a specific appeal with full details.
@@ -74,7 +76,7 @@ export async function GET(
           reversedAt: action.reversedAt,
         }
       : null,
-  });
+  }, { headers: ADMIN_HEADERS });
 }
 
 /**
@@ -184,5 +186,5 @@ export async function PATCH(
     },
     actionReversed,
     message: `Appeal has been ${newStatus === "under_review" ? "marked for review" : newStatus}.`,
-  });
+  }, { headers: ADMIN_HEADERS });
 }

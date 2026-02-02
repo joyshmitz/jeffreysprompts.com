@@ -14,6 +14,7 @@ import {
 } from "@/lib/featured/featured-store";
 
 export const runtime = "nodejs";
+const ADMIN_HEADERS = { "Cache-Control": "no-store" };
 
 /**
  * GET /api/admin/featured
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
         count: items.length,
         limit,
       },
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch (error) {
     console.error("Error listing featured content:", error);
     return NextResponse.json(
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: item,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create featured content";
 
@@ -182,7 +183,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "Reordered successfully",
-      });
+      }, { headers: ADMIN_HEADERS });
     }
 
     // Handle single item update
@@ -219,7 +220,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: item,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch (error) {
     console.error("Error updating featured content:", error);
     return NextResponse.json(
@@ -277,7 +278,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: "Featured content removed",
       data: item,
-    });
+    }, { headers: ADMIN_HEADERS });
   } catch (error) {
     console.error("Error removing featured content:", error);
     return NextResponse.json(
