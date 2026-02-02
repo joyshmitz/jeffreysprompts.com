@@ -31,6 +31,20 @@ interface BudgetAlertSummary {
   } | null;
 }
 
+function isBudgetAlertRecord(value: unknown): value is BudgetAlertSummary["last"] {
+  if (!value || typeof value !== "object") return false;
+  const record = value as BudgetAlertSummary["last"];
+  if (record.type !== "per_run" && record.type !== "monthly") return false;
+  if (typeof record.capUsd !== "number") return false;
+  if (typeof record.totalCostUsd !== "number") return false;
+  if (typeof record.currency !== "string") return false;
+  if (typeof record.promptId !== "string") return false;
+  if (typeof record.promptTitle !== "string") return false;
+  if (typeof record.model !== "string") return false;
+  if (typeof record.createdAt !== "string") return false;
+  return true;
+}
+
 function readMetaFile(metaPath: string): RegistryMeta | null {
   if (!existsSync(metaPath)) return null;
   try {
@@ -68,8 +82,18 @@ function readBudgetAlertSummary(): BudgetAlertSummary {
     const raw = readFileSync(alertPath, "utf-8").trim();
     if (!raw) return { count: 0, last: null };
     const lines = raw.split("\n").filter(Boolean);
-    const lastLine = lines[lines.length - 1];
-    const last = lastLine ? (JSON.parse(lastLine) as BudgetAlertSummary["last"]) : null;
+    let last: BudgetAlertSummary["last"] | null = null;
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      try {
+        const parsed = JSON.parse(lines[i]) as unknown;
+        if (isBudgetAlertRecord(parsed)) {
+          last = parsed;
+          break;
+        }
+      } catch {
+        // skip invalid entries
+      }
+    }
     return { count: lines.length, last };
   } catch {
     return { count: 0, last: null };

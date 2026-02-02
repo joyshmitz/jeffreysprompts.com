@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, PencilLine, Plus, RefreshCw, Tags, Trash2 } from "lucide-react";
+import { ArrowRight, PencilLine, Plus, RefreshCw, Shield, Tags, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,31 @@ interface TagMappingsResponse {
   meta?: { count: number; persistedPath?: string | null; lastPersistError?: string | null };
   error?: string;
   message?: string;
+}
+
+const ADMIN_TOKEN_STORAGE_KEY = "jfp_admin_token_v1";
+const ADMIN_ROLE_HEADER_VALUE = "moderator";
+
+function loadAdminToken(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function persistAdminToken(token: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!token) {
+      window.sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // ignore storage errors
+  }
 }
 
 function formatAuthError(code?: string): string | null {
@@ -82,18 +107,41 @@ export default function AdminMetadataPage() {
   const [canonical, setCanonical] = useState("");
   const [saving, setSaving] = useState(false);
   const [removingAlias, setRemovingAlias] = useState<string | null>(null);
+  const [adminToken, setAdminToken] = useState("");
+  const [meta, setMeta] = useState<TagMappingsResponse["meta"] | null>(null);
+
+  const authHeaders = useMemo(() => {
+    const token = adminToken.trim();
+    if (!token) return undefined;
+    return {
+      "x-jfp-admin-token": token,
+      "x-jfp-admin-role": ADMIN_ROLE_HEADER_VALUE,
+    };
+  }, [adminToken]);
+
+  useEffect(() => {
+    setAdminToken(loadAdminToken());
+  }, []);
+
+  useEffect(() => {
+    persistAdminToken(adminToken.trim());
+  }, [adminToken]);
 
   const loadMappings = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
 
     try {
-      const response = await fetch("/api/admin/tag-mappings", { cache: "no-store" });
+      const response = await fetch("/api/admin/tag-mappings", {
+        cache: "no-store",
+        headers: authHeaders,
+      });
       const payload = (await response.json().catch(() => null)) as TagMappingsResponse | null;
 
       if (!response.ok || !payload?.success) {
         setMappings([]);
         setRecord({});
+        setMeta(null);
         setLoadError(
           formatAuthError(payload?.error)
             ?? payload?.message
@@ -104,14 +152,16 @@ export default function AdminMetadataPage() {
 
       setMappings(payload.data ?? []);
       setRecord(payload.record ?? {});
+      setMeta(payload.meta ?? null);
     } catch {
       setMappings([]);
       setRecord({});
+      setMeta(null);
       setLoadError("Unable to load tag mappings.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authHeaders]);
 
   useEffect(() => {
     loadMappings();
@@ -135,7 +185,10 @@ export default function AdminMetadataPage() {
       try {
         const response = await fetch("/api/admin/tag-mappings", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(authHeaders ?? {}),
+          },
           body: JSON.stringify({
             alias,
             canonical,
@@ -162,7 +215,7 @@ export default function AdminMetadataPage() {
         setSaving(false);
       }
     },
-    [alias, canonical, loadMappings, toastError, toastSuccess]
+    [alias, canonical, authHeaders, loadMappings, toastError, toastSuccess]
   );
 
   const handleRemove = useCallback(
@@ -171,7 +224,10 @@ export default function AdminMetadataPage() {
       try {
         const response = await fetch(
           `/api/admin/tag-mappings?alias=${encodeURIComponent(aliasValue)}`,
-          { method: "DELETE" }
+          {
+            method: "DELETE",
+            headers: authHeaders,
+          }
         );
         const payload = (await response.json().catch(() => null)) as TagMappingsResponse | null;
 
@@ -193,7 +249,7 @@ export default function AdminMetadataPage() {
         setRemovingAlias(null);
       }
     },
-    [toastError, toastSuccess]
+    [authHeaders, toastError, toastSuccess]
   );
 
   const handlePrefill = useCallback((mapping: TagMapping) => {
@@ -202,6 +258,11 @@ export default function AdminMetadataPage() {
   }, []);
 
   const mappingCount = useMemo(() => Object.keys(record).length, [record]);
+  const persistenceEnabled = Boolean(meta?.persistedPath);
+  const persistenceLabel = persistenceEnabled ? "Enabled" : "In-memory only";
+  const persistenceDetail = persistenceEnabled
+    ? meta?.persistedPath
+    : "Set JFP_TAG_MAPPINGS_PATH to persist mappings.";
 
   return (
     <div className="space-y-6">
@@ -228,7 +289,7 @@ export default function AdminMetadataPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="flex items-center gap-4 p-4">
             <div className="rounded-lg bg-sky-100 p-2 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300">
@@ -251,7 +312,60 @@ export default function AdminMetadataPage() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="rounded-lg bg-emerald-100 p-2 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Persistence</p>
+              <p className="text-base font-semibold text-foreground">{persistenceLabel}</p>
+              <p className="text-xs text-muted-foreground">{persistenceDetail}</p>
+              {meta?.lastPersistError && (
+                <p className="text-xs text-rose-600">
+                  Last error: {meta.lastPersistError}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Admin access</CardTitle>
+          <CardDescription>
+            Provide your admin token to authorize changes. Stored in this browser
+            session only.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">Admin token</label>
+            <Input
+              type="password"
+              value={adminToken}
+              onChange={(event) => setAdminToken(event.target.value)}
+              placeholder="JFP_ADMIN_TOKEN"
+            />
+            <p className="text-xs text-muted-foreground">
+              Token is sent as <code>x-jfp-admin-token</code> with role{" "}
+              <code>{ADMIN_ROLE_HEADER_VALUE}</code>.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAdminToken("")}
+              disabled={!adminToken.trim()}
+            >
+              Clear token
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Card>
