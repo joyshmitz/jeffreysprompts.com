@@ -99,17 +99,19 @@ export function acquireSyncLock(): boolean {
       const lockContent = readFileSync(lockPath, "utf-8");
       const lockTime = Number.parseInt(lockContent, 10);
 
-      // If lock is stale (older than timeout), we can take it
+      // If lock is valid (not stale), another process holds it
       if (Number.isFinite(lockTime) && Date.now() - lockTime < LOCK_TIMEOUT_MS) {
         return false; // Lock is held by another process
       }
-      // Lock is stale, fall through to acquire it
+      // Lock is stale - overwrite it with our timestamp
+      writeFileSync(lockPath, String(Date.now()));
+      return true;
     } catch {
-      // Can't read lock file, try to acquire anyway
+      // Can't read lock file, try to acquire it below
     }
   }
 
-  // Acquire lock by writing our timestamp
+  // No existing lock (or couldn't read it) - try to create exclusively
   try {
     writeFileSync(lockPath, String(Date.now()), { flag: "wx" });
     return true;
