@@ -1,236 +1,280 @@
 // JeffreysPrompts Service Worker
 // Enables offline access with cached registry data
+//
+// Version is derived from /registry.manifest.json so caches rotate
+// automatically when the registry changes.  Static assets use a
+// separate, long-lived cache.
 
-const CACHE_VERSION = '1.0.0';
-const CACHE_NAME = `jfp-registry-${CACHE_VERSION}`;
+const STATIC_CACHE = "jfp-static-v1";
+const REGISTRY_CACHE_PREFIX = "jfp-registry-";
 
-// Assets to cache on install
-const PRECACHE_ASSETS = [
-  '/',
-  '/registry.json',
-  '/registry.manifest.json',
-  '/manifest.json',
-  '/icons/icon-192x192.svg',
-  '/icons/icon-512x512.svg',
+const REGISTRY_URL = "/registry.json";
+const REGISTRY_MANIFEST_URL = "/registry.manifest.json";
+
+const STATIC_PRECACHE = [
+  "/",
+  "/manifest.json",
+  "/icons/icon-192x192.svg",
+  "/icons/icon-512x512.svg",
 ];
 
-// Install event - precache essential assets
-self.addEventListener('install', (event) => {
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Fetch the registry version from the manifest (network-first, cache fallback). */
+async function getRegistryVersion() {
+  try {
+    const res = await fetch(REGISTRY_MANIFEST_URL, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.version === "string") return data.version;
+    }
+  } catch { /* network unavailable */ }
+
+  try {
+    const cached = await caches.match(REGISTRY_MANIFEST_URL);
+    if (cached) {
+      const data = await cached.json();
+      if (data && typeof data.version === "string") return data.version;
+    }
+  } catch { /* cache miss */ }
+
+  return "unknown";
+}
+
+/** Open (or create) the versioned registry cache. */
+async function openRegistryCache() {
+  const version = await getRegistryVersion();
+  const cacheName = `${REGISTRY_CACHE_PREFIX}${version}`;
+  const cache = await caches.open(cacheName);
+  return { cache, cacheName, version };
+}
+
+/** Cache-first with background revalidation for static assets. */
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res && res.ok) {
+    cache.put(request, res.clone());
+  }
+  return res;
+}
+
+/** Network-first with cache fallback. */
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const res = await fetch(request);
+    if (res && res.ok) {
+      cache.put(request, res.clone());
+    }
+    return res;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("Network error and no cache.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle events
+// ---------------------------------------------------------------------------
+
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Precaching assets');
-      return cache.addAll(PRECACHE_ASSETS);
-    }).then(() => {
-      // Skip waiting to activate immediately
-      return self.skipWaiting();
-    })
+    (async () => {
+      // Cache registry files in versioned cache
+      const { cache: registryCache } = await openRegistryCache();
+      try {
+        await registryCache.addAll([REGISTRY_URL, REGISTRY_MANIFEST_URL]);
+      } catch { /* non-fatal: may be offline */ }
+
+      // Cache static assets in long-lived cache
+      const staticCache = await caches.open(STATIC_CACHE);
+      try {
+        await staticCache.addAll(STATIC_PRECACHE);
+      } catch { /* non-fatal */ }
+    })()
   );
+  // NOTE: We intentionally do NOT call self.skipWaiting() here.
+  // The app's update banner (useServiceWorker hook) detects the waiting
+  // worker and lets the user choose when to activate it.
 });
 
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith('jfp-registry-') && name !== CACHE_NAME)
-          .map((name) => {
-            console.log('[SW] Deleting old cache:', name);
-            return caches.delete(name);
-          })
+    (async () => {
+      // Remove stale registry caches that don't match the current version
+      const { cacheName: currentCache } = await openRegistryCache();
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.map((key) => {
+          if (key.startsWith(REGISTRY_CACHE_PREFIX) && key !== currentCache) {
+            console.log("[SW] Deleting old cache:", key);
+            return caches.delete(key);
+          }
+          return undefined;
+        })
       );
-    }).then(() => {
-      // Take control of all clients immediately
-      return self.clients.claim();
-    })
+      await self.clients.claim();
+    })()
   );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
+// ---------------------------------------------------------------------------
+// Fetch strategies
+// ---------------------------------------------------------------------------
+
+self.addEventListener("fetch", (event) => {
   const { request } = event;
+
+  // Only intercept GET requests
+  if (request.method !== "GET") return;
+
   const url = new URL(request.url);
 
   // Only handle same-origin requests
-  if (url.origin !== self.location.origin) {
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
-  // Handle API requests with network-first, cache fallback
-  if (url.pathname.startsWith('/api/prompts')) {
+  // --- API: /api/prompts  (network-first, registry.json fallback) ---
+  if (url.pathname.startsWith("/api/prompts")) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone and cache successful responses
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(async () => {
-          // Network failed - try cache first
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
-          // Fallback to registry.json for offline prompt data
-          const registryResponse = await caches.match('/registry.json');
-          if (registryResponse) {
-            // Transform registry.json to match API response format
-            const registry = await registryResponse.json();
+      (async () => {
+        try {
+          return await networkFirst(request, STATIC_CACHE);
+        } catch {
+          // Network failed and no exact cache hit — fall back to registry.json
+          const { cache } = await openRegistryCache();
+          const fallback = await cache.match(REGISTRY_URL);
+          if (fallback) {
+            const registry = await fallback.json();
             return new Response(JSON.stringify(registry), {
               headers: {
-                'Content-Type': 'application/json',
-                'X-Offline-Fallback': 'true',
+                "Content-Type": "application/json",
+                "X-Offline-Fallback": "true",
               },
             });
           }
-
-          // No fallback available
-          return new Response(JSON.stringify({ error: 'offline', message: 'No cached data available' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        })
+          return new Response(
+            JSON.stringify({ error: "offline", message: "No cached data available" }),
+            { status: 503, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      })()
     );
     return;
   }
 
-  // Handle registry files with stale-while-revalidate
-  if (url.pathname === '/registry.json' || url.pathname === '/registry.manifest.json') {
+  // --- Registry files  (stale-while-revalidate via versioned cache) ---
+  if (url.pathname === REGISTRY_URL || url.pathname === REGISTRY_MANIFEST_URL) {
     event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cachedResponse = await cache.match(request);
+      (async () => {
+        const { cache } = await openRegistryCache();
+        const cached = await cache.match(request);
 
-        // Fetch fresh copy in background
-        const fetchPromise = fetch(request).then((networkResponse) => {
-          if (networkResponse.ok) {
-            cache.put(request, networkResponse.clone());
-          }
-          return networkResponse;
-        }).catch(() => {
-          // Network failed, return null to fall through to cached response
-          return null;
-        });
+        // Background revalidation (fire and forget)
+        const fetchPromise = fetch(request)
+          .then((res) => {
+            if (res.ok) cache.put(request, res.clone());
+            return res;
+          })
+          .catch(() => null);
 
-        // Return cached immediately if available
-        if (cachedResponse) {
-          // Trigger background fetch but don't wait for it
+        if (cached) {
           fetchPromise.catch(() => {});
-          return cachedResponse;
+          return cached;
         }
 
-        // No cache, wait for network (may be null if network failed)
-        const networkResponse = await fetchPromise;
-        if (networkResponse) {
-          return networkResponse;
-        }
+        const networkRes = await fetchPromise;
+        if (networkRes) return networkRes;
 
-        // Both cache and network failed - return 503
-        return new Response(JSON.stringify({ error: 'offline', message: 'Registry unavailable' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      })
+        return new Response(
+          JSON.stringify({ error: "offline", message: "Registry unavailable" }),
+          { status: 503, headers: { "Content-Type": "application/json" } }
+        );
+      })()
     );
     return;
   }
 
-  // Handle static assets with cache-first strategy
+  // --- Static assets  (cache-first) ---
   if (
-    url.pathname.startsWith('/icons/') ||
-    url.pathname === '/manifest.json' ||
-    url.pathname.endsWith('.svg') ||
-    url.pathname.endsWith('.png') ||
-    url.pathname.endsWith('.ico')
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/_next/") ||
+    url.pathname === "/manifest.json" ||
+    url.pathname.endsWith(".svg") ||
+    url.pathname.endsWith(".png") ||
+    url.pathname.endsWith(".ico")
   ) {
     event.respondWith(
-      caches.match(request).then(async (cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        try {
-          const response = await fetch(request);
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        } catch {
-          return new Response('Offline', {
+      cacheFirst(request, STATIC_CACHE).catch(
+        () =>
+          new Response("Offline", {
             status: 503,
-            headers: { 'Content-Type': 'text/plain' },
-          });
-        }
+            headers: { "Content-Type": "text/plain" },
+          })
+      )
+    );
+    return;
+  }
+
+  // --- Navigation  (network-first, cached home fallback) ---
+  if (request.mode === "navigate") {
+    event.respondWith(
+      networkFirst(request, STATIC_CACHE).catch(async () => {
+        const cache = await caches.open(STATIC_CACHE);
+        const cached = await cache.match("/");
+        return (
+          cached ??
+          new Response("<h1>Offline</h1>", {
+            status: 503,
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          })
+        );
       })
     );
     return;
   }
 
-  // Handle navigation requests (HTML pages) with network-first
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful navigation responses
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(async () => {
-          // Try cache for offline navigation
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Fallback to cached home page
-          const fallback = await caches.match('/');
-          if (fallback) {
-            return fallback;
-          }
-          return new Response('<h1>Offline</h1>', {
-            status: 503,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          });
-        })
-    );
-    return;
-  }
-
-  // Default: network with cache fallback
+  // --- Default: network with cache fallback ---
   event.respondWith(
     fetch(request).catch(async () => {
-      const cachedResponse = await caches.match(request);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return new Response('Offline', {
-        status: 503,
-        headers: { 'Content-Type': 'text/plain' },
-      });
+      const cached = await caches.match(request);
+      return (
+        cached ??
+        new Response("Offline", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        })
+      );
     })
   );
 });
 
-// Handle messages from the main thread
-self.addEventListener('message', (event) => {
-  if (event.data === 'skipWaiting') {
+// ---------------------------------------------------------------------------
+// Message channel
+// ---------------------------------------------------------------------------
+
+self.addEventListener("message", (event) => {
+  if (event.data === "skipWaiting") {
     self.skipWaiting();
   }
 
-  if (event.data === 'getVersion') {
-    event.ports[0].postMessage({ version: CACHE_VERSION, cacheName: CACHE_NAME });
+  if (event.data === "getVersion") {
+    getRegistryVersion().then((version) => {
+      const cacheName = `${REGISTRY_CACHE_PREFIX}${version}`;
+      event.ports[0].postMessage({ version, cacheName });
+    });
   }
 });
 
-console.log('[SW] Service Worker loaded, version:', CACHE_VERSION);
+getRegistryVersion()
+  .then((v) => {
+    console.log("[SW] Service Worker loaded, registry version:", v);
+  })
+  .catch(() => {
+    console.log("[SW] Service Worker loaded, registry version: unknown");
+  });

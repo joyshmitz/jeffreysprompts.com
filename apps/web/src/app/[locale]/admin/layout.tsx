@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
 import {
   LayoutDashboard,
   Users,
@@ -13,7 +12,7 @@ import {
   Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAdminRoleFromHeaders } from "@/lib/admin/permissions";
+import { getServerAdminRole } from "@/lib/admin/permissions";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard | JeffreysPrompts",
@@ -36,7 +35,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const role = getAdminRoleFromHeaders(await headers());
+  const role = getServerAdminRole();
   const roleLabel = role
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

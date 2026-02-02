@@ -681,9 +681,6 @@ test.describe("Roadmap - Admin Controls", () => {
           status: "declined",
           statusNote: "This feature won't be implemented due to technical constraints.",
         },
-        headers: {
-          "x-jfp-admin-role": "admin",
-        },
       });
       expect(response.ok()).toBe(true);
       const json = await response.json();
@@ -716,7 +713,7 @@ test.describe("Roadmap - Admin Controls", () => {
     await logger.step("move to in_progress", async () => {
       const response = await page.request.patch(`/api/admin/roadmap/${featureId}`, {
         data: { status: "in_progress" },
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(true);
       const json = await response.json();
@@ -726,7 +723,7 @@ test.describe("Roadmap - Admin Controls", () => {
     await logger.step("mark as shipped", async () => {
       const response = await page.request.patch(`/api/admin/roadmap/${featureId}`, {
         data: { status: "shipped" },
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(true);
       const json = await response.json();
@@ -748,7 +745,7 @@ test.describe("Roadmap - Admin Controls", () => {
           status: "planned",
           plannedQuarter: "Q2 2026",
         },
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(true);
       const json = await response.json();
@@ -767,7 +764,7 @@ test.describe("Roadmap - Admin Controls", () => {
     await logger.step("attempt to set invalid status", async () => {
       const response = await page.request.patch(`/api/admin/roadmap/${featureId}`, {
         data: { status: "invalid_status" },
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(false);
       expect(response.status()).toBe(400);
@@ -784,7 +781,7 @@ test.describe("Roadmap - Admin Controls", () => {
     await logger.step("attempt to update non-existent feature", async () => {
       const response = await page.request.patch("/api/admin/roadmap/feat-nonexistent", {
         data: { status: "declined" },
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(false);
       expect(response.status()).toBe(404);
@@ -802,7 +799,7 @@ test.describe("Roadmap - Admin Controls", () => {
 
     await logger.step("admin can fetch feature details", async () => {
       const response = await page.request.get(`/api/admin/roadmap/${featureId}`, {
-        headers: { "x-jfp-admin-role": "admin" },
+
       });
       expect(response.ok()).toBe(true);
       const json = await response.json();

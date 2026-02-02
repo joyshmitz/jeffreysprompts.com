@@ -26,7 +26,6 @@ interface TagMappingsResponse {
 }
 
 const ADMIN_TOKEN_STORAGE_KEY = "jfp_admin_token_v1";
-const ADMIN_ROLE_HEADER_VALUE = "moderator";
 
 function loadAdminToken(): string {
   if (typeof window === "undefined") return "";
@@ -115,7 +114,6 @@ export default function AdminMetadataPage() {
     if (!token) return undefined;
     return {
       "x-jfp-admin-token": token,
-      "x-jfp-admin-role": ADMIN_ROLE_HEADER_VALUE,
     };
   }, [adminToken]);
 
@@ -349,8 +347,8 @@ export default function AdminMetadataPage() {
               placeholder="JFP_ADMIN_TOKEN"
             />
             <p className="text-xs text-muted-foreground">
-              Token is sent as <code>x-jfp-admin-token</code> with role{" "}
-              <code>{ADMIN_ROLE_HEADER_VALUE}</code>.
+              Token is sent as <code>x-jfp-admin-token</code>. Role is
+              derived server-side from <code>JFP_ADMIN_ROLE</code> env var.
             </p>
           </div>
           <div className="flex items-center gap-2">

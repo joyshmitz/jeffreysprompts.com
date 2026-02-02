@@ -56,8 +56,6 @@ export interface AdminAuthResult {
   reason?: "unauthorized" | "forbidden" | "admin_token_not_configured";
 }
 
-export type HeaderAccessor = { get(name: string): string | null };
-
 function getTokenFromRequest(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
@@ -101,15 +99,22 @@ function isLocalOrigin(origin: string | null): boolean {
   }
 }
 
-export function getAdminRoleFromHeaders(headers: HeaderAccessor): AdminRole {
-  const raw = headers.get("x-jfp-admin-role");
-  if (!raw) return "support";
+/**
+ * Return the server-configured admin role.
+ *
+ * The role is read from the `JFP_ADMIN_ROLE` environment variable so that
+ * privilege can never be escalated by a client-supplied header.  Falls back
+ * to "admin" when unset.
+ */
+export function getServerAdminRole(): AdminRole {
+  const raw = process.env.JFP_ADMIN_ROLE;
+  if (!raw) return "admin";
 
   const normalized = raw.toLowerCase().replace(/-/g, "_");
   if (ROLE_SET.has(normalized as AdminRole)) {
     return normalized as AdminRole;
   }
-  return "support";
+  return "admin";
 }
 
 /**
@@ -119,18 +124,19 @@ export function getAdminRoleFromHeaders(headers: HeaderAccessor): AdminRole {
  * - ALWAYS require JFP_ADMIN_TOKEN in production (NODE_ENV === "production")
  * - In non-production, require explicit JFP_ADMIN_DEV_BYPASS=true to skip token check
  * - If token is set, require Bearer or x-jfp-admin-token to match.
- * - Role is supplied via x-jfp-admin-role header (defaults to support).
+ * - Role is derived server-side from JFP_ADMIN_ROLE env var (never from client headers).
  *
  * Security notes:
  * - Dev bypass requires explicit opt-in to prevent accidental exposure
  * - Even with dev bypass, external origins are rejected for safety
+ * - Client-supplied x-jfp-admin-role headers are ignored to prevent privilege escalation
  */
 export function checkAdminPermission(
   request: NextRequest,
   permission: AdminPermission
 ): AdminAuthResult {
   const token = process.env.JFP_ADMIN_TOKEN;
-  const role = getAdminRoleFromHeaders(request.headers);
+  const role = getServerAdminRole();
   const isProduction = process.env.NODE_ENV === "production";
   const devBypassEnabled = process.env.JFP_ADMIN_DEV_BYPASS === "true";
 
