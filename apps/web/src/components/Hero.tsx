@@ -143,6 +143,7 @@ export function Hero({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search prompts..."
                 aria-label="Search prompts"
+                autoComplete="off"
                 className={cn(
                   "w-full h-12 pl-12 pr-4 sm:pr-24",
                   "rounded-xl border border-neutral-200 dark:border-neutral-700",

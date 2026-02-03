@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { useRef, useState, useEffect, useCallback, type ReactNode } from "react";
 import { motion, useSpring, useTransform, AnimatePresence, type MotionValue } from "framer-motion";
 import { useHaptic } from "@/hooks/useHaptic";
 import { cn } from "@/lib/utils";
@@ -67,17 +67,35 @@ export function PullToRefresh({
   const spinnerRotation = useTransform(pullSpring, [0, threshold], [0, 180]);
 
   // Transform for resistance (rubber-band effect)
-  const rubberBandTransform = (pull: number) => {
+  const rubberBandTransform = useCallback((pull: number) => {
     if (pull <= 0) return 0;
     // Logarithmic resistance for natural feel
     const resistance = 0.55;
     const normalizedPull = pull / maxPull;
     const resistedPull = Math.pow(normalizedPull, resistance);
     return Math.min(resistedPull * maxPull, maxPull);
-  };
+  }, [maxPull]);
 
-  const handleTouchStart = (e: TouchEvent) => {
-    if (disabled || isRefreshing) return;
+  // Use refs for values needed in native event listeners to avoid stale closures
+  const isPullingRef = useRef(false);
+  const hasTriggeredHapticRef = useRef(false);
+  const isRefreshingRef = useRef(false);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isPullingRef.current = isPulling;
+  }, [isPulling]);
+
+  useEffect(() => {
+    hasTriggeredHapticRef.current = hasTriggeredHaptic;
+  }, [hasTriggeredHaptic]);
+
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
+
+  const handleTouchStart = useCallback((e: globalThis.TouchEvent) => {
+    if (disabled || isRefreshingRef.current) return;
 
     // Only enable if at top of scroll
     const scrollTop = containerRef.current?.scrollTop ?? 0;
@@ -87,10 +105,10 @@ export function PullToRefresh({
     currentY.current = startY.current;
     setIsPulling(true);
     setHasTriggeredHaptic(false);
-  };
+  }, [disabled]);
 
-  const handleTouchMove = (e: TouchEvent) => {
-    if (!isPulling || disabled || isRefreshing) return;
+  const handleTouchMove = useCallback((e: globalThis.TouchEvent) => {
+    if (!isPullingRef.current || disabled || isRefreshingRef.current) return;
 
     const scrollTop = containerRef.current?.scrollTop ?? 0;
     if (scrollTop > 0) {
@@ -103,28 +121,29 @@ export function PullToRefresh({
     const pull = currentY.current - startY.current;
 
     if (pull > 0) {
+      // preventDefault() works here because we use { passive: false }
       e.preventDefault();
       const resistedPull = rubberBandTransform(pull);
       pullSpring.set(resistedPull);
 
       // Trigger haptic at threshold
-      if (resistedPull >= threshold && !hasTriggeredHaptic) {
+      if (resistedPull >= threshold && !hasTriggeredHapticRef.current) {
         haptic.medium();
         setHasTriggeredHaptic(true);
-      } else if (resistedPull < threshold && hasTriggeredHaptic) {
+      } else if (resistedPull < threshold && hasTriggeredHapticRef.current) {
         setHasTriggeredHaptic(false);
       }
     }
-  };
+  }, [disabled, haptic, pullSpring, rubberBandTransform, threshold]);
 
-  const handleTouchEnd = async () => {
-    if (!isPulling || disabled) return;
+  const handleTouchEnd = useCallback(async () => {
+    if (!isPullingRef.current || disabled) return;
 
     setIsPulling(false);
     const pull = currentY.current - startY.current;
     const resistedPull = rubberBandTransform(pull);
 
-    if (resistedPull >= threshold && !isRefreshing) {
+    if (resistedPull >= threshold && !isRefreshingRef.current) {
       // Trigger refresh
       setIsRefreshing(true);
       haptic.success();
@@ -142,15 +161,29 @@ export function PullToRefresh({
       // Snap back
       pullSpring.set(0);
     }
-  };
+  }, [disabled, haptic, onRefresh, pullSpring, rubberBandTransform, threshold]);
+
+  // Attach native event listeners with { passive: false } to enable preventDefault()
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Use { passive: false } so preventDefault() actually works
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   return (
     <div
       ref={containerRef}
       className={cn("relative overflow-auto", className)}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{ touchAction: isPulling ? "none" : "auto" }}
     >
       {/* Pull indicator */}

@@ -24,6 +24,7 @@ function Skeleton({
         variant === "pulse" && "skeleton animate-pulse",
         className
       )}
+      aria-hidden="true"
       {...props}
     />
   )
@@ -176,7 +177,7 @@ function SkeletonContainer({
   const transitionDuration = prefersReducedMotion ? 0 : duration / 1000
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", className)} aria-busy={isLoading} aria-live="polite">
       <AnimatePresence mode="wait" initial={false}>
         {isLoading ? (
           <motion.div
