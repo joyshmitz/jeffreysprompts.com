@@ -169,7 +169,9 @@ export function ReportDialog({
       </div>
 
       {formError && (
-        <div className="text-sm text-destructive">{formError}</div>
+        <div role="alert" aria-live="assertive" className="text-sm text-destructive">
+          {formError}
+        </div>
       )}
     </div>
   );

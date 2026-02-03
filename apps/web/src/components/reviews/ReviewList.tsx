@@ -261,7 +261,10 @@ export function ReviewList({
             className="min-w-[150px]"
           >
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span className="sr-only">Loading more reviews...</span>
+              </>
             ) : (
               <>
                 <ChevronDown className="w-4 h-4 mr-2" />

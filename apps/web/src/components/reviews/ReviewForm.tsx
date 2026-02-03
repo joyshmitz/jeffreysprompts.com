@@ -208,6 +208,8 @@ export function ReviewForm({
       <AnimatePresence>
         {error && (
           <motion.div
+            role="alert"
+            aria-live="assertive"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
@@ -236,7 +238,10 @@ export function ReviewForm({
           className="min-w-[120px]"
         >
           {submitting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+              <span className="sr-only">Submitting review...</span>
+            </>
           ) : (
             <>
               <Send className="w-4 h-4 mr-2" />

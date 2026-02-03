@@ -331,7 +331,11 @@ export function ContactForm() {
         />
       </div>
 
-      {formError && <div className="text-sm text-destructive">{formError}</div>}
+      {formError && (
+        <div role="alert" aria-live="assertive" className="text-sm text-destructive">
+          {formError}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
         <div className="flex items-start gap-2 text-foreground">
