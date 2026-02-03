@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,17 @@ export function FeatureSubmitForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ref-based guard to prevent double submission on fast double-click
+  // (React state updates are async, so button can be clicked twice before disabled)
+  const isSubmittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Guard against double submission using ref (synchronous check)
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
     setError(null);
     setIsSubmitting(true);
 
@@ -57,6 +65,7 @@ export function FeatureSubmitForm() {
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      isSubmittingRef.current = false;
     } finally {
       setIsSubmitting(false);
     }

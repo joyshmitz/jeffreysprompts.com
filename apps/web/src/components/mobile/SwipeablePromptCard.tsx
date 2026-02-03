@@ -207,6 +207,12 @@ export function SwipeablePromptCard({
     const now = Date.now();
     const timeSinceLastTap = now - lastTapTime.current;
 
+    // Clear any existing long-press timer before starting a new one
+    // (prevents multiple timers from rapid taps)
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+
     // Start long-press timer
     longPressTimer.current = setTimeout(() => {
       handleLongPress();

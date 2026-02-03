@@ -164,6 +164,7 @@ export function SpotlightSearch({
 
   const inputRef = React.useRef<HTMLInputElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
+  const previousActiveElementRef = React.useRef<HTMLElement | null>(null)
 
   // Save search to recent searches
   const saveRecentSearch = React.useCallback((searchQuery: string) => {
@@ -326,9 +327,11 @@ export function SpotlightSearch({
     return () => window.removeEventListener("jfp:open-spotlight", handleOpen as EventListener)
   }, [])
 
-  // Focus input when opening
+  // Focus management when opening/closing
   React.useEffect(() => {
     if (isOpen) {
+      // Save the previously focused element for restoration on close (accessibility)
+      previousActiveElementRef.current = document.activeElement as HTMLElement | null
       // Small delay for animation
       const timer = setTimeout(() => inputRef.current?.focus(), 50)
       return () => clearTimeout(timer)
@@ -339,6 +342,11 @@ export function SpotlightSearch({
       setSelectedIndex(0)
       setCopied(null)
       setSelectedCategory(null)
+      // Restore focus to previously focused element (accessibility)
+      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === "function") {
+        previousActiveElementRef.current.focus()
+        previousActiveElementRef.current = null
+      }
     }
   }, [isOpen])
 
