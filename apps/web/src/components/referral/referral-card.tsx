@@ -37,23 +37,33 @@ export function ReferralCard({ className }: ReferralCardProps) {
   const [showShareModal, setShowShareModal] = React.useState(false);
 
   React.useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     async function fetchCode() {
       try {
-        const response = await fetch("/api/referral/code");
+        const response = await fetch("/api/referral/code", { signal: controller.signal });
         const data = await response.json();
+        if (!mounted) return;
         if (data.success) {
           setReferralData(data.data);
         } else {
           setError(true);
         }
-      } catch {
-        setError(true);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        if (mounted) setError(true);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
     fetchCode();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   const handleCopy = async () => {

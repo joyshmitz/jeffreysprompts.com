@@ -47,23 +47,33 @@ export function ReferralStats({ className }: ReferralStatsProps) {
   const [error, setError] = React.useState(false);
 
   React.useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     async function fetchStats() {
       try {
-        const response = await fetch("/api/referral/stats?includeReferrals=true");
+        const response = await fetch("/api/referral/stats?includeReferrals=true", { signal: controller.signal });
         const result = await response.json();
+        if (!mounted) return;
         if (result.success) {
           setData(result.data);
         } else {
           setError(true);
         }
-      } catch {
-        setError(true);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        if (mounted) setError(true);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
     fetchStats();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   if (loading) {
