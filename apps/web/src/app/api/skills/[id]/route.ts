@@ -11,7 +11,7 @@ export async function GET(
 
   if (!prompt) {
     return NextResponse.json(
-      { error: "not_found", message: `Prompt '${id}' not found` },
+      { error: "not_found", message: "Skill not found" },
       { status: 404 }
     );
   }

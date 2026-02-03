@@ -98,7 +98,7 @@ export function CookieConsentManager() {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${gaMeasurementId}', { send_page_view: false });
+                gtag('config', ${JSON.stringify(gaMeasurementId)}, { send_page_view: false });
                 window.dispatchEvent(new Event('jfp:ga-ready'));
               `,
             }}
