@@ -19,13 +19,16 @@ export interface RatingSummariesResponse {
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const contentType = (searchParams.get("contentType") ?? "prompt") as RatingContentType;
+  const contentTypeParam = searchParams.get("contentType") ?? "prompt";
 
-  // Validate content type
+  // Validate content type before casting
   const validTypes: RatingContentType[] = ["prompt", "bundle", "workflow", "collection", "skill"];
-  if (!validTypes.includes(contentType)) {
+  if (!validTypes.includes(contentTypeParam as RatingContentType)) {
     return NextResponse.json({ error: "Invalid content type." }, { status: 400 });
   }
+
+  // Safe to cast after validation
+  const contentType = contentTypeParam as RatingContentType;
 
   // Get all content IDs based on type
   let contentIds: string[] = [];
