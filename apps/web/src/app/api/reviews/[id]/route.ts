@@ -55,12 +55,8 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
   const review = getReviewById(reviewId);
 
-  if (!review) {
+  if (!review || review.userId !== userId) {
     return NextResponse.json({ error: "Review not found." }, { status: 404 });
-  }
-
-  if (review.userId !== userId) {
-    return NextResponse.json({ error: "You can only delete your own reviews." }, { status: 403 });
   }
 
   const success = deleteReview({ reviewId, userId });
@@ -95,12 +91,8 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
   const review = getReviewById(reviewId);
 
-  if (!review) {
+  if (!review || review.userId !== userId) {
     return NextResponse.json({ error: "Review not found." }, { status: 404 });
-  }
-
-  if (review.userId !== userId) {
-    return NextResponse.json({ error: "You can only edit your own reviews." }, { status: 403 });
   }
 
   let payload: Record<string, unknown>;
