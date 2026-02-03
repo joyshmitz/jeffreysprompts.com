@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { RatingValue, RatingSummary } from "@/lib/ratings/rating-store";
 
 interface RatingState {
@@ -28,30 +28,37 @@ export function useRating({ contentType, contentId }: UseRatingOptions): UseRati
     error: null,
   });
 
-  const fetchRating = useCallback(async () => {
+  const mountedRef = useRef(true);
+
+  const fetchRating = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams({
       contentType,
       contentId,
     });
 
     try {
-      const res = await fetch(`/api/ratings?${params.toString()}`);
+      const res = await fetch(`/api/ratings?${params.toString()}`, { signal });
       if (!res.ok) {
         throw new Error("Failed to fetch rating");
       }
       const data = await res.json();
-      setState({
-        summary: data.summary,
-        userRating: data.userRating,
-        loading: false,
-        error: null,
-      });
+      if (mountedRef.current) {
+        setState({
+          summary: data.summary,
+          userRating: data.userRating,
+          loading: false,
+          error: null,
+        });
+      }
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      }));
+      if (err instanceof Error && err.name === "AbortError") return;
+      if (mountedRef.current) {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: err instanceof Error ? err.message : "Unknown error",
+        }));
+      }
     }
   }, [contentType, contentId]);
 
@@ -76,25 +83,36 @@ export function useRating({ contentType, contentId }: UseRatingOptions): UseRati
         }
 
         const data = await res.json();
-        setState({
-          summary: data.summary,
-          userRating: data.rating.value,
-          loading: false,
-          error: null,
-        });
+        if (mountedRef.current) {
+          setState({
+            summary: data.summary,
+            userRating: data.rating.value,
+            loading: false,
+            error: null,
+          });
+        }
       } catch (err) {
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: err instanceof Error ? err.message : "Unknown error",
-        }));
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+          }));
+        }
       }
     },
     [contentType, contentId]
   );
 
   useEffect(() => {
-    fetchRating();
+    mountedRef.current = true;
+    const controller = new AbortController();
+    fetchRating(controller.signal);
+
+    return () => {
+      mountedRef.current = false;
+      controller.abort();
+    };
   }, [fetchRating]);
 
   return {
