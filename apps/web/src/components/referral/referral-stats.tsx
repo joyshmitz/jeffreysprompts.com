@@ -44,6 +44,7 @@ interface StatsData {
 export function ReferralStats({ className }: ReferralStatsProps) {
   const [data, setData] = React.useState<StatsData | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
 
   React.useEffect(() => {
     async function fetchStats() {
@@ -52,9 +53,11 @@ export function ReferralStats({ className }: ReferralStatsProps) {
         const result = await response.json();
         if (result.success) {
           setData(result.data);
+        } else {
+          setError(true);
         }
-      } catch (error) {
-        console.error("Failed to fetch referral stats:", error);
+      } catch {
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -80,8 +83,20 @@ export function ReferralStats({ className }: ReferralStatsProps) {
     );
   }
 
-  if (!data) {
-    return null;
+  if (error || !data) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="size-5 text-neutral-400" />
+            Referral Stats
+          </CardTitle>
+          <CardDescription>
+            Unable to load referral statistics. Please try again later.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   const statItems = [

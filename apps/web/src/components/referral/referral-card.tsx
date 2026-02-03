@@ -32,6 +32,7 @@ interface ReferralCodeData {
 export function ReferralCard({ className }: ReferralCardProps) {
   const [referralData, setReferralData] = React.useState<ReferralCodeData | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [showShareModal, setShowShareModal] = React.useState(false);
 
@@ -42,9 +43,11 @@ export function ReferralCard({ className }: ReferralCardProps) {
         const data = await response.json();
         if (data.success) {
           setReferralData(data.data);
+        } else {
+          setError(true);
         }
-      } catch (error) {
-        console.error("Failed to fetch referral code:", error);
+      } catch {
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -81,8 +84,20 @@ export function ReferralCard({ className }: ReferralCardProps) {
     );
   }
 
-  if (!referralData) {
-    return null;
+  if (error || !referralData) {
+    return (
+      <Card className={cn("", className)}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="size-5 text-neutral-400" />
+            Referral Program
+          </CardTitle>
+          <CardDescription>
+            Unable to load referral information. Please try again later.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
   }
 
   return (
