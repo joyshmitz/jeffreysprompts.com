@@ -3,6 +3,9 @@ import { buildRegistryPayload, buildPromptList } from "@jeffreysprompts/core/exp
 import { prompts, categories, tags, bundles, workflows } from "@jeffreysprompts/core/prompts";
 import { createHash } from "crypto";
 
+// Uses Node's crypto/Buffer.
+export const runtime = "nodejs";
+
 // Version for ETag generation
 const REGISTRY_VERSION = process.env.JFP_REGISTRY_VERSION ?? "1.0.0";
 

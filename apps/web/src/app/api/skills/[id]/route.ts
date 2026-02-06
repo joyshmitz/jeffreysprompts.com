@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrompt } from "@jeffreysprompts/core/prompts";
-import { generateSkillMd } from "@jeffreysprompts/core/export";
+import { getPrompt } from "@jeffreysprompts/core/prompts/registry";
+import { generateSkillMd } from "@jeffreysprompts/core/export/skills";
+
+// Skill export helpers rely on Node APIs (crypto hashing).
+export const runtime = "nodejs";
 
 export async function GET(
   request: NextRequest,

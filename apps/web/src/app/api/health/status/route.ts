@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { runStatusChecks } from "@/lib/health/checks";
 
+// Uses Node APIs: crypto, Buffer, process memory/uptime.
+export const runtime = "nodejs";
+
 function getVersion(): string {
   return (
     process.env.JFP_APP_VERSION ||

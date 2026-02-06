@@ -11,6 +11,8 @@ import { NextResponse } from "next/server";
 import { prompts, featuredPrompts, getPrompt } from "@jeffreysprompts/core/prompts/registry";
 import { generateInstallScript } from "@jeffreysprompts/core/export/skills";
 
+// Skill export helpers rely on Node APIs (crypto hashing).
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<NextResponse> {

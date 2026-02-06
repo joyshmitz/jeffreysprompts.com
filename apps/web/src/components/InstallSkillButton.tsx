@@ -108,7 +108,7 @@ interface InstallAllSkillsButtonProps {
 
 /**
  * Button to copy curl|bash command for installing all (or selected) skills
- * Uses the /install-cli.sh endpoint
+ * Uses the /install.sh endpoint
  */
 export function InstallAllSkillsButton({
   promptIds,
