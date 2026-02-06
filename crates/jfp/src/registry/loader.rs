@@ -412,32 +412,34 @@ pub fn meta_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use super::*;
     use tempfile::tempdir;
 
     #[test]
-    fn test_loader_defaults_to_bundled() {
-        let dir = tempdir().unwrap();
+    fn test_loader_defaults_to_bundled() -> Result<()> {
+        let dir = tempdir()?;
         let cache = dir.path().join("registry.json");
         let meta = dir.path().join("registry.meta.json");
 
         let loader = RegistryLoader::with_paths(cache, meta);
-        let result = loader.load().unwrap();
+        let result = loader.load()?;
 
         assert_eq!(result.source, RegistrySource::Bundled);
         assert!(!result.stale);
         assert!(!result.registry.prompts.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_loader_uses_cache() {
-        let dir = tempdir().unwrap();
+    fn test_loader_uses_cache() -> Result<()> {
+        let dir = tempdir()?;
         let cache = dir.path().join("registry.json");
         let meta = dir.path().join("registry.meta.json");
 
         // Write cache
         let prompts = vec![Prompt::new("test-1", "Test One", "Content one")];
-        fs::write(&cache, serde_json::to_string(&prompts).unwrap()).unwrap();
+        fs::write(&cache, serde_json::to_string(&prompts)?)?;
 
         let cache_meta = CacheMeta {
             version: None,
@@ -445,26 +447,27 @@ mod tests {
             fetched_at: Utc::now().to_rfc3339(),
             prompt_count: 1,
         };
-        fs::write(&meta, serde_json::to_string(&cache_meta).unwrap()).unwrap();
+        fs::write(&meta, serde_json::to_string(&cache_meta)?)?;
 
         let loader = RegistryLoader::with_paths(cache, meta);
-        let result = loader.load().unwrap();
+        let result = loader.load()?;
 
         assert_eq!(result.source, RegistrySource::Cache);
         assert!(!result.stale);
         assert_eq!(result.registry.prompts.len(), 1);
         assert_eq!(result.registry.prompts[0].id, "test-1");
+        Ok(())
     }
 
     #[test]
-    fn test_stale_cache_detection() {
-        let dir = tempdir().unwrap();
+    fn test_stale_cache_detection() -> Result<()> {
+        let dir = tempdir()?;
         let cache = dir.path().join("registry.json");
         let meta = dir.path().join("registry.meta.json");
 
         // Write cache
         let prompts = vec![Prompt::new("test-1", "Test One", "Content one")];
-        fs::write(&cache, serde_json::to_string(&prompts).unwrap()).unwrap();
+        fs::write(&cache, serde_json::to_string(&prompts)?)?;
 
         // Write old metadata (2 hours ago)
         let old_time = Utc::now() - chrono::Duration::hours(2);
@@ -474,12 +477,13 @@ mod tests {
             fetched_at: old_time.to_rfc3339(),
             prompt_count: 1,
         };
-        fs::write(&meta, serde_json::to_string(&cache_meta).unwrap()).unwrap();
+        fs::write(&meta, serde_json::to_string(&cache_meta)?)?;
 
         let loader = RegistryLoader::with_paths(cache, meta).with_ttl(Duration::from_secs(3600));
-        let result = loader.load().unwrap();
+        let result = loader.load()?;
 
         assert_eq!(result.source, RegistrySource::Cache);
         assert!(result.stale);
+        Ok(())
     }
 }
