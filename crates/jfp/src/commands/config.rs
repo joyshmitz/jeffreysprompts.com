@@ -36,6 +36,19 @@ struct ConfigOutput {
     error: Option<String>,
 }
 
+fn emit_json(output: &ConfigOutput) -> ExitCode {
+    match serde_json::to_string_pretty(output) {
+        Ok(json) => {
+            println!("{}", json);
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!(r#"{{"error": "serialization_error", "message": "{}"}}"#, e);
+            ExitCode::FAILURE
+        }
+    }
+}
+
 pub fn run(action: &str, key: Option<String>, value: Option<String>, use_json: bool) -> ExitCode {
     match action {
         "path" => show_path(use_json),
@@ -88,7 +101,7 @@ fn show_path(use_json: bool) -> ExitCode {
             config: None,
             error: None,
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        return emit_json(&output);
     } else {
         match path {
             Some(p) => {
@@ -158,7 +171,7 @@ fn list_config(use_json: bool) -> ExitCode {
             config: Some(config),
             error: None,
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        return emit_json(&output);
     } else {
         println!("Config file: {}", path.display());
         println!();
@@ -233,7 +246,10 @@ fn get_config(key: &str, use_json: bool) -> ExitCode {
             config: None,
             error: if value.is_none() { Some("not_found".to_string()) } else { None },
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        let status = emit_json(&output);
+        if status != ExitCode::SUCCESS {
+            return status;
+        }
         if value.is_none() {
             return ExitCode::FAILURE;
         }
@@ -302,7 +318,17 @@ fn set_config(key: &str, value: &str, use_json: bool) -> ExitCode {
     config.insert(key.to_string(), parsed_value.clone());
 
     // Write config
-    let content = toml::to_string_pretty(&toml::Value::Table(config)).unwrap();
+    let content = match toml::to_string_pretty(&toml::Value::Table(config)) {
+        Ok(c) => c,
+        Err(e) => {
+            if use_json {
+                println!(r#"{{"error": "serialize_error", "message": "{}"}}"#, e);
+            } else {
+                eprintln!("Error serializing config: {}", e);
+            }
+            return ExitCode::FAILURE;
+        }
+    };
     if let Err(e) = fs::write(&path, content) {
         if use_json {
             println!(r#"{{"error": "write_error", "message": "{}"}}"#, e);
@@ -321,7 +347,7 @@ fn set_config(key: &str, value: &str, use_json: bool) -> ExitCode {
             config: None,
             error: None,
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        return emit_json(&output);
     } else {
         println!("Set {} = {}", key, parsed_value);
     }
@@ -362,7 +388,7 @@ fn reset_config(use_json: bool) -> ExitCode {
             config: None,
             error: None,
         };
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        return emit_json(&output);
     } else {
         println!("Config reset (file removed)");
     }

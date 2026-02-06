@@ -101,7 +101,14 @@ pub fn run(
 
     // Select random prompt
     let mut rng = rand::rng();
-    let prompt = prompts.choose(&mut rng).unwrap();
+    let Some(prompt) = prompts.choose(&mut rng) else {
+        if use_json {
+            println!(r#"{{"error": "no_prompts"}}"#);
+        } else {
+            eprintln!("No prompts found matching the filters.");
+        }
+        return ExitCode::FAILURE;
+    };
 
     // Copy to clipboard if requested
     let copied = if copy {
