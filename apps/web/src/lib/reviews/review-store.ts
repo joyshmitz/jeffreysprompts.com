@@ -176,7 +176,7 @@ export function listReviewsForContent(input: {
     );
 
   if (sortBy === "oldest") {
-    allReviews.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    allReviews.reverse();
   } else if (sortBy === "most-helpful") {
     allReviews.sort((a, b) => b.helpfulCount - a.helpfulCount || b.createdAt.localeCompare(a.createdAt));
   }

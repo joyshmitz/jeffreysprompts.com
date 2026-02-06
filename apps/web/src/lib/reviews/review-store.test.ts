@@ -212,6 +212,101 @@ describe("review-store", () => {
     });
   });
 
+  describe("listReviewsForContent sortBy", () => {
+    it("sorts by newest (default)", () => {
+      submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-1",
+        rating: "up",
+        content: "First review submitted here.",
+      });
+
+      submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-2",
+        rating: "up",
+        content: "Second review submitted here.",
+      });
+
+      const result = listReviewsForContent({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        sortBy: "newest",
+      });
+
+      // Newest first (user-2 was submitted last, so it's at top of store.order)
+      expect(result.reviews[0].userId).toBe("user-2");
+      expect(result.reviews[1].userId).toBe("user-1");
+    });
+
+    it("sorts by oldest", () => {
+      submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-1",
+        rating: "up",
+        content: "First review submitted here.",
+      });
+
+      submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-2",
+        rating: "up",
+        content: "Second review submitted here.",
+      });
+
+      const result = listReviewsForContent({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        sortBy: "oldest",
+      });
+
+      expect(result.reviews[0].userId).toBe("user-1");
+      expect(result.reviews[1].userId).toBe("user-2");
+    });
+
+    it("sorts by most helpful", () => {
+      const r1 = submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-1",
+        rating: "up",
+        content: "Less helpful review content.",
+      });
+
+      submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-2",
+        rating: "up",
+        content: "More helpful review content.",
+      });
+
+      // Give user-1's review 1 helpful vote
+      voteReview({ reviewId: r1.review.id, visitorId: "v1", isHelpful: true });
+
+      // Give user-2's review 3 helpful votes
+      const r2Id = `review:prompt:test-prompt-1:user-2`;
+      voteReview({ reviewId: r2Id, visitorId: "v2", isHelpful: true });
+      voteReview({ reviewId: r2Id, visitorId: "v3", isHelpful: true });
+      voteReview({ reviewId: r2Id, visitorId: "v4", isHelpful: true });
+
+      const result = listReviewsForContent({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        sortBy: "most-helpful",
+      });
+
+      expect(result.reviews[0].userId).toBe("user-2");
+      expect(result.reviews[0].helpfulCount).toBe(3);
+      expect(result.reviews[1].userId).toBe("user-1");
+      expect(result.reviews[1].helpfulCount).toBe(1);
+    });
+  });
+
   describe("getReviewSummary", () => {
     it("returns zero stats for content with no reviews", () => {
       const summary = getReviewSummary({
