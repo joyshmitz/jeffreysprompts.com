@@ -6,6 +6,7 @@ import {
   getUserReview,
   submitReview,
   REVIEW_MAX_LENGTH,
+  type ReviewSortBy,
 } from "@/lib/reviews/review-store";
 import { isRatingContentType } from "@/lib/ratings/rating-store";
 import { createRateLimiter } from "@/lib/rate-limit";
@@ -32,6 +33,8 @@ function parseNumber(value: string | null, defaultValue: number, max: number): n
   return Math.min(parsed, max);
 }
 
+const VALID_SORT_VALUES = new Set<ReviewSortBy>(["newest", "oldest", "most-helpful"]);
+
 /**
  * GET /api/reviews
  *
@@ -40,6 +43,7 @@ function parseNumber(value: string | null, defaultValue: number, max: number): n
  * - contentId: string
  * - limit?: number (default 10, max 50)
  * - offset?: number (default 0)
+ * - sortBy?: "newest" | "oldest" | "most-helpful" (default "newest")
  *
  * Returns list of reviews with pagination info
  */
@@ -49,6 +53,10 @@ export async function GET(request: NextRequest) {
   const contentId = normalizeText(searchParams.get("contentId") ?? "");
   const limit = parseNumber(searchParams.get("limit"), DEFAULT_LIMIT, MAX_LIMIT);
   const offset = parseNumber(searchParams.get("offset"), 0, 10000);
+  const sortByRaw = searchParams.get("sortBy") ?? "newest";
+  const sortBy: ReviewSortBy = VALID_SORT_VALUES.has(sortByRaw as ReviewSortBy)
+    ? (sortByRaw as ReviewSortBy)
+    : "newest";
   const userId = getUserIdFromRequest(request);
 
   if (!contentType || !contentId) {
@@ -72,6 +80,7 @@ export async function GET(request: NextRequest) {
     limit,
     offset,
     includeReported: false,
+    sortBy,
   });
 
   const summary = getReviewSummary({ contentType, contentId });

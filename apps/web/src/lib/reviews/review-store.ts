@@ -150,16 +150,20 @@ export function getUserReview(input: {
   return store.reviews.get(reviewId) ?? null;
 }
 
+export type ReviewSortBy = "newest" | "oldest" | "most-helpful";
+
 export function listReviewsForContent(input: {
   contentType: RatingContentType;
   contentId: string;
   limit?: number;
   offset?: number;
   includeReported?: boolean;
+  sortBy?: ReviewSortBy;
 }): { reviews: Review[]; total: number; hasMore: boolean } {
   const store = getStore();
   const limit = input.limit ?? 10;
   const offset = input.offset ?? 0;
+  const sortBy = input.sortBy ?? "newest";
 
   const allReviews = store.order
     .map((id) => store.reviews.get(id))
@@ -170,6 +174,13 @@ export function listReviewsForContent(input: {
         review.contentId === input.contentId &&
         (input.includeReported || !review.reported)
     );
+
+  if (sortBy === "oldest") {
+    allReviews.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  } else if (sortBy === "most-helpful") {
+    allReviews.sort((a, b) => b.helpfulCount - a.helpfulCount || b.createdAt.localeCompare(a.createdAt));
+  }
+  // "newest" is already the default order from store.order (reverse chronological)
 
   const total = allReviews.length;
   const reviews = allReviews.slice(offset, offset + limit);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Review, ReviewSummary, RatingContentType } from "@/lib/reviews/review-store";
+import type { Review, ReviewSummary, RatingContentType, ReviewSortBy } from "@/lib/reviews/review-store";
 
 interface ReviewsState {
   reviews: Review[];
@@ -21,6 +21,7 @@ interface UseReviewsOptions {
   contentType: RatingContentType;
   contentId: string;
   limit?: number;
+  sortBy?: ReviewSortBy;
 }
 
 interface UseReviewsReturn extends ReviewsState {
@@ -34,6 +35,7 @@ export function useReviews({
   contentType,
   contentId,
   limit = 10,
+  sortBy = "newest",
 }: UseReviewsOptions): UseReviewsReturn {
   const [state, setState] = useState<ReviewsState>({
     reviews: [],
@@ -54,6 +56,7 @@ export function useReviews({
         contentId,
         limit: String(limit),
         offset: String(offset),
+        sortBy,
       });
 
       try {
@@ -85,7 +88,7 @@ export function useReviews({
         }
       }
     },
-    [contentType, contentId, limit]
+    [contentType, contentId, limit, sortBy]
   );
 
   const submitReview = useCallback(

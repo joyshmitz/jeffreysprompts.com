@@ -12,13 +12,13 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquareText, ChevronDown, Loader2 } from "lucide-react";
+import { MessageSquareText, ChevronDown, Loader2, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useReviews } from "@/hooks/use-reviews";
 import { ReviewForm } from "./ReviewForm";
 import { ReviewCard } from "./ReviewCard";
-import type { RatingContentType } from "@/lib/reviews/review-store";
+import type { RatingContentType, ReviewSortBy } from "@/lib/reviews/review-store";
 
 interface ReviewListProps {
   contentType: RatingContentType;
@@ -34,6 +34,7 @@ export function ReviewList({
   const [showForm, setShowForm] = useState(false);
   const [editingReview, setEditingReview] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sortBy, setSortBy] = useState<ReviewSortBy>("newest");
 
   const {
     reviews,
@@ -47,6 +48,7 @@ export function ReviewList({
   } = useReviews({
     contentType,
     contentId,
+    sortBy,
   });
 
   const handleSubmit = useCallback(
@@ -87,15 +89,32 @@ export function ReviewList({
           )}
         </div>
 
-        {canWriteReview && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowForm(true)}
-          >
-            Write a review
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasReviews && (
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown className="w-3.5 h-3.5 text-neutral-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as ReviewSortBy)}
+                className="text-sm bg-transparent border border-neutral-200 dark:border-neutral-700 rounded-md px-2 py-1 text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                aria-label="Sort reviews"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="most-helpful">Most helpful</option>
+              </select>
+            </div>
+          )}
+          {canWriteReview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowForm(true)}
+            >
+              Write a review
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Summary Stats */}
