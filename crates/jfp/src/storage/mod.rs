@@ -11,5 +11,4 @@ mod jsonl;
 mod schema;
 
 pub use database::*;
-pub use jsonl::*;
 pub use schema::*;

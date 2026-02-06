@@ -6,7 +6,6 @@
 //! - Export single, multiple, or all prompts
 
 use std::fs;
-use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
 

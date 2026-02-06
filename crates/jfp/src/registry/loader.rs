@@ -7,8 +7,8 @@
 
 use std::fs;
 use std::io::{BufReader, BufWriter};
-use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};

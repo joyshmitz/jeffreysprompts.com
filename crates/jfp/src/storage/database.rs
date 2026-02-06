@@ -8,11 +8,10 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 
 use super::schema::{CREATE_SCHEMA, SCHEMA_VERSION};
-use crate::config;
 use crate::types::{Prompt, PromptVariable, VariableType};
 
 /// Database wrapper with connection management
