@@ -1,0 +1,194 @@
+//! JSONL export/import for backup and recovery
+//!
+//! From rust-cli-with-sqlite skill:
+//! - Atomic JSONL write (temp + fsync + rename)
+//! - Version markers in both stores
+//! - One-way sync only
+
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
+
+use super::Database;
+use crate::types::Prompt;
+
+/// JSONL metadata header (first line)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonlMeta {
+    #[serde(rename = "_meta")]
+    pub meta: MetaInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetaInfo {
+    pub version: String,
+    pub count: usize,
+    pub exported_at: String,
+    pub schema_version: i32,
+}
+
+/// Export prompts to JSONL file
+///
+/// Uses atomic write pattern from rust-cli-with-sqlite skill:
+/// 1. Write to temp file
+/// 2. fsync
+/// 3. Atomic rename
+pub fn export_jsonl(db: &Database, path: &Path) -> Result<usize> {
+    // Ensure parent directory exists
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    // Get all prompts
+    let prompts = db.list_prompts()?;
+    let count = prompts.len();
+
+    // Create temp file in same directory for atomic rename
+    let temp_path = path.with_extension("jsonl.tmp");
+
+    {
+        let file = File::create(&temp_path)
+            .with_context(|| format!("Failed to create temp file: {:?}", temp_path))?;
+        let mut writer = BufWriter::new(file);
+
+        // Write metadata header
+        let meta = JsonlMeta {
+            meta: MetaInfo {
+                version: get_data_version(db),
+                count,
+                exported_at: Utc::now().to_rfc3339(),
+                schema_version: crate::storage::SCHEMA_VERSION,
+            },
+        };
+        serde_json::to_writer(&mut writer, &meta)?;
+        writeln!(writer)?;
+
+        // Write each prompt as a line
+        for prompt in &prompts {
+            serde_json::to_writer(&mut writer, prompt)?;
+            writeln!(writer)?;
+        }
+
+        // Flush and fsync
+        writer.flush()?;
+        writer.into_inner()?.sync_all()?;
+    }
+
+    // Atomic rename
+    fs::rename(&temp_path, path)
+        .with_context(|| format!("Failed to rename {:?} to {:?}", temp_path, path))?;
+
+    // Update version marker in DB
+    update_data_version(db)?;
+
+    Ok(count)
+}
+
+/// Import prompts from JSONL file
+///
+/// Replaces all prompts in database with contents of JSONL file.
+/// Uses transaction for atomicity.
+pub fn import_jsonl(db: &mut Database, path: &Path) -> Result<usize> {
+    let file = File::open(path)
+        .with_context(|| format!("Failed to open JSONL file: {:?}", path))?;
+    let reader = BufReader::new(file);
+
+    let mut prompts = Vec::new();
+    let mut line_num = 0;
+
+    for line in reader.lines() {
+        line_num += 1;
+        let line = line.with_context(|| format!("Failed to read line {}", line_num))?;
+
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        // First line is metadata - skip it
+        if line_num == 1 && line.contains("\"_meta\"") {
+            let _meta: JsonlMeta = serde_json::from_str(&line)
+                .with_context(|| "Failed to parse JSONL metadata")?;
+            continue;
+        }
+
+        // Parse prompt
+        let prompt: Prompt = serde_json::from_str(&line)
+            .with_context(|| format!("Failed to parse prompt at line {}", line_num))?;
+        prompts.push(prompt);
+    }
+
+    // Bulk import with transaction
+    db.bulk_upsert_prompts(&prompts)?;
+
+    // Update version marker
+    update_data_version(db)?;
+
+    Ok(prompts.len())
+}
+
+/// Get current data version from DB
+fn get_data_version(db: &Database) -> String {
+    db.get_meta("data_version")
+        .unwrap_or_else(|_| Utc::now().to_rfc3339())
+}
+
+/// Update data version marker
+fn update_data_version(db: &Database) -> Result<()> {
+    db.set_meta("data_version", &Utc::now().to_rfc3339())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_export_import_roundtrip() {
+        let dir = tempdir().unwrap();
+        let jsonl_path = dir.path().join("prompts.jsonl");
+
+        // Create DB and add prompts
+        let mut db = Database::in_memory().unwrap();
+        let prompts = vec![
+            Prompt::new("test-1", "Test One", "Content one"),
+            Prompt::new("test-2", "Test Two", "Content two"),
+        ];
+        db.bulk_upsert_prompts(&prompts).unwrap();
+
+        // Export
+        let exported = export_jsonl(&db, &jsonl_path).unwrap();
+        assert_eq!(exported, 2);
+        assert!(jsonl_path.exists());
+
+        // Create new DB and import
+        let mut db2 = Database::in_memory().unwrap();
+        let imported = import_jsonl(&mut db2, &jsonl_path).unwrap();
+        assert_eq!(imported, 2);
+
+        // Verify
+        let loaded = db2.list_prompts().unwrap();
+        assert_eq!(loaded.len(), 2);
+        assert!(loaded.iter().any(|p| p.id == "test-1"));
+        assert!(loaded.iter().any(|p| p.id == "test-2"));
+    }
+
+    #[test]
+    fn test_export_creates_metadata_header() {
+        let dir = tempdir().unwrap();
+        let jsonl_path = dir.path().join("prompts.jsonl");
+
+        let db = Database::in_memory().unwrap();
+        export_jsonl(&db, &jsonl_path).unwrap();
+
+        // Read first line
+        let content = fs::read_to_string(&jsonl_path).unwrap();
+        let first_line = content.lines().next().unwrap();
+        assert!(first_line.contains("\"_meta\""));
+        assert!(first_line.contains("\"exported_at\""));
+    }
+}

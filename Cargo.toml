@@ -21,7 +21,8 @@ clap_complete = "4"
 tokio = { version = "1", features = ["full"] }
 
 # HTTP client
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+# Enable `blocking` so the Rust CLI can fetch the registry without requiring an async runtime yet.
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking"], default-features = false }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
