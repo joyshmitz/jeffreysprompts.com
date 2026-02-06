@@ -52,7 +52,7 @@ const BudgetsConfigSchema = z.object({
   alertsEnabled: z.boolean().optional(),
 }).strict().partial();
 
-const PartialConfigSchema = z.object({
+export const PartialConfigSchema = z.object({
   registry: RegistryConfigSchema.optional(),
   updates: UpdatesConfigSchema.optional(),
   skills: SkillsConfigSchema.optional(),

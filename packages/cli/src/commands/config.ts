@@ -13,6 +13,7 @@ import {
   saveConfig,
   getConfigDir,
   createDefaultConfig,
+  PartialConfigSchema,
   type JfpConfig,
 } from "../lib/config";
 import { shouldOutputJson } from "../lib/utils";
@@ -213,6 +214,23 @@ export async function configSetCommand(
   const expectedType = existingValue === null ? undefined : typeof existingValue;
   const parsedValue = parseValue(value, expectedType);
   setNestedValue(config, key, parsedValue);
+
+  // Validate the updated config before writing it to disk. This prevents
+  // persisting values that would make the stored config invalid (and cause
+  // subsequent loads to fall back to defaults).
+  const validated = PartialConfigSchema.safeParse(config);
+  if (!validated.success) {
+    const firstIssue = validated.error.issues[0];
+    const issuePath = firstIssue?.path?.length ? firstIssue.path.join(".") : key;
+    const message = `Invalid value for ${issuePath}: ${firstIssue?.message ?? "validation failed"}`;
+
+    if (shouldOutputJson(options)) {
+      writeJson({ error: true, code: "invalid_value", message, key, value: parsedValue });
+    } else {
+      console.error(chalk.red(message));
+    }
+    process.exit(1);
+  }
 
   // Save the updated config
   saveConfig(config as unknown as Partial<JfpConfig>);

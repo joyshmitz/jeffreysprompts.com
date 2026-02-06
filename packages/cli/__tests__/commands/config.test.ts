@@ -141,14 +141,14 @@ describe("config commands", () => {
   });
   
   it("ambiguous type handling", async () => {
-    // registry.remote is a string. If we set it to "true", it should remain a string.
-    await configSetCommand("registry.remote", "true", { json: true });
+    // skills.projectDir is a string. If we set it to "true", it should remain a string.
+    await configSetCommand("skills.projectDir", "true", { json: true });
     
     const result = JSON.parse(output.join(""));
     // Fixed behavior: preserves string type
     expect(result.value).toBe("true"); 
     
     const config = loadConfig();
-    expect(config.registry.remote).toBe("true"); 
+    expect(config.skills.projectDir).toBe("true"); 
   });
 });
