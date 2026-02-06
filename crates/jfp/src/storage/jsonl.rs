@@ -148,47 +148,51 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_export_import_roundtrip() {
-        let dir = tempdir().unwrap();
+    fn test_export_import_roundtrip() -> Result<()> {
+        let dir = tempdir()?;
         let jsonl_path = dir.path().join("prompts.jsonl");
 
         // Create DB and add prompts
-        let mut db = Database::in_memory().unwrap();
+        let mut db = Database::in_memory()?;
         let prompts = vec![
             Prompt::new("test-1", "Test One", "Content one"),
             Prompt::new("test-2", "Test Two", "Content two"),
         ];
-        db.bulk_upsert_prompts(&prompts).unwrap();
+        db.bulk_upsert_prompts(&prompts)?;
 
         // Export
-        let exported = export_jsonl(&db, &jsonl_path).unwrap();
+        let exported = export_jsonl(&db, &jsonl_path)?;
         assert_eq!(exported, 2);
         assert!(jsonl_path.exists());
 
         // Create new DB and import
-        let mut db2 = Database::in_memory().unwrap();
-        let imported = import_jsonl(&mut db2, &jsonl_path).unwrap();
+        let mut db2 = Database::in_memory()?;
+        let imported = import_jsonl(&mut db2, &jsonl_path)?;
         assert_eq!(imported, 2);
 
         // Verify
-        let loaded = db2.list_prompts().unwrap();
+        let loaded = db2.list_prompts()?;
         assert_eq!(loaded.len(), 2);
         assert!(loaded.iter().any(|p| p.id == "test-1"));
         assert!(loaded.iter().any(|p| p.id == "test-2"));
+        Ok(())
     }
 
     #[test]
-    fn test_export_creates_metadata_header() {
-        let dir = tempdir().unwrap();
+    fn test_export_creates_metadata_header() -> Result<()> {
+        let dir = tempdir()?;
         let jsonl_path = dir.path().join("prompts.jsonl");
 
-        let db = Database::in_memory().unwrap();
-        export_jsonl(&db, &jsonl_path).unwrap();
+        let db = Database::in_memory()?;
+        export_jsonl(&db, &jsonl_path)?;
 
         // Read first line
-        let content = fs::read_to_string(&jsonl_path).unwrap();
-        let first_line = content.lines().next().unwrap();
+        let content = fs::read_to_string(&jsonl_path)?;
+        let first_line = content.lines().next().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "missing JSONL metadata header")
+        })?;
         assert!(first_line.contains("\"_meta\""));
         assert!(first_line.contains("\"exported_at\""));
+        Ok(())
     }
 }
