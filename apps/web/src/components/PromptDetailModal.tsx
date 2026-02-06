@@ -62,6 +62,7 @@ import {
 import { generateInstallOneLiner } from "@jeffreysprompts/core/export/skills";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 import { RatingButton, RatingDisplay } from "@/components/ratings";
+import { ReviewList } from "@/components/reviews";
 import { CostBadge } from "@/components/CostBadge";
 
 interface PromptDetailModalProps {
@@ -502,6 +503,14 @@ export function PromptDetailModal({
             showCount
           />
         </div>
+      </div>
+
+      {/* Reviews section */}
+      <div className="pt-2 border-t border-border/50">
+        <ReviewList
+          contentType="prompt"
+          contentId={prompt.id}
+        />
       </div>
     </div>
   );

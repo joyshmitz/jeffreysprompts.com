@@ -37,6 +37,7 @@ import { ShareDialog, type ShareLink } from "@/components/sharing/ShareDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { RelatedPrompts } from "@/components/RelatedPrompts";
 import { ChangelogAccordion } from "@/components/ChangelogAccordion";
+import { ReviewList } from "@/components/reviews";
 import { trackEvent } from "@/lib/analytics";
 import { trackHistoryView } from "@/lib/history/client";
 import type { RatingSummary, RatingValue } from "@/lib/ratings/rating-store";
@@ -479,6 +480,16 @@ export function PromptContent({ prompt }: PromptContentProps) {
       )}
 
       <ChangelogAccordion changelog={prompt.changelog} />
+
+      {/* Reviews */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <ReviewList
+            contentType="prompt"
+            contentId={prompt.id}
+          />
+        </CardContent>
+      </Card>
 
       <RelatedPrompts promptId={prompt.id} />
 
