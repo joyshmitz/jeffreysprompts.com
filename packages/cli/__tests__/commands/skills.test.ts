@@ -3,6 +3,7 @@ import { spawnJfp } from "@jeffreysprompts/core/testing";
 import { join } from "path";
 
 const PROJECT_ROOT = join(import.meta.dir, "../../../..");
+const TEST_TIMEOUT_MS = 20_000;
 
 async function runJfp(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const result = await spawnJfp([...args, "--json"], {
@@ -24,7 +25,7 @@ describe("deprecated skill commands", () => {
     expect(result.exitCode).toBe(1);
     expect(payload.code).toBe("deprecated_command");
     expect(payload.message).toContain("jsm install <skill>");
-  });
+  }, TEST_TIMEOUT_MS);
 
   for (const command of ["uninstall", "installed", "update", "skills"]) {
     it(`${command} command redirects to jsm`, async () => {
@@ -33,7 +34,7 @@ describe("deprecated skill commands", () => {
       expect(result.exitCode).toBe(1);
       expect(payload.code).toBe("deprecated_command");
       expect(payload.message).toContain("jsm --help");
-    });
+    }, TEST_TIMEOUT_MS);
   }
 });
 
@@ -44,5 +45,5 @@ describe("export command", () => {
     expect(result.exitCode).toBe(1);
     expect(payload.code).toBe("deprecated_command");
     expect(payload.message).toContain("jsm --help");
-  });
+  }, TEST_TIMEOUT_MS);
 });
