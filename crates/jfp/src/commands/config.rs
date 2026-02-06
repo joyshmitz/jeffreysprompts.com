@@ -293,11 +293,39 @@ fn set_config(key: &str, value: &str, use_json: bool) -> ExitCode {
 
     // Load existing config or create new
     let mut config: toml::map::Map<String, toml::Value> = if path.exists() {
-        let content = fs::read_to_string(&path).unwrap_or_default();
-        content.parse::<toml::Value>()
-            .ok()
-            .and_then(|v| v.as_table().cloned())
-            .unwrap_or_default()
+        let content = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                if use_json {
+                    println!(r#"{{"error": "read_error", "message": "{}"}}"#, e);
+                } else {
+                    eprintln!("Error reading config: {}", e);
+                }
+                return ExitCode::FAILURE;
+            }
+        };
+        let parsed = match content.parse::<toml::Value>() {
+            Ok(v) => v,
+            Err(e) => {
+                if use_json {
+                    println!(r#"{{"error": "parse_error", "message": "{}"}}"#, e);
+                } else {
+                    eprintln!("Error parsing existing config: {}", e);
+                }
+                return ExitCode::FAILURE;
+            }
+        };
+        match parsed.as_table() {
+            Some(table) => table.clone(),
+            None => {
+                if use_json {
+                    println!(r#"{{"error": "invalid_config_format", "message": "Config root must be a TOML table"}}"#);
+                } else {
+                    eprintln!("Error: existing config must have a TOML table at root");
+                }
+                return ExitCode::FAILURE;
+            }
+        }
     } else {
         toml::map::Map::new()
     };
