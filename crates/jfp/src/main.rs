@@ -8,7 +8,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 use std::io::IsTerminal;
 use std::process::ExitCode;
 
-mod cli;
 mod commands;
 mod config;
 mod registry;

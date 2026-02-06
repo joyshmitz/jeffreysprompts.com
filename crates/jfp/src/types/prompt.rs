@@ -79,6 +79,7 @@ impl Prompt {
     }
 
     /// Get content preview (first N lines)
+    #[allow(dead_code)]
     pub fn preview(&self, lines: usize) -> String {
         self.content
             .lines()

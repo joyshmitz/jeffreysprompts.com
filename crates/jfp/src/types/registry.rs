@@ -40,6 +40,7 @@ pub struct Registry {
     pub meta: RegistryMeta,
 }
 
+#[allow(dead_code)]
 impl Registry {
     pub fn new(prompts: Vec<Prompt>) -> Self {
         let count = prompts.len();
@@ -102,6 +103,7 @@ impl Registry {
 }
 
 /// Source of registry data
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RegistrySource {

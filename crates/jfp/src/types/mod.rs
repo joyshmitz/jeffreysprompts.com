@@ -4,11 +4,7 @@
 //! Do not modify without updating the spec document.
 
 mod prompt;
-mod bundle;
-mod config;
-mod credentials;
 mod registry;
-mod search;
 
 pub use prompt::*;
 pub use registry::*;

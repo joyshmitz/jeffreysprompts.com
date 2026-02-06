@@ -86,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_prompt_tags_tag ON prompt_tags(tag);
 "#;
 
 /// SQL to drop all tables (for reset)
+#[allow(dead_code)]
 pub const DROP_SCHEMA: &str = r#"
 DROP TABLE IF EXISTS bundle_prompts;
 DROP TABLE IF EXISTS bundles;

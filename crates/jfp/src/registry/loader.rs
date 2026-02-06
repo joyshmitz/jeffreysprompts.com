@@ -61,7 +61,6 @@ pub struct RegistryLoader {
     meta_path: PathBuf,
     cache_ttl: Duration,
     timeout: Duration,
-    auto_refresh: bool,
 }
 
 impl RegistryLoader {
@@ -73,7 +72,6 @@ impl RegistryLoader {
             meta_path: config_dir.join("registry.meta.json"),
             cache_ttl: Duration::from_secs(DEFAULT_CACHE_TTL),
             timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
-            auto_refresh: true,
         }
     }
 
@@ -84,7 +82,6 @@ impl RegistryLoader {
             meta_path,
             cache_ttl: Duration::from_secs(DEFAULT_CACHE_TTL),
             timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
-            auto_refresh: true,
         }
     }
 
@@ -95,14 +92,9 @@ impl RegistryLoader {
     }
 
     /// Set request timeout
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
-        self
-    }
-
-    /// Set auto-refresh behavior
-    pub fn with_auto_refresh(mut self, auto_refresh: bool) -> Self {
-        self.auto_refresh = auto_refresh;
         self
     }
 
@@ -144,6 +136,7 @@ impl RegistryLoader {
     }
 
     /// Load registry synchronously, attempting remote fetch
+    #[allow(dead_code)]
     pub fn load_sync(&self) -> Result<RegistryLoadResult> {
         // Try to load from cache first
         let cached = self.load_cache()?;
@@ -402,6 +395,7 @@ impl Default for RegistryLoader {
 }
 
 /// Get the cache file path
+#[allow(dead_code)]
 pub fn cache_path() -> PathBuf {
     config::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -409,6 +403,7 @@ pub fn cache_path() -> PathBuf {
 }
 
 /// Get the metadata file path
+#[allow(dead_code)]
 pub fn meta_path() -> PathBuf {
     config::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
