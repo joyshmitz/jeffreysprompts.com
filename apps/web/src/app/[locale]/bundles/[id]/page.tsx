@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ReportDialog } from "@/components/reporting/ReportDialog";
 import { HistoryTracker } from "@/components/history/HistoryTracker";
+import { ReviewList } from "@/components/reviews";
 
 // ============================================================================
 // Icon Mapping
@@ -247,6 +248,14 @@ export default async function BundleDetailPage({ params }: PageProps) {
                   </div>
                 ))}
               </div>
+            </section>
+
+            {/* Reviews */}
+            <section>
+              <ReviewList
+                contentType="bundle"
+                contentId={bundle.id}
+              />
             </section>
           </div>
 

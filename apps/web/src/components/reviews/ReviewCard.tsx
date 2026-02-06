@@ -70,6 +70,7 @@ export function ReviewCard({
 }: ReviewCardProps) {
   const [showResponse, setShowResponse] = useState(true);
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportFailed, setReportFailed] = useState(false);
   const { userVote, vote, loading: voteLoading } = useReviewVote({
     reviewId: review.id,
   });
@@ -83,6 +84,7 @@ export function ReviewCard({
   );
 
   const handleReport = useCallback(async () => {
+    setReportFailed(false);
     try {
       const res = await fetch(`/api/reviews/${review.id}/report`, {
         method: "POST",
@@ -92,9 +94,11 @@ export function ReviewCard({
 
       if (res.ok) {
         setReportSubmitted(true);
+      } else {
+        setReportFailed(true);
       }
     } catch {
-      // Silently fail
+      setReportFailed(true);
     }
   }, [review.id]);
 
@@ -264,6 +268,7 @@ export function ReviewCard({
               type="button"
               className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2"
               onClick={() => setShowResponse((v) => !v)}
+              aria-expanded={showResponse}
             >
               <MessageSquare className="w-4 h-4" />
               Author response
@@ -297,6 +302,15 @@ export function ReviewCard({
             className="text-sm text-amber-600 dark:text-amber-400 mt-2"
           >
             Thank you for your report. We&apos;ll review it shortly.
+          </motion.div>
+        )}
+        {reportFailed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="text-sm text-rose-600 dark:text-rose-400 mt-2"
+          >
+            Failed to submit report. Please try again later.
           </motion.div>
         )}
       </AnimatePresence>
