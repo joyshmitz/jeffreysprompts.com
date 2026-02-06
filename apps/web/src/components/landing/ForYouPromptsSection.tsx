@@ -177,6 +177,12 @@ export function ForYouPromptsSection({
           </div>
           <div className="flex items-center gap-4">
             <Link
+              href="/for-you"
+              className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              Open feed
+            </Link>
+            <Link
               href="/settings/recommendations"
               className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
@@ -184,7 +190,7 @@ export function ForYouPromptsSection({
             </Link>
             <Link
               href="/history"
-              className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+              className="hidden sm:inline text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
             >
               View history
             </Link>

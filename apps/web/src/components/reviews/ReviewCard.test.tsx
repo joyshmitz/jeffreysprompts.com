@@ -36,7 +36,6 @@ const now = new Date();
 const today = now.toISOString();
 const yesterday = new Date(now.getTime() - 86_400_000).toISOString();
 const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
-const monthAgo = new Date(now.getTime() - 35 * 86_400_000).toISOString();
 
 function makeReview(overrides: Partial<Review> = {}): Review {
   return {
