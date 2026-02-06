@@ -76,7 +76,6 @@ describe("user-id", () => {
   describe("createUserIdCookieValue", () => {
     it("produces format userId.signature", () => {
       const cookie = createUserIdCookieValue("my-user");
-      const parts = cookie.split(".");
       // There should be at least 2 parts (userId and signature)
       // Note: UUID user IDs don't contain dots, so splitting on last dot works
       const lastDot = cookie.lastIndexOf(".");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Ticket, User, Bell, Palette, Shield, ChevronRight, Link2, Clock, DollarSign } from "lucide-react";
+import { Ticket, User, Bell, Palette, Shield, ChevronRight, Link2, Clock, DollarSign, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -142,6 +142,13 @@ export default function SettingsPage() {
               iconBg="bg-amber-100 dark:bg-amber-900/30"
               title="Recently Viewed"
               description="Review the prompts and searches you've opened."
+            />
+            <SettingCard
+              href="/settings/recommendations"
+              icon={<Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-400" />}
+              iconBg="bg-violet-100 dark:bg-violet-900/30"
+              title="Recommendations"
+              description="Tune your For You feed using category preferences."
             />
             <SettingCard
               href="/settings/budget"

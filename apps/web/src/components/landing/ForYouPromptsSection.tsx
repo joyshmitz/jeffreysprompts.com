@@ -8,10 +8,12 @@ import { PromptCard } from "@/components/PromptCard";
 import {
   getForYouRecommendations,
   type RecommendationResult,
+  type RecommendationPreferences,
   type RecommendationSignal,
 } from "@jeffreysprompts/core/search";
 import { getOrCreateLocalUserId, listHistory } from "@/lib/history/client";
 import { useBasket } from "@/hooks/use-basket";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
 
 interface ForYouPromptsSectionProps {
@@ -22,6 +24,13 @@ interface ForYouPromptsSectionProps {
 
 const HISTORY_LIMIT = 20;
 const RECOMMENDATION_LIMIT = 6;
+const PREFERENCES_STORAGE_KEY = "jfp_recommendation_preferences_v1";
+const DEFAULT_PREFERENCES: RecommendationPreferences = {
+  tags: [],
+  categories: [],
+  excludeTags: [],
+  excludeCategories: [],
+};
 
 export function ForYouPromptsSection({
   prompts,
@@ -32,11 +41,25 @@ export function ForYouPromptsSection({
   const [historyIds, setHistoryIds] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationResult[]>([]);
+  const [preferences] = useLocalStorage<RecommendationPreferences>(
+    PREFERENCES_STORAGE_KEY,
+    DEFAULT_PREFERENCES
+  );
   const { items: basketItems } = useBasket();
 
   const promptMap = useMemo(() => {
     return new Map(prompts.map((prompt) => [prompt.id, prompt]));
   }, [prompts]);
+
+  const hasPreferenceInput = useMemo(() => {
+    const pref = preferences;
+    return Boolean(
+      pref.tags?.length ||
+        pref.categories?.length ||
+        pref.excludeTags?.length ||
+        pref.excludeCategories?.length
+    );
+  }, [preferences]);
 
   const loadRecommendations = useCallback(async () => {
     const userId = getOrCreateLocalUserId();
@@ -89,11 +112,11 @@ export function ForYouPromptsSection({
 
       setSavedIds(savedPromptIds);
 
-      if (viewedPrompts.length === 0 && savedPrompts.length === 0) {
+      if (viewedPrompts.length === 0 && savedPrompts.length === 0 && !hasPreferenceInput) {
         setRecommendations([]);
       } else {
         const results = getForYouRecommendations(
-          { viewed: viewedSignals, saved: savedSignals },
+          { viewed: viewedSignals, saved: savedSignals, preferences },
           prompts,
           { limit: RECOMMENDATION_LIMIT }
         );
@@ -104,7 +127,7 @@ export function ForYouPromptsSection({
     } finally {
       setLoading(false);
     }
-  }, [promptMap, prompts, basketItems]);
+  }, [promptMap, prompts, basketItems, preferences, hasPreferenceInput]);
 
   useEffect(() => {
     loadRecommendations();
@@ -119,7 +142,11 @@ export function ForYouPromptsSection({
   }
 
   let subtitle = "Personalized based on your activity";
-  if (historyIds.length > 0 && savedIds.length > 0) {
+  if (hasPreferenceInput && historyIds.length === 0 && savedIds.length === 0) {
+    subtitle = "Tuned to your preferences";
+  } else if (hasPreferenceInput && (historyIds.length > 0 || savedIds.length > 0)) {
+    subtitle = "Personalized based on your activity and preferences";
+  } else if (historyIds.length > 0 && savedIds.length > 0) {
     subtitle = "Personalized based on your basket and recent views";
   } else if (savedIds.length > 0) {
     subtitle = "Personalized based on your basket";
@@ -148,12 +175,20 @@ export function ForYouPromptsSection({
               {subtitle}
             </span>
           </div>
-          <Link
-            href="/history"
-            className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-          >
-            View history
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/settings/recommendations"
+              className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              Tune feed
+            </Link>
+            <Link
+              href="/history"
+              className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+            >
+              View history
+            </Link>
+          </div>
         </motion.div>
 
         <div className="lg:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
