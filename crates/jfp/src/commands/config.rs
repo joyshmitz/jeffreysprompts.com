@@ -49,6 +49,12 @@ fn emit_json(output: &ConfigOutput) -> ExitCode {
     }
 }
 
+fn parse_config_table(content: &str) -> Result<toml::map::Map<String, toml::Value>, String> {
+    content
+        .parse::<toml::Table>()
+        .map_err(|e| format!("parse_error: {}", e))
+}
+
 pub fn run(action: &str, key: Option<String>, value: Option<String>, use_json: bool) -> ExitCode {
     match action {
         "path" => show_path(use_json),
@@ -304,24 +310,14 @@ fn set_config(key: &str, value: &str, use_json: bool) -> ExitCode {
                 return ExitCode::FAILURE;
             }
         };
-        let parsed = match content.parse::<toml::Value>() {
-            Ok(v) => v,
-            Err(e) => {
+        match parse_config_table(&content) {
+            Ok(table) => table,
+            Err(err) => {
+                let message = err.trim_start_matches("parse_error: ");
                 if use_json {
-                    println!(r#"{{"error": "parse_error", "message": "{}"}}"#, e);
+                    println!(r#"{{"error": "parse_error", "message": "{}"}}"#, message);
                 } else {
-                    eprintln!("Error parsing existing config: {}", e);
-                }
-                return ExitCode::FAILURE;
-            }
-        };
-        match parsed.as_table() {
-            Some(table) => table.clone(),
-            None => {
-                if use_json {
-                    println!(r#"{{"error": "invalid_config_format", "message": "Config root must be a TOML table"}}"#);
-                } else {
-                    eprintln!("Error: existing config must have a TOML table at root");
+                    eprintln!("Error parsing existing config: {}", message);
                 }
                 return ExitCode::FAILURE;
             }
@@ -381,6 +377,25 @@ fn set_config(key: &str, value: &str, use_json: bool) -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_config_table;
+
+    #[test]
+    fn parse_config_table_accepts_table_root() {
+        let parsed = parse_config_table("foo = 1\nbar = \"baz\"").expect("table root should parse");
+        assert_eq!(parsed.get("foo").and_then(|v| v.as_integer()), Some(1));
+        assert_eq!(parsed.get("bar").and_then(|v| v.as_str()), Some("baz"));
+    }
+
+    #[test]
+    fn parse_config_table_rejects_invalid_toml() {
+        let err = parse_config_table("foo = [").expect_err("invalid TOML should fail");
+        assert!(err.starts_with("parse_error: "));
+    }
+
 }
 
 fn reset_config(use_json: bool) -> ExitCode {
