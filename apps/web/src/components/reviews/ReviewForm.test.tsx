@@ -48,10 +48,11 @@ function makeReview(overrides: Partial<Review> = {}): Review {
 // ---------------------------------------------------------------------------
 
 describe("ReviewForm", () => {
-  let mockSubmit: ReturnType<typeof vi.fn>;
+  type ReviewSubmit = React.ComponentProps<typeof ReviewForm>["onSubmit"];
+  let mockSubmit: ReturnType<typeof vi.fn<ReviewSubmit>>;
 
   beforeEach(() => {
-    mockSubmit = vi.fn().mockResolvedValue(true);
+    mockSubmit = vi.fn<ReviewSubmit>().mockResolvedValue(true);
   });
 
   it("renders rating buttons, text area, and submit button", () => {

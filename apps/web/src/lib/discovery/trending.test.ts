@@ -22,9 +22,15 @@ function makePrompt(overrides: Partial<CommunityPrompt> = {}): CommunityPrompt {
     title: "Test Prompt",
     description: "A test prompt",
     content: "Do something useful.",
-    category: "general",
+    category: "ideation",
     tags: ["test"],
-    author: { id: "a1", username: "user1", displayName: "User 1" },
+    author: {
+      id: "a1",
+      username: "user1",
+      displayName: "User 1",
+      avatarUrl: null,
+      reputation: 0,
+    },
     stats: {
       views: 100,
       copies: 50,
@@ -176,10 +182,10 @@ describe("getTrendingPrompts", () => {
   });
 
   it("filters by category", () => {
-    const writing = makePrompt({ id: "w", category: "writing", updatedAt: now.toISOString() });
-    const coding = makePrompt({ id: "c", category: "coding", updatedAt: now.toISOString() });
+    const writing = makePrompt({ id: "w", category: "automation", updatedAt: now.toISOString() });
+    const coding = makePrompt({ id: "c", category: "debugging", updatedAt: now.toISOString() });
 
-    const result = getTrendingPrompts([writing, coding], { category: "writing", now });
+    const result = getTrendingPrompts([writing, coding], { category: "automation", now });
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("w");
   });
@@ -245,9 +251,9 @@ describe("getTrendingPromptsWithScores", () => {
   });
 
   it("filters by category", () => {
-    const w = makePrompt({ category: "writing", updatedAt: now.toISOString() });
-    const c = makePrompt({ category: "coding", updatedAt: now.toISOString() });
-    const result = getTrendingPromptsWithScores([w, c], { category: "coding", now });
+    const w = makePrompt({ category: "automation", updatedAt: now.toISOString() });
+    const c = makePrompt({ category: "debugging", updatedAt: now.toISOString() });
+    const result = getTrendingPromptsWithScores([w, c], { category: "debugging", now });
     expect(result).toHaveLength(1);
   });
 });

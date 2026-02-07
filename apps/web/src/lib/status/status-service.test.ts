@@ -94,7 +94,6 @@ describe("status-service", () => {
         impact: "critical",
         message: "DB unreachable",
         affectedComponents: ["api"],
-        createdBy: "admin",
       });
 
       const summary = await getStatusSummary();
@@ -108,7 +107,6 @@ describe("status-service", () => {
         impact: "major",
         message: "High latency",
         affectedComponents: ["api"],
-        createdBy: "admin",
       });
 
       const summary = await getStatusSummary();
@@ -121,7 +119,6 @@ describe("status-service", () => {
         impact: "minor",
         message: "Slight delay",
         affectedComponents: ["web"],
-        createdBy: "admin",
       });
 
       const summary = await getStatusSummary();
@@ -131,10 +128,10 @@ describe("status-service", () => {
     it("returns maintenance when components in maintenance", async () => {
       const m = createMaintenance({
         title: "Planned maintenance",
+        description: "Planned maintenance window",
         scheduledStart: new Date(Date.now() - 3600000).toISOString(),
         scheduledEnd: new Date(Date.now() + 3600000).toISOString(),
         affectedComponents: ["web"],
-        createdBy: "admin",
       });
       updateMaintenanceStatus(m.id, "in_progress");
 
@@ -177,7 +174,6 @@ describe("status-service", () => {
         impact: "critical",
         message: "Down",
         affectedComponents: ["api"],
-        createdBy: "admin",
       });
 
       const result = await getQuickStatus();
@@ -190,7 +186,6 @@ describe("status-service", () => {
         impact: "major",
         message: "Slow",
         affectedComponents: ["api"],
-        createdBy: "admin",
       });
 
       const result = await getQuickStatus();
@@ -200,10 +195,10 @@ describe("status-service", () => {
     it("returns maintenance when active maintenance exists", async () => {
       const m = createMaintenance({
         title: "Maintenance",
+        description: "Scheduled maintenance window",
         scheduledStart: new Date(Date.now() - 3600000).toISOString(),
         scheduledEnd: new Date(Date.now() + 3600000).toISOString(),
         affectedComponents: ["web"],
-        createdBy: "admin",
       });
       updateMaintenanceStatus(m.id, "in_progress");
 

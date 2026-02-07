@@ -8,6 +8,8 @@ import { NextRequest } from "next/server";
 import { GET, POST, DELETE } from "./route";
 import { USER_ID_COOKIE_NAME, createUserIdCookieValue } from "@/lib/user-id";
 
+type NextRequestInit = NonNullable<ConstructorParameters<typeof NextRequest>[1]>;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -18,7 +20,7 @@ function clearStore() {
 }
 
 function getHeaderValue(
-  headers: RequestInit["headers"],
+  headers: NextRequestInit["headers"],
   name: string
 ): string | null {
   if (!headers) return null;
@@ -30,7 +32,7 @@ function getHeaderValue(
   return (headers as Record<string, string>)[name] ?? null;
 }
 
-function makeRequest(url: string, init?: RequestInit): NextRequest {
+function makeRequest(url: string, init?: NextRequestInit): NextRequest {
   const request = new NextRequest(url, init);
   const cookieHeader = getHeaderValue(init?.headers, "cookie");
   if (cookieHeader) {

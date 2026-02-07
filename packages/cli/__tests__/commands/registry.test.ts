@@ -28,6 +28,19 @@ let statusCommand: typeof import("../../src/commands/registry").statusCommand;
 let refreshCommand: typeof import("../../src/commands/registry").refreshCommand;
 let getConfigDir: typeof import("../../src/lib/config").getConfigDir;
 
+const validPrompt = {
+  id: "test-prompt",
+  title: "Test Prompt",
+  description: "Test prompt description",
+  content: "This is valid prompt content with enough characters for schema checks.",
+  category: "ideation",
+  tags: ["test"],
+  author: "Test Author",
+  version: "1.0.0",
+  created: "2025-01-01",
+  featured: false,
+} as const;
+
 // Create temp directory and set JFP_HOME before importing commands
 beforeAll(async () => {
   testDir = mkdtempSync(join(tmpdir(), "jfp-registry-test-"));
@@ -153,7 +166,7 @@ describe("refreshCommand", () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ prompts: [{ id: "test" }], version: "2.0.0" }),
+        json: async () => ({ prompts: [validPrompt], version: "2.0.0" }),
         headers: {
           get: (key: string) => (key.toLowerCase() === "etag" ? "new-etag" : null),
         },
@@ -185,7 +198,7 @@ describe("refreshCommand", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          prompts: [{ id: "test", title: "Test" }],
+          prompts: [validPrompt],
           version: "2.0.0",
         }),
         headers: {

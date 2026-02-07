@@ -194,7 +194,7 @@ async function loadTransformerPipeline(options: SemanticOptions = {}): Promise<u
     try {
       // Dynamic import without a static module reference so bundlers don't
       // require the optional dependency at build time.
-      if (typeof window !== "undefined") {
+      if ("window" in globalThis) {
         throw new Error("Transformer pipeline is only available in Node runtimes.");
       }
       const modulePath: string = "@xenova/transformers";

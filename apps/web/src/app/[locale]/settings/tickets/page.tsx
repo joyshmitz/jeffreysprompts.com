@@ -304,7 +304,7 @@ export default function SupportTicketsPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">{ticket.ticketNumber}</p>
                         {ticket.accessToken && (
-                          <p className="text-[11px] text-muted-foreground font-mono break-all">
+                          <p className="text-xs text-muted-foreground font-mono break-all">
                             Token: {ticket.accessToken}
                           </p>
                         )}

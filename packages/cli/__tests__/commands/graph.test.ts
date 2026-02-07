@@ -102,22 +102,10 @@ describe("graphExportCommand", () => {
         {
           id: "a-b",
           title: "A-B",
-          description: "",
-          content: "Prompt A-B",
+          description: "Prompt for collision test A-B",
+          content: "Prompt A-B content with enough characters for schema validation.",
           category: "ideation",
           tags: ["alpha"],
-          author: "Test",
-          version: "1.0.0",
-          created: "2025-01-01",
-          featured: false,
-        },
-        {
-          id: "a b",
-          title: "A B",
-          description: "",
-          content: "Prompt A B",
-          category: "ideation",
-          tags: ["beta"],
           author: "Test",
           version: "1.0.0",
           created: "2025-01-01",
@@ -127,18 +115,45 @@ describe("graphExportCommand", () => {
       bundles: [],
       workflows: [],
     };
+    const collectionList = [
+      {
+        name: "favorites",
+        description: "Saved prompts",
+        promptCount: 1,
+        createdAt: "2025-01-01",
+        updatedAt: "2025-01-02",
+      },
+    ];
+    const collectionDetail = {
+      ...collectionList[0],
+      prompts: [
+        {
+          id: "a_b",
+          title: "A_B",
+          description: "Collection-only prompt id variant",
+          category: "ideation",
+        },
+      ],
+    };
 
     process.env.JFP_HOME = mkdtempSync(join(tmpdir(), "jfp-graph-"));
     process.env.JFP_REGISTRY_URL = "https://example.test/registry";
+    process.env.JFP_TOKEN = "test-token";
     globalThis.fetch = mock((input: RequestInfo | URL) => {
       const url = input.toString();
       if (url === process.env.JFP_REGISTRY_URL) {
         return Promise.resolve(jsonResponse(registryPayload));
       }
+      if (url.endsWith("/api/cli/collections")) {
+        return Promise.resolve(jsonResponse(collectionList));
+      }
+      if (url.endsWith("/api/cli/collections/favorites")) {
+        return Promise.resolve(jsonResponse(collectionDetail));
+      }
       return Promise.resolve(jsonResponse({ error: "Not found" }, 404));
     });
 
-    await graphExportCommand({ json: true, format: "mermaid" });
+    await graphExportCommand({ json: true, format: "mermaid", includeCollections: true });
     const payload = parseJson<{ graph?: string }>(output.join(""));
     const graph = String(payload.graph ?? "");
     const nodeIds = new Set<string>();
@@ -159,8 +174,8 @@ describe("graphExportCommand", () => {
         {
           id: "idea-wizard",
           title: "Idea Wizard",
-          description: "",
-          content: "Prompt content",
+          description: "Idea generation helper prompt",
+          content: "Prompt content that satisfies the minimum schema length requirement.",
           category: "ideation",
           tags: ["automation", "brainstorm"],
           author: "Test",
@@ -209,8 +224,8 @@ describe("graphExportCommand", () => {
         {
           id: "idea-wizard",
           title: "Idea Wizard",
-          description: "",
-          content: "Prompt content",
+          description: "Idea generation helper prompt",
+          content: "Prompt content that satisfies the minimum schema length requirement.",
           category: "ideation",
           tags: ["automation"],
           author: "Test",

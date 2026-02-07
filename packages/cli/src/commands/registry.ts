@@ -31,9 +31,11 @@ interface BudgetAlertSummary {
   } | null;
 }
 
-function isBudgetAlertRecord(value: unknown): value is BudgetAlertSummary["last"] {
+type BudgetAlertRecord = NonNullable<BudgetAlertSummary["last"]>;
+
+function isBudgetAlertRecord(value: unknown): value is BudgetAlertRecord {
   if (!value || typeof value !== "object") return false;
-  const record = value as BudgetAlertSummary["last"];
+  const record = value as BudgetAlertRecord;
   if (record.type !== "per_run" && record.type !== "monthly") return false;
   if (typeof record.capUsd !== "number") return false;
   if (typeof record.totalCostUsd !== "number") return false;
