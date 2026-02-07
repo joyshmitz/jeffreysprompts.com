@@ -339,6 +339,15 @@ export function hasRecentAction(input: {
   for (const actionId of actionIds) {
     const action = store.actions.get(actionId);
     if (action && action.actionType === input.actionType) {
+      if (action.reversedAt) {
+        continue;
+      }
+      if (action.endsAt) {
+        const endsAt = new Date(action.endsAt).getTime();
+        if (!Number.isNaN(endsAt) && endsAt < now) {
+          continue;
+        }
+      }
       const createdAt = new Date(action.createdAt).getTime();
       if (!Number.isNaN(createdAt) && now - createdAt < input.windowMs) {
         return true;

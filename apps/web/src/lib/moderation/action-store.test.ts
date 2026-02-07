@@ -418,5 +418,30 @@ describe("action-store", () => {
     it("returns false when no actions exist", () => {
       expect(hasRecentAction({ userId: "u1", actionType: "warning", windowMs: 60_000 })).toBe(false);
     });
+
+    it("ignores reversed actions", () => {
+      const action = createModerationAction({
+        userId: "u1",
+        actionType: "warning",
+        reason: "spam",
+        performedBy: "admin",
+      });
+      reverseModerationAction({ actionId: action.id, reversedBy: "admin" });
+
+      expect(hasRecentAction({ userId: "u1", actionType: "warning", windowMs: 60_000 })).toBe(false);
+    });
+
+    it("ignores expired actions", () => {
+      const action = createModerationAction({
+        userId: "u1",
+        actionType: "suspension",
+        reason: "spam",
+        performedBy: "admin",
+        durationDays: 1,
+      });
+      action.endsAt = new Date(Date.now() - 60_000).toISOString();
+
+      expect(hasRecentAction({ userId: "u1", actionType: "suspension", windowMs: 60_000 })).toBe(false);
+    });
   });
 });

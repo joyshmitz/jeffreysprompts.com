@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Users,
   CreditCard,
@@ -275,7 +276,7 @@ function QuickActionLink({
   count?: number;
 }) {
   return (
-    <a
+    <Link
       href={href}
       className="flex items-center justify-between rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/50"
     >
@@ -295,6 +296,6 @@ function QuickActionLink({
         )}
         <ArrowUpRight className="h-4 w-4 text-neutral-400" />
       </div>
-    </a>
+    </Link>
   );
 }

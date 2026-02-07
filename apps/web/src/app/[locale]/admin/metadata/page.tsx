@@ -80,10 +80,17 @@ function formatRelative(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "unknown";
   const diffMs = Date.now() - date.getTime();
-  if (diffMs < 60000) return "just now";
-  if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)} min ago`;
-  if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)} hours ago`;
-  return `${Math.floor(diffMs / 86400000)} days ago`;
+  if (diffMs <= 0 || diffMs < 60000) return "just now";
+  if (diffMs < 3600000) {
+    const minutes = Math.floor(diffMs / 60000);
+    return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+  }
+  if (diffMs < 86400000) {
+    const hours = Math.floor(diffMs / 3600000);
+    return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  }
+  const days = Math.floor(diffMs / 86400000);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
 function formatTimestamp(iso: string): string {
