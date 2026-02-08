@@ -3,9 +3,47 @@
  *
  * Replaces animation components with simple divs that render immediately.
  * This avoids animation timing issues in happy-dom.
+ *
+ * IMPORTANT: Hook mocks (useMotionValue, useSpring, etc.) use useRef to
+ * return STABLE references across renders, matching real framer-motion
+ * behavior. Without this, re-renders create new objects, causing unstable
+ * useEffect dependencies and unexpected DOM node replacement.
  */
 
 import * as React from "react";
+
+// ============================================================================
+// Mock MotionValue
+// ============================================================================
+
+interface MockMotionValue {
+  __mockMotionValue: true;
+  _value: number;
+  get: () => number;
+  set: (v: number) => void;
+  on: () => () => void;
+  onChange: () => () => void;
+}
+
+function createMotionValue(initial: number): MockMotionValue {
+  const mv: MockMotionValue = {
+    __mockMotionValue: true,
+    _value: initial,
+    get: () => mv._value,
+    set: (v: number) => { mv._value = v; },
+    on: () => () => {},
+    onChange: () => () => {},
+  };
+  return mv;
+}
+
+function isMotionValue(v: unknown): v is MockMotionValue {
+  return v != null && typeof v === "object" && (v as Record<string, unknown>).__mockMotionValue === true;
+}
+
+// ============================================================================
+// Motion prop filtering
+// ============================================================================
 
 // Framer-motion specific props to filter out
 const motionProps = [
@@ -22,8 +60,22 @@ function filterMotionProps<T extends Record<string, unknown>>(props: T): Partial
   for (const prop of motionProps) {
     delete filtered[prop];
   }
+  // Filter MotionValue objects out of style to avoid invalid DOM style values
+  if (filtered.style && typeof filtered.style === "object") {
+    const cleanStyle: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(filtered.style as Record<string, unknown>)) {
+      if (!isMotionValue(v)) {
+        cleanStyle[k] = v;
+      }
+    }
+    filtered.style = cleanStyle as T[keyof T];
+  }
   return filtered;
 }
+
+// ============================================================================
+// Motion components
+// ============================================================================
 
 // Factory for motion element mocks — renders the raw HTML element with motion props filtered out
 function createMotionComponent(tag: string) {
@@ -72,22 +124,22 @@ export function AnimatePresence({
   return <>{children}</>;
 }
 
-// No-op hooks
+// ============================================================================
+// Hooks — use useRef for stable references across renders
+// ============================================================================
+
 export function useAnimation() {
-  return {
+  const [controls] = React.useState(() => ({
     start: () => Promise.resolve(),
     stop: () => {},
     set: () => {},
-  };
+  }));
+  return controls;
 }
 
 export function useMotionValue(initial: number) {
-  return {
-    get: () => initial,
-    set: () => {},
-    on: () => () => {},
-    onChange: () => () => {},
-  };
+  const [mv] = React.useState(() => createMotionValue(initial));
+  return mv;
 }
 
 export function useTransform() {
@@ -115,9 +167,7 @@ export function useMotionTemplate(strings: TemplateStringsArray, ...values: unkn
   let result = strings[0];
   for (let i = 0; i < values.length; i++) {
     const val = values[i];
-    const resolved = val && typeof val === "object" && "get" in val
-      ? (val as { get: () => unknown }).get()
-      : val;
+    const resolved = isMotionValue(val) ? val.get() : val;
     result += String(resolved) + (strings[i + 1] || "");
   }
   return result;

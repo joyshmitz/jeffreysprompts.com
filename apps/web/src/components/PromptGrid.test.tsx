@@ -206,7 +206,7 @@ describe("PromptGrid", () => {
       );
 
       // Find the first copy button and click it
-      const copyButtons = screen.getAllByRole("button", { name: /copy/i });
+      const copyButtons = screen.getAllByRole("button", { name: /copy prompt/i });
       await user.click(copyButtons[0]);
 
       expect(onPromptCopy).toHaveBeenCalledWith(mockPrompts[0]);

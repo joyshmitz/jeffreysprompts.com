@@ -56,18 +56,19 @@ describe("BasketSidebar", () => {
   });
 
   describe("visibility states", () => {
-    it("renders as closed when isOpen is false", () => {
+    it("renders nothing when isOpen is false", () => {
       render(
         <TestWrapper>
           <BasketSidebar isOpen={false} onClose={mockOnClose} />
         </TestWrapper>
       );
 
+      // AnimatePresence removes the sidebar when closed
       const sidebar = document.querySelector("aside");
-      expect(sidebar).toHaveClass("translate-x-full");
+      expect(sidebar).toBeNull();
     });
 
-    it("renders as open when isOpen is true", () => {
+    it("renders sidebar when isOpen is true", () => {
       render(
         <TestWrapper>
           <BasketSidebar isOpen={true} onClose={mockOnClose} />
@@ -75,7 +76,7 @@ describe("BasketSidebar", () => {
       );
 
       const sidebar = document.querySelector("aside");
-      expect(sidebar).toHaveClass("translate-x-0");
+      expect(sidebar).toBeInTheDocument();
     });
 
     it("shows backdrop when open", () => {
@@ -86,10 +87,10 @@ describe("BasketSidebar", () => {
       );
 
       const backdrop = document.querySelector('[aria-hidden="true"]');
-      expect(backdrop).toHaveClass("opacity-100");
+      expect(backdrop).toBeInTheDocument();
     });
 
-    it("hides backdrop when closed", () => {
+    it("has no backdrop when closed", () => {
       render(
         <TestWrapper>
           <BasketSidebar isOpen={false} onClose={mockOnClose} />
@@ -97,7 +98,7 @@ describe("BasketSidebar", () => {
       );
 
       const backdrop = document.querySelector('[aria-hidden="true"]');
-      expect(backdrop).toHaveClass("opacity-0", "pointer-events-none");
+      expect(backdrop).toBeNull();
     });
   });
 
@@ -109,20 +110,17 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Your basket is empty")).toBeInTheDocument();
-      expect(
-        screen.getByText("Save prompts here to download or install them all at once.")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Empty Basket")).toBeInTheDocument();
     });
 
-    it("shows count of zero", () => {
+    it("shows count of zero items", () => {
       render(
         <TestWrapper>
           <BasketSidebar isOpen={true} onClose={mockOnClose} />
         </TestWrapper>
       );
 
-      expect(screen.getByText("(0)")).toBeInTheDocument();
+      expect(screen.getByText(/0 Item/)).toBeInTheDocument();
     });
 
     it("does not show export actions when empty", () => {
@@ -133,10 +131,10 @@ describe("BasketSidebar", () => {
       );
 
       expect(
-        screen.queryByRole("button", { name: /download as markdown/i })
+        screen.queryByRole("button", { name: /md files/i })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: /download as skills/i })
+        screen.queryByRole("button", { name: /skills zip/i })
       ).not.toBeInTheDocument();
     });
   });
@@ -161,7 +159,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("(2)")).toBeInTheDocument();
+      expect(screen.getByText(/2 Items/)).toBeInTheDocument();
     });
 
     it("shows export action buttons when items present", () => {
@@ -173,17 +171,11 @@ describe("BasketSidebar", () => {
       );
 
       expect(
-        screen.getByRole("button", { name: /download as markdown/i })
+        screen.getByText("Copy Install Command")
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /download as skills/i })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /copy install command/i })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /clear basket/i })
-      ).toBeInTheDocument();
+      expect(screen.getByText("MD Files")).toBeInTheDocument();
+      expect(screen.getByText("Skills ZIP")).toBeInTheDocument();
+      expect(screen.getByText("Clear All")).toBeInTheDocument();
     });
 
     it("displays category for each item", () => {
@@ -245,13 +237,13 @@ describe("BasketSidebar", () => {
       );
 
       // Should have 2 items initially
-      expect(screen.getByText("(2)")).toBeInTheDocument();
+      expect(screen.getByText(/2 Items/)).toBeInTheDocument();
 
       // Find remove buttons in the list items
       const listItems = screen.getAllByRole("listitem");
       expect(listItems).toHaveLength(2);
 
-      // Each item should have a remove button (X icon button)
+      // Each item should have a remove button
       const removeButtons = document.querySelectorAll(
         'li button[data-variant="ghost"]'
       );
@@ -288,14 +280,14 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("(2)")).toBeInTheDocument();
+      expect(screen.getByText(/2 Items/)).toBeInTheDocument();
 
-      const clearButton = screen.getByRole("button", { name: /clear basket/i });
+      const clearButton = screen.getByText("Clear All").closest("button")!;
       await user.click(clearButton);
 
       // Should show empty state now
-      expect(screen.getByText("Your basket is empty")).toBeInTheDocument();
-      expect(screen.getByText("(0)")).toBeInTheDocument();
+      expect(screen.getByText("Empty Basket")).toBeInTheDocument();
+      expect(screen.getByText(/0 Item/)).toBeInTheDocument();
     });
   });
 
@@ -311,9 +303,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      const copyButton = screen.getByRole("button", {
-        name: /copy install command/i,
-      });
+      const copyButton = screen.getByText("Copy Install Command").closest("button")!;
       expect(copyButton).toBeInTheDocument();
 
       // Click should not throw
@@ -328,9 +318,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      const copyButton = screen.getByRole("button", {
-        name: /copy install command/i,
-      });
+      const copyButton = screen.getByText("Copy Install Command").closest("button");
       expect(copyButton).toBeInTheDocument();
     });
   });
@@ -343,7 +331,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("Basket")).toBeInTheDocument();
+      expect(screen.getByText("Your Basket")).toBeInTheDocument();
     });
   });
 
@@ -356,9 +344,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      const mdButton = screen.getByRole("button", {
-        name: /download as markdown/i,
-      });
+      const mdButton = screen.getByText("MD Files").closest("button")!;
       expect(mdButton).toBeInTheDocument();
       expect(mdButton).not.toBeDisabled();
     });
@@ -371,9 +357,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      const skillsButton = screen.getByRole("button", {
-        name: /download as skills/i,
-      });
+      const skillsButton = screen.getByText("Skills ZIP").closest("button")!;
       expect(skillsButton).toBeInTheDocument();
       expect(skillsButton).not.toBeDisabled();
     });
@@ -399,7 +383,7 @@ describe("BasketSidebar", () => {
       );
 
       const sidebar = document.querySelector("aside");
-      expect(sidebar).toHaveClass("w-80", "max-w-full");
+      expect(sidebar).toHaveClass("w-full");
     });
   });
 
@@ -426,6 +410,18 @@ describe("BasketSidebar", () => {
       const backdrop = document.querySelector('[aria-hidden="true"]');
       expect(backdrop).toBeInTheDocument();
     });
+
+    it("sidebar has dialog role and aria-modal", () => {
+      render(
+        <TestWrapper>
+          <BasketSidebar isOpen={true} onClose={mockOnClose} />
+        </TestWrapper>
+      );
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(dialog).toHaveAttribute("aria-label", "Shopping basket");
+    });
   });
 
   describe("multiple items display", () => {
@@ -450,7 +446,7 @@ describe("BasketSidebar", () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText("(3)")).toBeInTheDocument();
+      expect(screen.getByText(/3 Items/)).toBeInTheDocument();
     });
   });
 });

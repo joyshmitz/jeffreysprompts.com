@@ -35,7 +35,7 @@ function useScrollHeader() {
     const isMobile = window.innerWidth < 768;
 
     // Update scrolled state (for shadow)
-    setIsScrolled(scrollY > 10);
+    setIsScrolled(scrollY > 20);
 
     if (isMobile) {
       // Hide on scroll down (after scrolling 50px), show on scroll up
@@ -200,7 +200,7 @@ export function Nav() {
             <div className="hidden sm:block mr-1">
               <LanguageSwitcher />
             </div>
-            <SpotlightTrigger className="mr-1 h-10 border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800" />
+            <SpotlightTrigger className="mr-1 size-10 p-0 border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full flex items-center justify-center" />
             <Button
               variant="ghost"
               size="icon"
@@ -278,7 +278,7 @@ export function Nav() {
                   })}
                   <ViewTransitionLink
                     href="/history"
-                    className="flex items-center min-h-[44px] py-3 text-sm font-medium text-muted-foreground hover:text-foreground touch-manipulation sm:hidden"
+                    className="flex items-center min-h-[44px] py-3 text-sm font-medium text-muted-foreground hover:text-foreground touch-manipulation"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     History

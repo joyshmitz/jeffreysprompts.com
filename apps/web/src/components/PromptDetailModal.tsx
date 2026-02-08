@@ -57,6 +57,7 @@ import {
   extractVariables,
   formatVariableName,
   getVariablePlaceholder,
+  getDynamicDefaults,
 } from "@jeffreysprompts/core/template";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 import { RatingButton, RatingDisplay } from "@/components/ratings";
@@ -86,7 +87,6 @@ export function PromptDetailModal({
   const prefersReducedMotion = useReducedMotion();
   const handleClose = useCallback(() => {
     setCopied(false);
-    setCopyFlash(false);
     setContext("");
     onClose();
   }, [onClose]);
@@ -124,7 +124,15 @@ export function PromptDetailModal({
   // Render prompt with current variable values and context
   const renderedContent = useMemo(() => {
     if (!prompt) return "";
-    let content = renderPrompt(prompt, variableValues);
+    
+    // Inject placeholders for dynamic variables that are usually provided by the environment
+    const dynamicDefaults = {
+      CWD: "(your-current-directory)",
+      PROJECT_NAME: "(your-project-name)",
+      GIT_BRANCH: "(your-git-branch)",
+    };
+
+    let content = renderPrompt(prompt, { ...dynamicDefaults, ...variableValues });
     if (context.trim()) {
       content += `\n\n---\n\n**Context:**\n${context}`;
     }
@@ -578,9 +586,9 @@ export function PromptDetailModal({
         >
           <DialogHeader separated className="border-b-2 border-neutral-100 dark:border-neutral-800 px-4 sm:px-10 pt-8 pb-6">
             <DialogTitle className="flex items-center gap-4 text-2xl sm:text-3xl font-bold">
-              <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-500 shadow-inner">
+              <span className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-500 shadow-inner">
                 <Sparkles className="w-7 h-7" />
-              </div>
+              </span>
               {prompt.title}
             </DialogTitle>
             <DialogDescription className="sr-only">

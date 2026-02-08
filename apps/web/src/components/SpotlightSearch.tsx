@@ -886,9 +886,9 @@ export function SpotlightTrigger({ className }: SpotlightTriggerProps) {
         className
       )}
     >
-      <SearchIcon className="size-4" aria-hidden="true" />
+      <SearchIcon className="size-4 shrink-0" aria-hidden="true" />
       <span className="hidden sm:inline">Search prompts...</span>
-      <kbd className="hidden sm:inline-flex items-center gap-0.5 ml-2 px-1.5 py-0.5 text-xs bg-background rounded font-mono" aria-hidden="true">
+      <kbd className="hidden sm:inline-flex items-center gap-0.5 ml-2 px-1.5 py-0.5 text-xs bg-background rounded font-mono border border-border/50" aria-hidden="true">
         <CommandIcon className="size-3" />K
       </kbd>
     </button>

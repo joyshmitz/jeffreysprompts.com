@@ -207,7 +207,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
             "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm",
             "border-neutral-200/50 dark:border-neutral-800/50",
             "transition-all duration-300",
-            isHovered ? "shadow-2xl shadow-neutral-200/50 dark:shadow-black/50 border-indigo-500/20 dark:border-indigo-400/20" : "shadow-md"
+            isHovered ? "shadow-2xl shadow-neutral-200/50 dark:shadow-black/50 border-primary/20" : "shadow-md"
           )}
           onClick={handleClick}
           role="button"
