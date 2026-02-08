@@ -116,9 +116,9 @@ export default function AdminMetadataPage() {
   const [adminToken, setAdminToken] = useState("");
   const [meta, setMeta] = useState<TagMappingsResponse["meta"] | null>(null);
 
-  const authHeaders = useMemo(() => {
+  const authHeaders = useMemo<Record<string, string>>(() => {
     const token = adminToken.trim();
-    if (!token) return undefined;
+    if (!token) return {} as Record<string, string>;
     return {
       "x-jfp-admin-token": token,
     };
@@ -192,7 +192,7 @@ export default function AdminMetadataPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(authHeaders ?? {}),
+            ...authHeaders,
           },
           body: JSON.stringify({
             alias,
