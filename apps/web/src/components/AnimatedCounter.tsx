@@ -1,163 +1,78 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-import { motion, useInView, useSpring, useTransform } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
+import { useInView, useMotionValue, useSpring, motion } from "framer-motion";
 
 interface AnimatedCounterProps {
-  /** Target number to count up to */
+  /** Final value to count to */
   value: number;
-  /** Duration of the animation in seconds */
+  /** Duration of animation in seconds (default: 2) */
   duration?: number;
-  /** Delay before animation starts (seconds) */
-  delay?: number;
-  /** Format function for the number */
-  formatValue?: (value: number) => string;
-  /** Additional className */
-  className?: string;
-  /** Whether to trigger animation only once */
-  once?: boolean;
-  /** Threshold for viewport intersection */
-  threshold?: number;
-  /** Prefix to display before the number */
-  prefix?: string;
-  /** Suffix to display after the number */
+  /** Suffix to append (e.g., "+", "%") */
   suffix?: string;
+  /** Prefix to prepend (e.g., "$") */
+  prefix?: string;
+  /** Class name for the container */
+  className?: string;
+  /** Stagger delay for multiple counters (default: 0) */
+  delay?: number;
 }
 
 /**
- * AnimatedCounter - Count-up animation component.
+ * AnimatedCounter - Smooth counting animation for statistics.
  *
- * Features:
- * - Viewport-triggered animation
- * - Smooth spring-based motion
- * - Configurable formatting
- * - Respects reduced motion preferences
- *
- * @example
- * ```tsx
- * <AnimatedCounter
- *   value={150}
- *   suffix="+"
- *   className="text-3xl font-bold"
- * />
- * ```
+ * Uses spring physics for a more natural feel and is triggered by scroll visibility.
  */
 export function AnimatedCounter({
   value,
-  duration = 1.5,
-  delay = 0,
-  formatValue = (v) => Math.round(v).toLocaleString(),
-  className,
-  once = true,
-  threshold = 0.3,
-  prefix = "",
+  duration = 2,
   suffix = "",
+  prefix = "",
+  className,
+  delay = 0,
 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once, amount: threshold });
-  const [hasAnimated, setHasAnimated] = useState(false);
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  const motionValue = useMotionValue(0);
 
-  // Spring animation for smooth counting
-  const springValue = useSpring(0, {
-    duration: duration * 1000,
-    bounce: 0,
+  // Using a spring for a more organic feel than a linear tween
+  const springValue = useSpring(motionValue, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
   });
 
-  // Transform to the display value
-  const displayValue = useTransform(springValue, (latest) =>
-    formatValue(latest)
-  );
-
-  // Track current displayed value for static rendering
-  const [currentDisplay, setCurrentDisplay] = useState(formatValue(0));
-
   useEffect(() => {
-    // Subscribe to value changes
-    const unsubscribe = displayValue.on("change", (latest) => {
-      setCurrentDisplay(latest);
-    });
-    return unsubscribe;
-  }, [displayValue]);
-
-  // Check for reduced motion preference
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-      setPrefersReducedMotion(mediaQuery.matches);
-
-      const handler = (e: MediaQueryListEvent) => {
-        setPrefersReducedMotion(e.matches);
-      };
-      mediaQuery.addEventListener("change", handler);
-      return () => mediaQuery.removeEventListener("change", handler);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isInView && !hasAnimated) {
-      // If reduced motion is preferred, skip animation and show final value
-      if (prefersReducedMotion) {
-        springValue.set(value);
-        setHasAnimated(true);
-        return;
-      }
-
-      // Small delay then animate
+    if (isInView) {
       const timer = setTimeout(() => {
-        springValue.set(value);
-        setHasAnimated(true);
+        motionValue.set(value);
       }, delay * 1000);
-
       return () => clearTimeout(timer);
     }
-  }, [isInView, value, delay, springValue, hasAnimated, prefersReducedMotion]);
+  }, [isInView, value, motionValue, delay]);
 
-  // Always render the same structure to avoid hydration mismatch
+  useEffect(() => {
+    // Keep motion value in sync if value changes after initial trigger
+    if (isInView) {
+      motionValue.set(value);
+    }
+  }, [value, isInView, motionValue]);
+
+  useEffect(() => {
+    const unsubscribe = springValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = Intl.NumberFormat("en-US").format(Math.floor(latest));
+      }
+    });
+    return () => unsubscribe();
+  }, [springValue]);
+
   return (
-    <span ref={ref} className={cn("tabular-nums", className)}>
+    <span className={className}>
       {prefix}
-      <motion.span>{currentDisplay}</motion.span>
+      <span ref={ref}>0</span>
       {suffix}
     </span>
-  );
-}
-
-/**
- * Simplified counter for text values like "Free"
- */
-export function AnimatedText({
-  text,
-  className,
-  delay = 0,
-}: {
-  text: string;
-  className?: string;
-  delay?: number;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.3 });
-
-  return (
-    <motion.span
-      ref={ref}
-      initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      animate={
-        isInView
-          ? { opacity: 1, y: 0, filter: "blur(0px)" }
-          : { opacity: 0, y: 10, filter: "blur(4px)" }
-      }
-      transition={{
-        duration: 0.5,
-        delay,
-        ease: [0.25, 0.46, 0.45, 0.94],
-      }}
-      className={className}
-    >
-      {text}
-    </motion.span>
   );
 }
 

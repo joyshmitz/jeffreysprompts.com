@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PromptCard } from "./PromptCard";
 import { SwipeablePromptCard } from "@/components/mobile/SwipeablePromptCard";
+import { GridTransition } from "@/components/desktop/GridTransition";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsSmallScreen } from "@/hooks/useIsMobile";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -49,57 +50,41 @@ export function PromptGrid({
     );
   }
 
-  // Animation variants for grid items
-  const itemVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: (index: number) => ({
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: prefersReducedMotion ? 0 : 0.2,
-        delay: prefersReducedMotion ? 0 : Math.min(index * 0.03, 0.15),
-      },
-    }),
-    exit: {
-      opacity: 0,
-      scale: 0.95,
-      transition: { duration: prefersReducedMotion ? 0 : 0.15 },
-    },
-  };
-
   return (
     <motion.div
       layout={!prefersReducedMotion}
       className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
     >
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="popLayout" initial={false}>
         {prompts.map((prompt, index) => (
-          <motion.div
-            key={prompt.id}
-            layout={!prefersReducedMotion}
-            custom={index}
-            variants={itemVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
+          <div key={prompt.id} className="h-full">
             {isMobile ? (
-              <SwipeablePromptCard
-                prompt={prompt}
-                index={index}
-                onCopy={onPromptCopy}
-                onClick={onPromptClick}
-                isMobile={isMobile}
-              />
+              <motion.div
+                layout={!prefersReducedMotion}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SwipeablePromptCard
+                  prompt={prompt}
+                  index={index}
+                  onCopy={onPromptCopy}
+                  onClick={onPromptClick}
+                  isMobile={isMobile}
+                />
+              </motion.div>
             ) : (
-              <PromptCard
-                prompt={prompt}
-                index={index}
-                onCopy={onPromptCopy}
-                onClick={onPromptClick}
-              />
+              <GridTransition index={index}>
+                <PromptCard
+                  prompt={prompt}
+                  index={index}
+                  onCopy={onPromptCopy}
+                  onClick={onPromptClick}
+                />
+              </GridTransition>
             )}
-          </motion.div>
+          </div>
         ))}
       </AnimatePresence>
     </motion.div>

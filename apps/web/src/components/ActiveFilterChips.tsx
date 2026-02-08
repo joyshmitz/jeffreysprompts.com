@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Search, Folder, Tag, X } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { PromptCategory } from "@jeffreysprompts/core/prompts/types";
 
@@ -24,29 +25,35 @@ interface FilterChipProps {
 }
 
 function FilterChip({ label, ariaLabel, icon, onRemove, className }: FilterChipProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <span
+    <motion.span
+      layout={!prefersReducedMotion}
+      initial={{ opacity: 0, scale: 0.8, x: -10 }}
+      animate={{ opacity: 1, scale: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.15 } }}
       data-testid="filter-chip"
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full",
-        "bg-neutral-100 dark:bg-neutral-800 text-sm text-neutral-700 dark:text-neutral-300",
-        "group transition-colors hover:bg-neutral-200 dark:hover:bg-neutral-700",
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm",
+        "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-sm font-semibold text-neutral-700 dark:text-neutral-300",
+        "group transition-all hover:border-indigo-500/30 hover:shadow-indigo-500/5",
         className
       )}
     >
       {icon && (
-        <span className="text-neutral-400 dark:text-neutral-500">{icon}</span>
+        <span className="text-indigo-500 dark:text-indigo-400 group-hover:scale-110 transition-transform">{icon}</span>
       )}
       <span className="max-w-[150px] truncate">{label}</span>
       <button
         type="button"
         onClick={onRemove}
-        className="ml-0.5 p-0.5 rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-500 touch-manipulation"
+        className="ml-1 p-0.5 rounded-full text-neutral-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 touch-manipulation"
         aria-label={ariaLabel}
       >
-        <X className="w-3 h-3" aria-hidden="true" />
+        <X className="w-3.5 h-3.5" aria-hidden="true" />
       </button>
-    </span>
+    </motion.span>
   );
 }
 
@@ -60,60 +67,72 @@ export function ActiveFilterChips({
   onClearAll,
 }: ActiveFilterChipsProps) {
   const hasFilters = query || category || tags.length > 0;
+  const prefersReducedMotion = useReducedMotion();
 
   if (!hasFilters) return null;
 
   return (
-    <div
+    <motion.div
+      layout={!prefersReducedMotion}
       role="region"
       aria-label="Active filters"
-      className="flex flex-wrap items-center gap-2 py-4 border-b border-neutral-200 dark:border-neutral-800"
+      className="flex flex-wrap items-center gap-3 py-6 border-b border-neutral-200 dark:border-neutral-800"
     >
-      <span className="text-sm text-neutral-500 dark:text-neutral-400 mr-1">
-        Active filters:
-      </span>
+      <motion.span 
+        layout={!prefersReducedMotion}
+        className="text-xs font-bold uppercase tracking-widest text-neutral-400 mr-2"
+      >
+        Active Filters
+      </motion.span>
 
-      {/* Search query chip */}
-      {query && (
-        <FilterChip
-          label={`"${query}"`}
-          ariaLabel={`Remove search filter: ${query}`}
-          icon={<Search className="w-3 h-3" />}
-          onRemove={onRemoveQuery}
-        />
-      )}
+      <AnimatePresence mode="popLayout">
+        {/* Search query chip */}
+        {query && (
+          <FilterChip
+            key="query"
+            label={`"${query}"`}
+            ariaLabel={`Remove search filter: ${query}`}
+            icon={<Search className="w-3.5 h-3.5" />}
+            onRemove={onRemoveQuery}
+          />
+        )}
 
-      {/* Category chip */}
-      {category && (
-        <FilterChip
-          label={category}
-          ariaLabel={`Remove category filter: ${category}`}
-          icon={<Folder className="w-3 h-3" />}
-          onRemove={onRemoveCategory}
-          className="capitalize"
-        />
-      )}
+        {/* Category chip */}
+        {category && (
+          <FilterChip
+            key="category"
+            label={category}
+            ariaLabel={`Remove category filter: ${category}`}
+            icon={<Folder className="w-3.5 h-3.5" />}
+            onRemove={onRemoveCategory}
+            className="capitalize"
+          />
+        )}
 
-      {/* Tag chips */}
-      {tags.map((tag) => (
-        <FilterChip
-          key={tag}
-          label={tag}
-          ariaLabel={`Remove tag filter: ${tag}`}
-          icon={<Tag className="w-3 h-3" />}
-          onRemove={() => onRemoveTag(tag)}
-        />
-      ))}
+        {/* Tag chips */}
+        {tags.map((tag) => (
+          <FilterChip
+            key={`tag-${tag}`}
+            label={tag}
+            ariaLabel={`Remove tag filter: ${tag}`}
+            icon={<Tag className="w-3.5 h-3.5" />}
+            onRemove={() => onRemoveTag(tag)}
+          />
+        ))}
+      </AnimatePresence>
 
       {/* Clear all */}
-      <button
+      <motion.button
+        layout={!prefersReducedMotion}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         type="button"
         onClick={onClearAll}
-        className="ml-2 text-xs text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:focus-visible:ring-neutral-500 rounded px-1 touch-manipulation"
+        className="ml-2 text-xs font-bold text-neutral-400 hover:text-rose-500 transition-colors uppercase tracking-widest rounded px-2 py-1 hover:bg-rose-500/5 touch-manipulation"
         aria-label="Clear all active filters"
       >
         Clear all
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 }

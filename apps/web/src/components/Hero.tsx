@@ -1,20 +1,25 @@
 "use client";
 
 /**
- * Hero - Clean, minimal hero section (Stripe/Linear inspired)
+ * Hero - Truly next-level, high-performance hero section.
  *
  * Design principles:
- * - Single fade-in animation for entire content block
- * - Static numbers (no animated counters)
- * - Clean typography hierarchy
- * - Horizontal scroll for category pills on mobile
+ * - GPU-accelerated animated background (HeroBackground)
+ * - Dramatic text reveal (CharacterReveal)
+ * - Life-like animated statistics (AnimatedCounter)
+ * - Highly interactive magnetic elements (MagneticButton)
+ * - Staggered entrance animations for visual flow
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Search, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
+import { Search, Sparkles, LayoutGrid, Zap, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { PromptCategory } from "@jeffreysprompts/core/prompts/types";
+import { HeroBackground } from "./HeroBackground";
+import { CharacterReveal } from "./CharacterReveal";
+import { AnimatedCounter } from "./AnimatedCounter";
+import { MagneticButton } from "./MagneticButton";
 
 interface HeroProps {
   promptCount: number;
@@ -34,6 +39,7 @@ export function Hero({
   selectedCategory,
 }: HeroProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasMounted = useRef(false);
 
@@ -77,144 +83,207 @@ export function Hero({
   );
 
   return (
-    <section className="relative overflow-hidden">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900" />
-      </div>
+    <section className="relative min-h-[60vh] flex flex-col items-center justify-center overflow-hidden py-16 sm:py-24">
+      <HeroBackground />
 
-      <div className="container-wide px-4 sm:px-6 lg:px-8 pt-12 pb-8 sm:pt-16 sm:pb-10">
-        {/* Single fade-in for entire content */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          className="text-center max-w-3xl mx-auto"
-        >
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-            <Sparkles className="w-4 h-4 text-amber-500" />
+      <div className="container-wide px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center max-w-4xl mx-auto">
+          {/* Enhanced Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="inline-flex items-center gap-2 px-4 py-2 mb-8 rounded-full bg-white/40 dark:bg-neutral-800/40 backdrop-blur-md border border-neutral-200/50 dark:border-neutral-700/50 shadow-sm"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-              Free prompts for AI coding agents
+              Curated prompts for agentic excellence
             </span>
-          </div>
+          </motion.div>
 
-          {/* Main headline - clean, static */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 dark:text-white mb-4">
-            Jeffrey&apos;s Prompts
+          {/* Main headline - dramatic reveal */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-neutral-900 dark:text-white mb-6 leading-[1.1]">
+            <CharacterReveal
+              text="Jeffrey's Prompts"
+              preset="cascade"
+              stagger={0.04}
+              className="justify-center"
+            />
           </h1>
 
-          {/* Tagline */}
-          <p className="text-lg sm:text-xl text-neutral-600 dark:text-neutral-400 mb-8 max-w-xl mx-auto">
-            Battle-tested prompts for Claude, GPT, and other AI coding assistants.
-          </p>
+          {/* Tagline - smooth fade in */}
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="text-lg sm:text-2xl text-neutral-600 dark:text-neutral-400 mb-12 max-w-2xl mx-auto leading-relaxed"
+          >
+            Battle-tested patterns for Claude, GPT, and the next generation of AI coding assistants.
+          </motion.p>
 
-          {/* Stats - static numbers, clean layout */}
-          <div className="flex items-center justify-center gap-8 sm:gap-12 mb-8">
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white">
-                {promptCount}
+          {/* Stats - animated numbers with icons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="flex flex-wrap items-center justify-center gap-8 sm:gap-16 mb-12"
+          >
+            <div className="flex flex-col items-center gap-1 group">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform" />
+                <AnimatedCounter
+                  value={promptCount}
+                  className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white"
+                  delay={1}
+                />
               </div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400">Prompts</div>
-            </div>
-            <div className="w-px h-10 bg-neutral-200 dark:bg-neutral-700" />
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white">
-                {categoryCount}
+              <div className="text-sm font-medium text-neutral-500 dark:text-neutral-500 uppercase tracking-widest">
+                Prompts
               </div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400">Categories</div>
             </div>
-            <div className="w-px h-10 bg-neutral-200 dark:bg-neutral-700" />
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white">
-                Free
-              </div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400">Forever</div>
-            </div>
-          </div>
 
-          {/* Search bar */}
-          <form onSubmit={handleSearchSubmit} className="max-w-xl mx-auto mb-8">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+            <div className="hidden sm:block w-px h-12 bg-neutral-200 dark:bg-neutral-800" />
+
+            <div className="flex flex-col items-center gap-1 group">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                <AnimatedCounter
+                  value={categoryCount}
+                  className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white"
+                  delay={1.2}
+                />
+              </div>
+              <div className="text-sm font-medium text-neutral-500 dark:text-neutral-500 uppercase tracking-widest">
+                Categories
+              </div>
+            </div>
+
+            <div className="hidden sm:block w-px h-12 bg-neutral-200 dark:bg-neutral-800" />
+
+            <div className="flex flex-col items-center gap-1 group">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <div className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white">
+                  Free
+                </div>
+              </div>
+              <div className="text-sm font-medium text-neutral-500 dark:text-neutral-500 uppercase tracking-widest">
+                Forever
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Search bar - refined with focus effects */}
+          <motion.form
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1 }}
+            onSubmit={handleSearchSubmit}
+            className="max-w-2xl mx-auto mb-12"
+          >
+            <div className="relative group">
+              <Search className={cn(
+                "absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-300",
+                isSearchFocused ? "text-indigo-500" : "text-neutral-400 group-hover:text-neutral-500"
+              )} />
               <input
                 type="text"
                 value={searchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search prompts..."
+                placeholder="Find your next favorite prompt..."
                 aria-label="Search prompts"
                 autoComplete="off"
                 className={cn(
-                  "w-full h-12 pl-12 pr-4 sm:pr-24",
-                  "rounded-xl border border-neutral-200 dark:border-neutral-700",
-                  "bg-white dark:bg-neutral-800",
-                  "text-base text-neutral-900 dark:text-white",
+                  "w-full h-14 pl-14 pr-4 sm:pr-28",
+                  "rounded-2xl border-2 border-neutral-200/50 dark:border-neutral-700/50",
+                  "bg-white/60 dark:bg-neutral-800/60 backdrop-blur-xl",
+                  "text-lg text-neutral-900 dark:text-white",
                   "placeholder:text-neutral-400",
-                  "focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-white focus:ring-offset-2",
-                  "transition-shadow"
+                  "focus:outline-none focus:border-indigo-500/50 dark:focus:border-indigo-400/50",
+                  "shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] focus:shadow-[0_12px_40px_-12px_rgba(99,102,241,0.2)]",
+                  "transition-all duration-300"
                 )}
               />
-              {/* suppressHydrationWarning: modifier key differs between server (Ctrl) and client (⌘ on Mac) */}
               <div
-                className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 text-xs text-neutral-400"
+                className="absolute right-5 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 text-xs text-neutral-400"
                 suppressHydrationWarning
               >
-                <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-mono">
+                <kbd className="px-2 py-1 rounded bg-neutral-100/80 dark:bg-neutral-700/80 border border-neutral-200 dark:border-neutral-600 font-mono shadow-sm">
                   {modifierKey}
                 </kbd>
-                <kbd className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-mono">
+                <kbd className="px-2 py-1 rounded bg-neutral-100/80 dark:bg-neutral-700/80 border border-neutral-200 dark:border-neutral-600 font-mono shadow-sm">
                   K
                 </kbd>
               </div>
             </div>
-          </form>
+          </motion.form>
 
-          {/* Category pills - horizontal scroll on mobile */}
-          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+          {/* Category pills - using MagneticButton for premium feel */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 1.2 }}
+            className="overflow-x-auto scrollbar-hide -mx-4 px-4 pb-4"
+          >
             <div
               role="group"
               aria-label="Filter by category"
-              className="flex items-center justify-center gap-2 pb-2 min-w-max"
+              className="flex items-center justify-center gap-3 min-w-max"
             >
-              <button
+              <MagneticButton
                 type="button"
-                aria-pressed={selectedCategory === null}
+                variant={selectedCategory === null ? "primary" : "ghost"}
+                strength={0.2}
+                glowColor="rgba(99, 102, 241, 0.4)"
                 className={cn(
-                  "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium",
-                  "min-h-[44px] sm:min-h-0 touch-manipulation",
-                  "transition-colors",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white",
+                  "min-h-0 py-2 px-6 rounded-full text-sm",
                   selectedCategory === null
-                    ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
-                    : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                    ? ""
+                    : "bg-neutral-100/50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
                 )}
                 onClick={() => onCategorySelect?.(null)}
               >
                 All
-              </button>
+              </MagneticButton>
+
               {categories.map((category) => (
-                <button
+                <MagneticButton
                   key={category}
                   type="button"
-                  aria-pressed={selectedCategory === category}
+                  variant={selectedCategory === category ? "primary" : "ghost"}
+                  strength={0.15}
+                  glowColor="rgba(99, 102, 241, 0.4)"
                   className={cn(
-                    "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium capitalize",
-                    "min-h-[44px] sm:min-h-0 touch-manipulation",
-                    "transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 dark:focus-visible:ring-white",
+                    "min-h-0 py-2 px-6 rounded-full text-sm capitalize",
                     selectedCategory === category
-                      ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
-                      : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                      ? ""
+                      : "bg-neutral-100/50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
                   )}
                   onClick={() => onCategorySelect?.(category)}
                 >
                   {category}
-                </button>
+                </MagneticButton>
               ))}
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Subtle indicator for more content */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2, duration: 1 }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden lg:block"
+      >
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="w-1 h-12 rounded-full bg-gradient-to-b from-indigo-500/50 to-transparent"
+        />
+      </motion.div>
     </section>
   );
 }

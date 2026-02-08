@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * BottomTabBar - Hyper-optimized mobile navigation.
+ * 
+ * Features:
+ * - Liquid active indicator transitions
+ * - Precision haptic feedback integration
+ * - Context-aware transparency
+ * - Staggered 'More' menu entrance
+ */
+
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,11 +23,11 @@ import {
   X,
   Gift,
   Info,
-  ShoppingBag,
+  ShoppingBasket,
   CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useHaptic } from "@/hooks/useHaptic";
+import { usePrecisionHaptic } from "@/hooks/usePrecisionHaptic";
 
 interface TabItem {
   id: string;
@@ -43,7 +53,7 @@ interface MoreMenuItem {
 }
 
 const moreMenuItems: MoreMenuItem[] = [
-  { label: "Basket", icon: ShoppingBag, action: "basket" },
+  { label: "Basket", icon: ShoppingBasket, action: "basket" },
   { label: "Pricing", icon: CreditCard, href: "/pricing" },
   { label: "Contribute", icon: Gift, href: "/contribute" },
   { label: "How It's Made", icon: Info, href: "/how_it_was_made" },
@@ -56,32 +66,15 @@ interface BottomTabBarProps {
   className?: string;
 }
 
-/**
- * BottomTabBar - Mobile-first bottom navigation.
- *
- * Features:
- * - 5 tabs: Home, Bundles, Search, Workflows, More
- * - Glass morphism background with backdrop blur
- * - Hides on scroll down, shows on scroll up
- * - Haptic feedback on tap
- * - Safe area padding for iPhone notch
- * - Active state indicator
- *
- * @example
- * ```tsx
- * <BottomTabBar onOpenSearch={() => setSearchOpen(true)} />
- * ```
- */
 export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
   const pathname = usePathname();
-  const haptic = useHaptic();
+  const haptic = usePrecisionHaptic();
 
   const [isVisible, setIsVisible] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const lastScrollY = useRef(0);
   const scrollThreshold = 10;
 
-  // Hide on scroll down, show on scroll up
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -89,11 +82,9 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
 
       if (Math.abs(diff) > scrollThreshold) {
         if (diff > 0 && currentScrollY > 100) {
-          // Scrolling down and not at top
           setIsVisible(false);
           setMenuOpen(false);
         } else {
-          // Scrolling up
           setIsVisible(true);
         }
         lastScrollY.current = currentScrollY;
@@ -104,7 +95,6 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Check if a tab is active
   const isActive = useCallback(
     (tab: TabItem) => {
       if (!tab.href) return false;
@@ -114,10 +104,9 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
     [pathname]
   );
 
-  // Handle tab click
   const handleTabClick = useCallback(
     (tab: TabItem) => {
-      haptic.selection();
+      haptic.light();
 
       if (tab.action === "search") {
         setMenuOpen(false);
@@ -134,110 +123,97 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
       if (item.action === "basket") {
         window.dispatchEvent(new CustomEvent("toggle-basket"));
       }
-      haptic.light();
+      haptic.medium();
       setMenuOpen(false);
     },
     [haptic]
   );
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-tab-bar]")) {
-        setMenuOpen(false);
-      }
-    };
-
-    if (menuOpen) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }
-  }, [menuOpen]);
-
   return (
     <>
-      {/* More menu overlay */}
       <AnimatePresence>
         {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-4 z-40 md:hidden"
-            data-tab-bar
-          >
-            <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-lg rounded-2xl shadow-xl border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
-              {moreMenuItems.map((item) => {
-                const content = (
-                  <>
-                    <item.icon className="w-5 h-5" />
-                    {item.label}
-                  </>
-                );
+          <div className="fixed inset-0 z-40 md:hidden overflow-hidden">
+            {/* Backdrop with dramatic blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-md"
+              onClick={() => setMenuOpen(false)}
+            />
+            
+            {/* Staggered Menu */}
+            <motion.div
+              initial={{ opacity: 0, y: 100, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 left-4"
+            >
+              <div className="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border-2 border-white/10 overflow-hidden p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {moreMenuItems.map((item, index) => {
+                    const content = (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 + 0.1 }}
+                        className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl bg-neutral-100 dark:bg-neutral-800 transition-all hover:bg-indigo-500 hover:text-white"
+                      >
+                        <item.icon className="w-6 h-6" />
+                        <span className="text-xs font-bold uppercase tracking-widest">{item.label}</span>
+                      </motion.div>
+                    );
 
-                if (item.href) {
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => {
-                        haptic.light();
-                        setMenuOpen(false);
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-5 py-3.5",
-                        "text-sm font-medium",
-                        "hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                        "transition-colors",
-                        pathname === item.href && "text-indigo-600 dark:text-indigo-400"
-                      )}
-                    >
-                      {content}
-                    </Link>
-                  );
-                }
+                    if (item.href) {
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => {
+                            haptic.medium();
+                            setMenuOpen(false);
+                          }}
+                        >
+                          {content}
+                        </Link>
+                      );
+                    }
 
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => handleMoreAction(item)}
-                    className={cn(
-                      "flex w-full items-center gap-3 px-5 py-3.5",
-                      "text-sm font-medium text-left",
-                      "hover:bg-neutral-100 dark:hover:bg-neutral-800",
-                      "transition-colors"
-                    )}
-                  >
-                    {content}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
+                    return (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => handleMoreAction(item)}
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* Tab bar */}
       <motion.nav
         initial={false}
         animate={{
           y: isVisible ? 0 : 100,
           opacity: isVisible ? 1 : 0,
         }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
         className={cn(
-          "fixed bottom-0 inset-x-0 z-50 md:hidden",
-          "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl",
-          "border-t border-neutral-200/50 dark:border-neutral-700/50",
+          "fixed bottom-4 inset-x-4 z-50 md:hidden",
+          "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl",
+          "border-2 border-white/10 dark:border-neutral-800/50",
+          "rounded-[2.5rem] shadow-2xl shadow-black/20",
           "pb-[env(safe-area-inset-bottom)]",
           className
         )}
         data-tab-bar
-        role="navigation"
-        aria-label="Main navigation"
       >
         <div className="flex items-center justify-around h-16 px-2">
           {tabs.map((tab) => {
@@ -248,28 +224,30 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
               <motion.div
                 className={cn(
                   "flex flex-col items-center justify-center gap-1",
-                  "w-full h-full px-3 py-2",
-                  "rounded-xl",
-                  "transition-colors",
+                  "w-full h-full relative transition-colors duration-300",
                   active
                     ? "text-indigo-600 dark:text-indigo-400"
-                    : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                    : "text-neutral-500 dark:text-neutral-400"
                 )}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                whileTap={{ scale: 0.85 }}
               >
-                <div className="relative">
-                  <Icon className="w-6 h-6" />
-                  {/* Active indicator */}
+                <div className="relative z-10">
+                  <motion.div
+                    animate={active ? { scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] } : {}}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <Icon className="w-6 h-6" />
+                  </motion.div>
+                  
                   {active && (
                     <motion.div
-                      layoutId="activeTab"
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      layoutId="liquidIndicator"
+                      className="absolute -inset-3 -z-10 rounded-full bg-indigo-500/10"
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     />
                   )}
                 </div>
-                <span className="text-xs font-medium">{tab.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-tighter">{tab.label}</span>
               </motion.div>
             );
 
@@ -279,8 +257,7 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
                   key={tab.id}
                   href={tab.href}
                   onClick={() => haptic.selection()}
-                  className="flex-1 min-w-0 touch-manipulation"
-                  aria-current={active ? "page" : undefined}
+                  className="flex-1 min-w-0"
                 >
                   {content}
                 </Link>
@@ -291,8 +268,7 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab)}
-                className="flex-1 min-w-0 touch-manipulation"
-                aria-expanded={tab.action === "menu" ? menuOpen : undefined}
+                className="flex-1 min-w-0"
               >
                 {content}
               </button>
@@ -301,8 +277,8 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
         </div>
       </motion.nav>
 
-      {/* Spacer for content */}
-      <div className="h-16 md:hidden pb-[env(safe-area-inset-bottom)]" />
+      {/* Rubber-band bottom spacer */}
+      <div className="h-24 md:hidden pb-[env(safe-area-inset-bottom)]" />
     </>
   );
 }

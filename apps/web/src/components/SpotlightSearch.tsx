@@ -15,6 +15,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { useIsSmallScreen } from "@/hooks/useIsMobile"
 import { trackHistoryView } from "@/lib/history/client"
 import { copyToClipboard } from "@/lib/clipboard"
+import { AgenticScan } from "./AgenticScan"
 
 // ============================================================================
 // Constants
@@ -453,11 +454,11 @@ export function SpotlightSearch({
           {/* Backdrop */}
           <motion.div
             key="spotlight-backdrop"
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md dark:bg-black/60"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.3 }}
             onClick={() => setIsOpen(false)}
             aria-hidden
           />
@@ -469,7 +470,7 @@ export function SpotlightSearch({
             aria-modal="true"
             aria-label="Search prompts"
             className={cn(
-              "fixed z-50 bg-card text-card-foreground overflow-hidden",
+              "fixed z-50 bg-card/80 backdrop-blur-2xl text-card-foreground overflow-hidden",
               // Mobile: full screen with flex layout
               isMobile ? [
                 "inset-0 flex flex-col",
@@ -478,21 +479,43 @@ export function SpotlightSearch({
               ] : [
                 "left-1/2 top-[12%]",
                 "w-[calc(100%-2rem)] max-w-xl",
-                "border border-border/50 rounded-2xl",
-                "shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25),0_0_0_1px_rgba(0,0,0,0.05)]",
+                "border border-border/40 rounded-2xl",
+                "shadow-[0_25px_80px_-12px_rgba(0,0,0,0.4)]",
               ]
             )}
-            initial={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, scale: 0.96, x: "-50%" }}
-            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, x: "-50%" }}
-            exit={isMobile ? { opacity: 0, y: 20 } : { opacity: 0, scale: 0.96, x: "-50%" }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={isMobile ? { opacity: 0, y: 30 } : { opacity: 0, scale: 0.95, x: "-50%", y: -20 }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, x: "-50%", y: 0 }}
+            exit={isMobile ? { opacity: 0, y: 30 } : { opacity: 0, scale: 0.95, x: "-50%", y: -20 }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
           >
+            <AgenticScan />
+            
             {/* Search Input */}
             <div className={cn(
-              "flex items-center gap-3 px-4 border-b border-border/50",
+              "relative flex items-center gap-3 px-4 border-b border-border/50 overflow-hidden",
               isMobile ? "py-4" : "py-3.5"
             )}>
-              <SearchIcon className="text-muted-foreground/70 shrink-0" aria-hidden="true" />
+              {/* Scanning bar for semantic search */}
+              <AnimatePresence>
+                {isReranking && (
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    animate={{ x: "100%" }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute inset-0 z-0 pointer-events-none opacity-20 dark:opacity-10"
+                    style={{
+                      background: "linear-gradient(90deg, transparent, var(--primary), transparent)",
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+
+              <SearchIcon className="text-muted-foreground/70 shrink-0 relative z-10" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
@@ -501,8 +524,8 @@ export function SpotlightSearch({
                 onKeyDown={handleKeyDown}
                 placeholder="Search prompts..."
                 className={cn(
-                  "flex-1 bg-transparent outline-none",
-                  "text-base placeholder:text-muted-foreground/60"
+                  "flex-1 bg-transparent outline-none relative z-10",
+                  "text-base placeholder:text-muted-foreground/60 font-medium"
                 )}
                 autoComplete="off"
                 autoCorrect="off"
@@ -519,28 +542,43 @@ export function SpotlightSearch({
                 onClick={() => setSemanticMode(!semanticMode)}
                 title={semanticMode ? "Semantic search enabled" : "Enable semantic search"}
                 className={cn(
-                  "shrink-0 size-10 rounded-lg flex items-center justify-center transition-colors duration-150 touch-manipulation",
+                  "relative shrink-0 size-10 rounded-lg flex items-center justify-center transition-all duration-300 touch-manipulation z-10",
                   semanticMode
-                    ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                    ? "text-amber-500"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
                 aria-pressed={semanticMode}
                 aria-label="Toggle semantic search"
               >
-                <SparklesIcon className={cn("size-4", isReranking && "animate-pulse")} />
+                {semanticMode && (
+                  <motion.div
+                    layoutId="semantic-glow"
+                    className="absolute inset-0 rounded-lg bg-amber-500/10 blur-sm"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [0.5, 0.8, 0.5],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                )}
+                <SparklesIcon className={cn("size-4 relative z-10", isReranking && "animate-pulse")} />
               </button>
               {/* Mobile: close button / Desktop: esc hint */}
               {isMobile ? (
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="shrink-0 size-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation"
+                  className="shrink-0 size-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-manipulation z-10"
                   aria-label="Close search"
                 >
                   <XIcon className="size-5" />
                 </button>
               ) : (
-                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground/70 bg-muted/50 rounded-md font-mono">
+                <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-tight text-muted-foreground/70 bg-muted/50 rounded-md font-mono border border-border/50 relative z-10">
                   esc
                 </kbd>
               )}
