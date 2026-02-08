@@ -312,7 +312,7 @@ export function BasketSidebar({ isOpen, onClose }: BasketSidebarProps) {
                           <p className="text-sm font-bold truncate group-hover:text-indigo-500 transition-colors">
                             {prompt.title}
                           </p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1">
+                          <p className="text-xs font-bold uppercase tracking-widest text-neutral-400 mt-1">
                             {prompt.category}
                           </p>
                         </div>

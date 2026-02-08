@@ -6,7 +6,6 @@ const LOCAL_USER_ID_KEY = "jfpUserId";
 const LEGACY_RATING_USER_ID_KEY = "jfp-rating-user-id";
 const HISTORY_STORAGE_KEY = "jfpHistoryV1";
 const MAX_QUERY_LENGTH = 500;
-const _DEDUPE_WINDOW_MS = 5 * 60 * 1000;
 const MAX_HISTORY_ITEMS = 1000;
 
 export function getOrCreateLocalUserId(): string | null {

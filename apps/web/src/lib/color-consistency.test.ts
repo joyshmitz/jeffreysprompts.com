@@ -59,6 +59,17 @@ const indigoAllowlist = [
   "app/[locale]/page.tsx",
   // Landing page sections use indigo for brand consistency
   "components/landing/",
+  // Core chrome uses indigo as the intentional brand accent
+  "components/Nav.tsx",
+  "components/Footer.tsx",
+  "components/Hero.tsx",
+  "components/PromptCard.tsx",
+  "components/PromptDetailModal.tsx",
+  "components/BasketSidebar.tsx",
+  "components/ActiveFilterChips.tsx",
+  "components/AgenticScan.tsx",
+  "components/TerminalStream.tsx",
+  "components/featured/staff-pick-badge.tsx",
   // Legal and help pages use indigo accents (i18n locale prefix)
   "components/legal/",
   "components/help/",

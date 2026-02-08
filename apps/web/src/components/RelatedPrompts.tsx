@@ -63,7 +63,7 @@ export function RelatedPrompts({ promptId, limit = 4 }: RelatedPromptsProps) {
           <h2 className="text-2xl font-bold tracking-tight">Related Prompts</h2>
           <p className="text-sm font-medium text-neutral-500">You might also find these useful</p>
         </div>
-        <span className="px-3 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+        <span className="px-3 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-xs font-bold uppercase tracking-widest text-neutral-500">
           {related.length} Recommendations
         </span>
       </div>

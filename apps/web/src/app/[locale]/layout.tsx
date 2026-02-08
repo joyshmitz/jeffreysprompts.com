@@ -7,7 +7,6 @@ import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
 import { SkipLink } from "@/components/ui/skip-link";
 import { locales, type Locale } from "@/i18n/config";
-import { MouseSpotlight } from "@/components/desktop/MouseSpotlight";
 
 // Generate static params for all supported locales
 export function generateStaticParams() {

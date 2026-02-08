@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useCallback, useMemo, useState, useEffect } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
 import { AlertTriangle } from "lucide-react";
@@ -13,7 +13,6 @@ import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
-import { FirstVisitWelcome } from "@/components/onboarding";
 import { BottomTabBar } from "@/components/mobile/BottomTabBar";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -25,6 +24,11 @@ const SpotlightSearch = dynamic(
   { ssr: false }
 );
 
+const FirstVisitWelcome = dynamic(
+  () => import("@/components/onboarding").then((mod) => mod.FirstVisitWelcome),
+  { ssr: false }
+);
+
 interface ProvidersProps {
   children: React.ReactNode;
 }
@@ -33,12 +37,7 @@ export function Providers({ children }: ProvidersProps) {
   const serviceWorker = useServiceWorker();
   const router = useRouter();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const { isFirstVisit, completeFirstVisit } = useOnboarding();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const openSpotlight = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -172,12 +171,9 @@ export function Providers({ children }: ProvidersProps) {
             isRegistered={serviceWorker.isRegistered}
             hasUpdate={serviceWorker.hasUpdate}
           />
-          {mounted && (
-            <FirstVisitWelcome
-              show={isFirstVisit}
-              onDismiss={completeFirstVisit}
-            />
-          )}
+          {isFirstVisit ? (
+            <FirstVisitWelcome show={isFirstVisit} onDismiss={completeFirstVisit} />
+          ) : null}
         </BasketProvider>
       </ToastProvider>
     </ThemeProvider>

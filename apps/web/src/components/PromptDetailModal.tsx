@@ -57,7 +57,6 @@ import {
   extractVariables,
   formatVariableName,
   getVariablePlaceholder,
-  getDynamicDefaults,
 } from "@jeffreysprompts/core/template";
 import type { Prompt, PromptVariable } from "@jeffreysprompts/core/prompts/types";
 import { RatingButton, RatingDisplay } from "@/components/ratings";
@@ -82,7 +81,6 @@ export function PromptDetailModal({
   const [copied, setCopied] = useState(false);
   const [context, setContext] = useState("");
   const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const copyFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const handleClose = useCallback(() => {
     setCopied(false);
@@ -171,10 +169,6 @@ export function PromptDetailModal({
         trackEvent("prompt_copy", { id: prompt.id, source: "modal" });
       }
 
-      // Reset flash quickly
-      if (copyFlashTimer.current) clearTimeout(copyFlashTimer.current);
-      copyFlashTimer.current = setTimeout(() => setCopyFlash(false), 300);
-
       if (copiedResetTimer.current) {
         clearTimeout(copiedResetTimer.current);
       }
@@ -242,7 +236,6 @@ export function PromptDetailModal({
   useEffect(() => {
     return () => {
       if (copiedResetTimer.current) clearTimeout(copiedResetTimer.current);
-      if (copyFlashTimer.current) clearTimeout(copyFlashTimer.current);
     };
   }, []);
 

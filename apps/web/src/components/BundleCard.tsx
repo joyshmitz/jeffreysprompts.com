@@ -181,7 +181,7 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
                   <FeaturedContentBadge size="sm" />
                 )}
               </div>
-              <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+              <Badge variant="outline" className="text-xs font-bold uppercase tracking-widest border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
                 {bundle.promptIds.length} Prompts
               </Badge>
             </div>
@@ -200,13 +200,13 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
                 <motion.span
                   key={id}
                   whileHover={{ scale: 1.05 }}
-                  className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded-md border border-neutral-200 dark:border-neutral-700"
+                  className="text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded-md border border-neutral-200 dark:border-neutral-700"
                 >
                   {id}
                 </motion.span>
               ))}
               {bundle.promptIds.length > 3 && (
-                <span className="text-[10px] font-bold text-neutral-400 px-1 pt-1">
+                <span className="text-xs font-bold text-neutral-400 px-1 pt-1">
                   +{bundle.promptIds.length - 3} more
                 </span>
               )}
@@ -217,7 +217,7 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
             <div className="w-full space-y-5">
               {bundle.workflow && (
                 <div className="relative rounded-xl overflow-hidden bg-neutral-50 dark:bg-black/20 border border-neutral-200/30 dark:border-neutral-800/30 p-4">
-                  <p className="font-mono text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap line-clamp-3">
+                  <p className="font-mono text-xs leading-relaxed text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap line-clamp-3">
                     {bundle.workflow}
                   </p>
                   <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-neutral-50 dark:from-neutral-900/50 to-transparent pointer-events-none" />
@@ -225,7 +225,7 @@ export function BundleCard({ bundle, index = 0 }: BundleCardProps) {
               )}
 
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">
                   Version {bundle.version}
                 </span>
                 <div className="flex items-center gap-2">

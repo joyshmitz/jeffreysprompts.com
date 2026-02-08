@@ -50,7 +50,7 @@ const BADGE_CONFIG: Record<
 
 const SIZE_CLASSES = {
   sm: {
-    wrapper: "px-2 py-0.5 text-[10px] gap-1",
+    wrapper: "px-2 py-0.5 text-xs gap-1",
     icon: "h-3 w-3",
   },
   md: {
