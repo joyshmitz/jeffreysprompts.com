@@ -43,7 +43,7 @@ export function useServiceWorker(): ServiceWorkerState {
     // Register service worker
     const registerSW = async () => {
       try {
-        const registration = await navigator.serviceWorker.register("/sw.js", {
+        const registration = await navigator.serviceWorker.register("/service-worker.js", {
           scope: "/",
         });
 
