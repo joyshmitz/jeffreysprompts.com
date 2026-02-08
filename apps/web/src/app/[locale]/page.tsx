@@ -207,6 +207,10 @@ function HomeContent() {
   }, [filters, ratingSummaries, hasActiveFilters, featuredPrompts]);
 
   const handlePromptClick = useCallback((prompt: Prompt) => {
+    if (modalCloseTimerRef.current) {
+      clearTimeout(modalCloseTimerRef.current);
+      modalCloseTimerRef.current = null;
+    }
     setSelectedPrompt(prompt);
     setIsModalOpen(true);
   }, []);

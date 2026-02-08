@@ -80,7 +80,6 @@ export function PromptDetailModal({
   const isMobile = useIsMobile();
   const { success, error } = useToast();
   const [copied, setCopied] = useState(false);
-  const [, setCopyFlash] = useState(false);
   const [context, setContext] = useState("");
   const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,7 +160,6 @@ export function PromptDetailModal({
 
     if (result.success) {
       setCopied(true);
-      setCopyFlash(true);
 
       // Haptic feedback for mobile devices
       if ("vibrate" in navigator) {
