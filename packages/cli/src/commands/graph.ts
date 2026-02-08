@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { createHash } from "crypto";
 import { shouldOutputJson } from "../lib/utils";
 import { loadRegistry } from "../lib/registry-loader";
 import type { Bundle } from "@jeffreysprompts/core/prompts/bundles";
@@ -76,7 +77,9 @@ function escapeDotLabel(value: string): string {
 }
 
 function escapeMermaidLabel(value: string): string {
-  return normalizeLabel(value).replace(/\"/g, "\\\"");
+  return normalizeLabel(value)
+    .replace(/\"/g, "#quot;")
+    .replace(/[\[\]\(\)\{\}]/g, "");
 }
 
 function buildNodeKey(type: GraphNodeType, id: string): string {
@@ -94,7 +97,9 @@ function getNodeLabel(node: GraphNode): string {
 }
 
 function toMermaidId(node: GraphNode): string {
-  const base = node.id.replace(/[^a-zA-Z0-9_]/g, "_");
+  const key = buildNodeKey(node.type, node.id);
+  const hash = createHash("sha256").update(key).digest("hex").slice(0, 8);
+  const base = node.id.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
   const prefix =
     node.type === "prompt"
       ? "p"
@@ -107,11 +112,12 @@ function toMermaidId(node: GraphNode): string {
             : node.type === "tag"
               ? "t"
               : "l";
-  return `${prefix}_${base}`;
+  return `${prefix}_${base}_${hash}`;
 }
 
 function toMermaidFallbackId(key: string): string {
-  return `x_${key.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+  const hash = createHash("sha256").update(key).digest("hex").slice(0, 8);
+  return `x_${hash}`;
 }
 
 function edgeNodeKeys(edge: GraphEdge): { fromKey: string; toKey: string; label: string } {
@@ -323,22 +329,9 @@ function buildDotGraph(nodes: GraphNode[], edges: GraphEdge[]): string {
 function buildMermaidGraph(nodes: GraphNode[], edges: GraphEdge[]): string {
   const lines: string[] = [];
   const nodeMap = new Map<string, string>();
-  const usedIds = new Set<string>();
-
-  const makeUniqueId = (base: string) => {
-    let candidate = base;
-    let suffix = 1;
-    while (usedIds.has(candidate)) {
-      suffix += 1;
-      candidate = `${base}_${suffix}`;
-    }
-    usedIds.add(candidate);
-    return candidate;
-  };
 
   for (const node of nodes) {
-    const baseId = toMermaidId(node);
-    nodeMap.set(buildNodeKey(node.type, node.id), makeUniqueId(baseId));
+    nodeMap.set(buildNodeKey(node.type, node.id), toMermaidId(node));
   }
 
   lines.push("graph TD");
