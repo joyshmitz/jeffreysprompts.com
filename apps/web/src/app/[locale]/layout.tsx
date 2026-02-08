@@ -9,7 +9,32 @@ import { SkipLink } from "@/components/ui/skip-link";
 import { locales, type Locale } from "@/i18n/config";
 import { MouseSpotlight } from "@/components/desktop/MouseSpotlight";
 
-// ... rest of imports and functions
+// Generate static params for all supported locales
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
+
+interface LocaleLayoutProps {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }>;
+}
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: LocaleLayoutProps) {
+  const { locale } = await params;
+
+  // Validate locale
+  if (!locales.includes(locale as Locale)) {
+    notFound();
+  }
+
+  // Enable static rendering
+  setRequestLocale(locale);
+
+  // Get messages for this locale
+  const messages = await getMessages();
 
   return (
     <NextIntlClientProvider messages={messages}>
