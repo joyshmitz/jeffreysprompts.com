@@ -96,10 +96,10 @@ function getNodeLabel(node: GraphNode): string {
   return `Collection: ${title}`;
 }
 
-function toMermaidId(node: GraphNode): string {
-  const key = buildNodeKey(node.type, node.id);
-  const hash = createHash("sha256").update(key).digest("hex").slice(0, 8);
-  const base = node.id.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
+function toMermaidBaseId(node: GraphNode): string {
+  // Mermaid node ids must be alphanumeric/underscore (no dashes, dots, spaces, etc.)
+  // Keep them readable and stable; collisions are handled in buildMermaidGraph.
+  const base = node.id.replace(/[^a-zA-Z0-9]/g, "_") || "node";
   const prefix =
     node.type === "prompt"
       ? "p"
@@ -112,12 +112,23 @@ function toMermaidId(node: GraphNode): string {
             : node.type === "tag"
               ? "t"
               : "l";
-  return `${prefix}_${base}_${hash}`;
+  return `${prefix}_${base}`;
 }
 
 function toMermaidFallbackId(key: string): string {
   const hash = createHash("sha256").update(key).digest("hex").slice(0, 8);
   return `x_${hash}`;
+}
+
+function dedupeMermaidId(base: string, used: Set<string>): string {
+  let candidate = base;
+  let counter = 2;
+  while (used.has(candidate)) {
+    candidate = `${base}_${counter}`;
+    counter += 1;
+  }
+  used.add(candidate);
+  return candidate;
 }
 
 function edgeNodeKeys(edge: GraphEdge): { fromKey: string; toKey: string; label: string } {
@@ -329,15 +340,18 @@ function buildDotGraph(nodes: GraphNode[], edges: GraphEdge[]): string {
 function buildMermaidGraph(nodes: GraphNode[], edges: GraphEdge[]): string {
   const lines: string[] = [];
   const nodeMap = new Map<string, string>();
+  const usedIds = new Set<string>();
 
   for (const node of nodes) {
-    nodeMap.set(buildNodeKey(node.type, node.id), toMermaidId(node));
+    const key = buildNodeKey(node.type, node.id);
+    const baseId = toMermaidBaseId(node);
+    nodeMap.set(key, dedupeMermaidId(baseId, usedIds));
   }
 
   lines.push("graph TD");
 
   for (const node of nodes) {
-    const id = nodeMap.get(buildNodeKey(node.type, node.id)) ?? toMermaidId(node);
+    const id = nodeMap.get(buildNodeKey(node.type, node.id)) ?? toMermaidFallbackId(buildNodeKey(node.type, node.id));
     lines.push(`  ${id}[\"${escapeMermaidLabel(getNodeLabel(node))}\"]`);
   }
 
