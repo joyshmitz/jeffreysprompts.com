@@ -50,6 +50,7 @@ const STORE_KEY = "__jfp_referral_store__";
 const CODE_LENGTH = 8;
 const MAX_CODE_ATTEMPTS = 10;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Uppercase + digits, no confusing chars
+const DIGIT_CHARS = "23456789"; // Keep fallback readable and avoid 0/1 ambiguity
 
 // Reward constants
 const REFERRER_REWARD_MONTHS = 1; // 1 month free Premium per successful referral
@@ -78,15 +79,37 @@ function getStore(): ReferralStore {
 
 /**
  * Generate a cryptographically secure referral code.
- * Uses randomBytes instead of Math.random() for better security.
+ * Uses randomBytes with rejection sampling for unbiased output.
  */
 function createReferralCode(): string {
-  const bytes = randomBytes(CODE_LENGTH);
+  const charSetLength = CODE_CHARS.length;
+  const maxUnbiasedValue = Math.floor(256 / charSetLength) * charSetLength;
   let code = "";
-  for (let i = 0; i < CODE_LENGTH; i += 1) {
-    code += CODE_CHARS[bytes[i] % CODE_CHARS.length];
+
+  while (code.length < CODE_LENGTH) {
+    const bytesNeeded = (CODE_LENGTH - code.length) * 2;
+    const bytes = randomBytes(bytesNeeded);
+    for (const byte of bytes) {
+      if (code.length >= CODE_LENGTH) break;
+      if (byte < maxUnbiasedValue) {
+        code += CODE_CHARS[byte % charSetLength];
+      }
+    }
   }
+
   return code;
+}
+
+function createUnbiasedDigit(): string {
+  const charSetLength = DIGIT_CHARS.length;
+  const maxUnbiasedValue = Math.floor(256 / charSetLength) * charSetLength;
+
+  while (true) {
+    const byte = randomBytes(1)[0];
+    if (byte < maxUnbiasedValue) {
+      return DIGIT_CHARS[byte % charSetLength];
+    }
+  }
 }
 
 /**
@@ -110,9 +133,8 @@ export function getOrCreateReferralCode(userId: string): ReferralCode {
     code = createReferralCode();
     attempts += 1;
     if (attempts > MAX_CODE_ATTEMPTS) {
-      // Add cryptographically secure extra randomness if collisions persist
-      const extraByte = randomBytes(1)[0] % 10;
-      code = `${createReferralCode()}${extraByte}`.slice(0, CODE_LENGTH);
+      // Replace the last character to escape repeated collisions.
+      code = `${createReferralCode().slice(0, CODE_LENGTH - 1)}${createUnbiasedDigit()}`;
     }
   }
 

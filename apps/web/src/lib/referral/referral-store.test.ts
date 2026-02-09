@@ -62,6 +62,13 @@ describe("referral-store", () => {
       const code2 = getOrCreateReferralCode("user-2");
       expect(code1.code).not.toBe(code2.code);
     });
+
+    it("generates codes using the expected safe character set", () => {
+      for (let i = 0; i < 50; i += 1) {
+        const code = getOrCreateReferralCode(`charset-user-${i}`);
+        expect(code.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+      }
+    });
   });
 
   // -----------------------------------------------------------------------
