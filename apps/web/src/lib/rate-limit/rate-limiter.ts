@@ -20,6 +20,8 @@ export interface RateLimitConfig {
   windowMs: number;
   /** Maximum requests allowed per window */
   maxRequests: number;
+  /** Maximum number of active key buckets kept in memory */
+  maxBuckets?: number;
   /** Optional identifier for this limiter (for logging) */
   name?: string;
 }
@@ -45,11 +47,13 @@ interface Bucket {
 class InMemoryRateLimiter {
   private buckets = new Map<string, Bucket>();
   private config: RateLimitConfig;
+  private maxBuckets: number;
   private lastPrune = 0;
   private pruneInterval = 60_000; // Prune expired buckets every minute
 
   constructor(config: RateLimitConfig) {
     this.config = config;
+    this.maxBuckets = Math.max(1, config.maxBuckets ?? 10_000);
   }
 
   private prune(now: number): void {
@@ -70,12 +74,33 @@ class InMemoryRateLimiter {
       return existing;
     }
 
+    this.evictIfNeeded(now);
+
     const bucket: Bucket = {
       count: 0,
       resetAt: now + this.config.windowMs,
     };
     this.buckets.set(key, bucket);
     return bucket;
+  }
+
+  private evictIfNeeded(now: number): void {
+    if (this.buckets.size < this.maxBuckets) return;
+
+    // Prefer clearing naturally expired buckets first.
+    for (const [key, bucket] of this.buckets) {
+      if (bucket.resetAt <= now) {
+        this.buckets.delete(key);
+      }
+      if (this.buckets.size < this.maxBuckets) return;
+    }
+
+    // If still at capacity, drop oldest buckets to bound memory.
+    while (this.buckets.size >= this.maxBuckets) {
+      const oldestKey = this.buckets.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.buckets.delete(oldestKey);
+    }
   }
 
   async check(key: string): Promise<RateLimitResult> {

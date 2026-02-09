@@ -10,7 +10,7 @@ import {
   type ShareLink,
 } from "@/lib/share-links/share-link-store";
 import { getUserIdFromRequest } from "@/lib/user-id";
-import { getTrustedClientIp } from "@/lib/rate-limit";
+import { createRateLimiter, getTrustedClientIp } from "@/lib/rate-limit";
 
 const MAX_PASSWORD_LENGTH = 64;
 const MAX_EXPIRES_IN_DAYS = 365;
@@ -19,50 +19,28 @@ const MAX_EXPIRES_IN_DAYS = 365;
 // More permissive than password verification: 30 requests per minute per IP
 const MAX_LOOKUPS_PER_WINDOW = 30;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_RATE_LIMIT_BUCKETS = 10_000;
+const shareLookupLimiter = createRateLimiter({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  maxRequests: MAX_LOOKUPS_PER_WINDOW,
+  maxBuckets: MAX_RATE_LIMIT_BUCKETS,
+  name: "share-link-lookups",
+});
 
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
-
-const rateLimitBuckets = new Map<string, RateLimitBucket>();
-
-function getRateLimitBucket(ip: string, now: number): RateLimitBucket {
-  const existing = rateLimitBuckets.get(ip);
-  if (!existing || now > existing.resetAt) {
-    const bucket = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-    rateLimitBuckets.set(ip, bucket);
-    return bucket;
-  }
-  return existing;
-}
-
-function pruneExpiredBuckets(now: number): void {
-  for (const [key, bucket] of rateLimitBuckets) {
-    if (bucket.resetAt <= now) {
-      rateLimitBuckets.delete(key);
-    }
-  }
-}
-
-function checkRateLimit(request: NextRequest): NextResponse | null {
-  const now = Date.now();
-  pruneExpiredBuckets(now);
-
+async function checkRateLimit(request: NextRequest): Promise<NextResponse | null> {
   const clientIp = getTrustedClientIp(request);
-  const bucket = getRateLimitBucket(clientIp, now);
-  bucket.count += 1;
+  const result = await shareLookupLimiter.check(clientIp);
 
-  if (bucket.count > MAX_LOOKUPS_PER_WINDOW) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+  if (!result.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
       {
         status: 429,
-        headers: { "Retry-After": retryAfterSeconds.toString() },
+        headers: { "Retry-After": result.retryAfterSeconds.toString() },
       }
     );
   }
+
   return null;
 }
 
@@ -121,7 +99,7 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   // Check rate limit before processing
-  const rateLimitResponse = checkRateLimit(request);
+  const rateLimitResponse = await checkRateLimit(request);
   if (rateLimitResponse) return rateLimitResponse;
 
   const { code: rawCode } = await params;

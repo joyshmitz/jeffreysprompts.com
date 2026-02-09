@@ -93,6 +93,42 @@ describe("rate-limiter", () => {
       expect(denied.retryAfterSeconds).toBeGreaterThanOrEqual(1);
       expect(denied.retryAfterSeconds).toBeLessThanOrEqual(30);
     });
+
+    it("evicts oldest active buckets when maxBuckets is reached", async () => {
+      const limiter = createRateLimiter({
+        windowMs: 60_000,
+        maxRequests: 1,
+        maxBuckets: 2,
+      });
+
+      await limiter.check("ip-1");
+      await limiter.check("ip-2");
+
+      // This adds a third distinct key and should evict the oldest (ip-1).
+      await limiter.check("ip-3");
+
+      const ip1 = await limiter.check("ip-1");
+      expect(ip1.allowed).toBe(true);
+      expect(ip1.remaining).toBe(0);
+    });
+
+    it("prefers removing expired buckets before evicting active ones", async () => {
+      const limiter = createRateLimiter({
+        windowMs: 1_000,
+        maxRequests: 2,
+        maxBuckets: 2,
+      });
+
+      await limiter.check("ip-1");
+      await limiter.check("ip-2");
+      vi.advanceTimersByTime(1_100);
+
+      // At capacity, but both existing buckets are expired and should be cleared first.
+      await limiter.check("ip-3");
+      const ip1 = await limiter.check("ip-1");
+      expect(ip1.allowed).toBe(true);
+      expect(ip1.remaining).toBe(1);
+    });
   });
 
   describe("peek", () => {
