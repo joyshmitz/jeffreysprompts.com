@@ -24,7 +24,7 @@ mod types;
 #[command(propagate_version = true)]
 struct Cli {
     /// Disable colored output
-    #[arg(long, global = true, env = "NO_COLOR")]
+    #[arg(long, global = true)]
     no_color: bool,
 
     /// Output in JSON format (also enabled when stdout is not a TTY)
@@ -214,23 +214,67 @@ enum Commands {
     About,
 }
 
+fn stylize(text: &str, ansi: &str, no_color: bool) -> String {
+    if no_color {
+        text.to_string()
+    } else {
+        format!("\x1b[{ansi}m{text}\x1b[0m")
+    }
+}
+
+fn resolve_no_color(cli_no_color: bool) -> bool {
+    resolve_no_color_from_sources(
+        cli_no_color,
+        std::env::var_os("JFP_NO_COLOR").is_some(),
+        std::env::var_os("NO_COLOR").is_some(),
+    )
+}
+
+fn resolve_no_color_from_sources(
+    cli_no_color: bool,
+    jfp_no_color_present: bool,
+    no_color_present: bool,
+) -> bool {
+    cli_no_color || jfp_no_color_present || no_color_present
+}
+
+fn render_quick_start_help(no_color: bool) -> String {
+    let title = stylize("jfp - Jeffrey's Prompts CLI", "1;36", no_color);
+    let quick_start = stylize("QUICK START:", "1", no_color);
+    let json_tip = stylize(
+        "ADD --json TO ANY COMMAND FOR MACHINE-READABLE OUTPUT",
+        "1",
+        no_color,
+    );
+    let explore = stylize("EXPLORE:", "1", no_color);
+    let more = stylize("MORE:", "1", no_color);
+
+    format!(
+        "{title}\n\n\
+         {quick_start}\n\
+           jfp list                    List all prompts\n\
+           jfp search \"idea\"           Fuzzy search\n\
+           jfp show idea-wizard        View full prompt\n\
+           jfp export idea-wizard      Export as markdown\n\n\
+         {json_tip}\n\n\
+         {explore}\n\
+           jfp i                       Interactive browser (fzf-style)\n\n\
+         {more} jfp help | Docs: https://jeffreysprompts.com\n"
+    )
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    // Handle no-color globally (will be used when color output is implemented)
-    let _no_color = cli.no_color || std::env::var("JFP_NO_COLOR").is_ok() || std::env::var("NO_COLOR").is_ok();
+    // Handle no-color globally (treat NO_COLOR/JFP_NO_COLOR as presence-based toggles).
+    let no_color = resolve_no_color(cli.no_color);
 
     // Determine if JSON output should be used
     let use_json = cli.json || !std::io::stdout().is_terminal();
 
     // If no command, show help
     let Some(command) = cli.command else {
-        // TODO: Print styled help
-        println!("jfp - Agent-optimized CLI for JeffreysPrompts.com");
-        println!();
-        println!("Usage: jfp <COMMAND>");
-        println!();
-        println!("Run 'jfp --help' for available commands.");
+        print!("{}", render_quick_start_help(no_color));
         return ExitCode::SUCCESS;
     };
 
@@ -299,5 +343,42 @@ fn main() -> ExitCode {
         Commands::UpdateCli { check, force } => {
             commands::update_cli::run(check, force, use_json)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{render_quick_start_help, resolve_no_color_from_sources};
+
+    #[test]
+    fn quick_start_help_includes_core_sections() {
+        let output = render_quick_start_help(true);
+
+        assert!(output.contains("jfp - Jeffrey's Prompts CLI"));
+        assert!(output.contains("QUICK START:"));
+        assert!(output.contains("jfp list"));
+        assert!(output.contains("jfp search \"idea\""));
+        assert!(output.contains("ADD --json TO ANY COMMAND FOR MACHINE-READABLE OUTPUT"));
+        assert!(output.contains("MORE: jfp help | Docs: https://jeffreysprompts.com"));
+    }
+
+    #[test]
+    fn quick_start_help_omits_ansi_when_no_color_enabled() {
+        let output = render_quick_start_help(true);
+        assert!(!output.contains("\x1b["));
+    }
+
+    #[test]
+    fn quick_start_help_includes_ansi_when_color_enabled() {
+        let output = render_quick_start_help(false);
+        assert!(output.contains("\x1b[1;36m"));
+    }
+
+    #[test]
+    fn resolve_no_color_from_sources_uses_any_true_source() {
+        assert!(!resolve_no_color_from_sources(false, false, false));
+        assert!(resolve_no_color_from_sources(true, false, false));
+        assert!(resolve_no_color_from_sources(false, true, false));
+        assert!(resolve_no_color_from_sources(false, false, true));
     }
 }
