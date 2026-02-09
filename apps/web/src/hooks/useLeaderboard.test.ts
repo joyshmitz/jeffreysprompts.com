@@ -54,7 +54,11 @@ describe("useLeaderboard", () => {
   });
 
   it("starts with loading state and empty entries", () => {
-    globalThis.fetch = mockFetchSuccess({ entries: mockEntries, generated_at: "2026-01-15T00:00:00Z" });
+    // Keep request pending so this test asserts only the initial render state
+    // without triggering a post-test state update warning.
+    globalThis.fetch = vi.fn().mockImplementation(
+      () => new Promise(() => undefined)
+    ) as typeof fetch;
     const { result } = renderHook(() => useLeaderboard());
     expect(result.current.loading).toBe(true);
     expect(result.current.entries).toEqual([]);

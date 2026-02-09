@@ -7,7 +7,7 @@
  * @see @/components/ui/tabs.tsx
  */
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
@@ -257,7 +257,9 @@ describe("Tabs", () => {
       );
 
       // Focus the first tab
-      screen.getByRole("tab", { name: "Tab 1" }).focus();
+      await act(async () => {
+        screen.getByRole("tab", { name: "Tab 1" }).focus();
+      });
 
       // Arrow right to move to next tab
       await user.keyboard("{ArrowRight}");

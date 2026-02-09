@@ -53,7 +53,11 @@ describe("useRating", () => {
   });
 
   it("starts with loading state", () => {
-    globalThis.fetch = mockFetchSuccess({ summary: mockSummary, userRating: null });
+    // Keep request pending so this test asserts only initial state and
+    // does not trigger post-test state updates.
+    globalThis.fetch = vi.fn().mockImplementation(
+      () => new Promise(() => undefined)
+    ) as typeof fetch;
     const { result } = renderHook(() =>
       useRating({ contentType: "prompt", contentId: "test" })
     );
