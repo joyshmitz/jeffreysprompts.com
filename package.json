@@ -25,6 +25,7 @@
     "test:e2e:prod:headed": "bunx playwright test --config e2e/playwright.production.config.ts --headed",
     "test:e2e:console-health": "bunx playwright test --config e2e/playwright.config.ts e2e/web/console-health.spec.ts",
     "test:e2e:pom": "bunx playwright test --config e2e/playwright.config.ts e2e/web/homepage-pom.spec.ts",
+    "test:e2e": "./scripts/run-e2e.sh",
     "test:coverage": "bun run --cwd apps/web test:coverage",
     "coverage:all": "bun run test:coverage && bun run test:cli:coverage",
     "coverage:merge": "bun run scripts/merge-coverage.ts",
