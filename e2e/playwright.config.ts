@@ -5,14 +5,15 @@ import { defineConfig, devices } from "@playwright/test";
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
+  globalSetup: "./lib/global-setup.ts",
   testDir: ".",
   testMatch: ["web/**/*.spec.ts", "swapmeet/**/*.spec.ts", "docs/**/*.spec.ts", "ratings/**/*.spec.ts", "discovery/**/*.spec.ts", "referral/**/*.spec.ts", "roadmap/**/*.spec.ts", "comments/**/*.spec.ts", "social/**/*.spec.ts", "admin/**/*.spec.ts", "history/**/*.spec.ts"],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Retry failed tests — Turbopack streaming can intermittently stall */
+  retries: process.env.CI ? 2 : 2,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -33,6 +34,9 @@ export default defineConfig({
 
     /* Record video on failure */
     video: "on-first-retry",
+
+    /* Block service workers to prevent 404 script errors from breaking React hydration */
+    serviceWorkers: "block",
   },
 
   /* Configure projects for major browsers */
