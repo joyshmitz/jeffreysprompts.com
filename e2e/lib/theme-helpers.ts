@@ -111,17 +111,22 @@ export async function waitForStoredThemeApplied(
     );
   } catch {
     // ThemeProvider didn't apply the class (streaming stall / partial hydration).
-    // Re-apply localStorage + CSS class directly as a fallback.
-    await safeEvaluate(page, () =>
-      page.evaluate(() => {
-        const stored = localStorage.getItem("jfp-theme");
-        if (stored && stored !== "system") {
-          const root = document.documentElement;
-          root.classList.remove("light", "dark");
-          root.classList.add(stored);
-        }
-      })
-    );
+    // Wait for execution context to stabilize, then re-apply class directly.
+    await page.waitForTimeout(1000);
+    try {
+      await safeEvaluate(page, () =>
+        page.evaluate(() => {
+          const stored = localStorage.getItem("jfp-theme");
+          if (stored && stored !== "system") {
+            const root = document.documentElement;
+            root.classList.remove("light", "dark");
+            root.classList.add(stored);
+          }
+        })
+      );
+    } catch {
+      // If even the fallback fails, the caller should handle verification
+    }
   }
 }
 
