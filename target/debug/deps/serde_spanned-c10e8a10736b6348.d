@@ -1,0 +1,8 @@
+/data/projects/jeffreysprompts.com/target/debug/deps/serde_spanned-c10e8a10736b6348.d: /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/lib.rs /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/spanned.rs
+
+/data/projects/jeffreysprompts.com/target/debug/deps/libserde_spanned-c10e8a10736b6348.rlib: /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/lib.rs /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/spanned.rs
+
+/data/projects/jeffreysprompts.com/target/debug/deps/libserde_spanned-c10e8a10736b6348.rmeta: /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/lib.rs /home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/spanned.rs
+
+/home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/lib.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_spanned-0.6.9/src/spanned.rs:
