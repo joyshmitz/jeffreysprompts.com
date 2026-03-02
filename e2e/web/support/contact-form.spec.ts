@@ -124,12 +124,16 @@ test.describe("Contact Form Validation", () => {
     });
 
     await logger.step("verify submit button is disabled or validation occurs", async () => {
-      // Form should either disable submit or show validation
       const isDisabled = await locators.submitButton.isDisabled();
-      if (!isDisabled) {
+      if (isDisabled) {
+        expect(isDisabled).toBe(true);
+      } else {
         await locators.submitButton.click();
-        // Should show error or validation
         await page.waitForTimeout(500);
+        const hasValidationFeedback =
+          await page.getByText(/required|please|name/i).isVisible().catch(() => false) ||
+          await page.locator(':invalid').count() > 0;
+        expect(hasValidationFeedback).toBe(true);
       }
     });
   });
@@ -146,10 +150,15 @@ test.describe("Contact Form Validation", () => {
 
     await logger.step("verify submit button is disabled or email validation occurs", async () => {
       const isDisabled = await locators.submitButton.isDisabled();
-      if (!isDisabled) {
+      if (isDisabled) {
+        expect(isDisabled).toBe(true);
+      } else {
         await locators.submitButton.click();
         await page.waitForTimeout(500);
-        // Email validation should occur
+        const hasValidationFeedback =
+          await page.getByText(/invalid|email|format/i).isVisible().catch(() => false) ||
+          await page.locator(':invalid').count() > 0;
+        expect(hasValidationFeedback).toBe(true);
       }
     });
   });
@@ -165,9 +174,15 @@ test.describe("Contact Form Validation", () => {
 
     await logger.step("verify submit button is disabled or validation occurs", async () => {
       const isDisabled = await locators.submitButton.isDisabled();
-      if (!isDisabled) {
+      if (isDisabled) {
+        expect(isDisabled).toBe(true);
+      } else {
         await locators.submitButton.click();
         await page.waitForTimeout(500);
+        const hasValidationFeedback =
+          await page.getByText(/required|message/i).isVisible().catch(() => false) ||
+          await page.locator(':invalid').count() > 0;
+        expect(hasValidationFeedback).toBe(true);
       }
     });
   });

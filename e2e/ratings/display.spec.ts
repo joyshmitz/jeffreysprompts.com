@@ -208,10 +208,11 @@ test.describe("Ratings - Number Formatting", () => {
 
     await logger.step("check for K-formatted numbers", async () => {
       // Some prompts may have 1K+ ratings, views, or copies
-      // Look for numbers formatted with K
       const statsText = await page.locator(".text-xs.text-neutral").allTextContents();
-      // This is a soft check - not all prompts will have 1K+ stats
-      logger.info("Stats found", { stats: statsText.slice(0, 5) });
+      // Verify stats elements exist and contain numeric content
+      expect(statsText.length).toBeGreaterThan(0);
+      const hasNumbers = statsText.some((t) => /\d/.test(t));
+      expect(hasNumbers).toBe(true);
     });
   });
 });

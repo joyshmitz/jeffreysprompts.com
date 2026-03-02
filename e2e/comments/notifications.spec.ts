@@ -129,7 +129,7 @@ test.describe("Comments - Notifications", () => {
         const firstNotification = notificationItems.first();
         // Should have clickable link
         const hasLink = await firstNotification.locator("a").isVisible().catch(() => false);
-        logger.debug(`Notification has link: ${hasLink}`);
+        expect(hasLink).toBe(true);
       }
     });
   });
@@ -164,9 +164,7 @@ test.describe("Comments - Notifications", () => {
       const markAllButton = page.getByRole("button", { name: /mark all.*read/i });
       const hasMarkAll = await markAllButton.isVisible().catch(() => false);
 
-      if (hasMarkRead || hasMarkAll) {
-        logger.debug("Mark as read functionality available");
-      }
+      expect(hasMarkRead || hasMarkAll).toBe(true);
     });
   });
 
@@ -318,7 +316,11 @@ test.describe("Comments - Real-time Notifications", () => {
         return (window as unknown as { __ws?: WebSocket }).__ws !== undefined;
       }).catch(() => false);
 
+      // Real-time updates should use WebSocket or SSE
+      // Soft assertion - log the result for visibility
       logger.debug(`WebSocket connection detected: ${wsConnected}`);
+      // Page should at minimum be loaded without errors
+      await expect(page.locator("body")).toBeVisible();
     });
   });
 

@@ -4,11 +4,14 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { useAllRatings } from "./useAllRatings";
+import {
+  setFetchMock,
+  mockFetchSuccess,
+  mockFetchNetworkError,
+  fixtures,
+} from "@/test-utils/fetch-fixtures";
 
-const mockSummaries = {
-  "prompt-1": { contentType: "prompt", contentId: "prompt-1", upvotes: 10, downvotes: 2, total: 12, approvalRate: 83, lastUpdated: null },
-  "prompt-2": { contentType: "prompt", contentId: "prompt-2", upvotes: 5, downvotes: 1, total: 6, approvalRate: 83, lastUpdated: null },
-};
+const { allRatingsSummaries, allRatingsResponse } = fixtures;
 
 describe("useAllRatings", () => {
   const originalFetch = globalThis.fetch;
@@ -23,8 +26,7 @@ describe("useAllRatings", () => {
   });
 
   it("starts in loading state", () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => new Promise(() => {})) as typeof fetch;
+    setFetchMock(vi.fn().mockImplementation(() => new Promise(() => {})));
     const { result } = renderHook(() => useAllRatings());
     expect(result.current.loading).toBe(true);
     expect(result.current.summaries).toEqual({});
@@ -32,28 +34,20 @@ describe("useAllRatings", () => {
   });
 
   it("fetches ratings on mount", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ summaries: mockSummaries, generated_at: "2026-01-15T00:00:00Z" }),
-    });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(allRatingsResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() => useAllRatings());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.summaries).toEqual(mockSummaries);
+    expect(result.current.summaries).toEqual(allRatingsSummaries);
     expect(result.current.error).toBeNull();
     expect(result.current.lastUpdated).toBe("2026-01-15T00:00:00Z");
   });
 
   it("calls correct API endpoint", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ summaries: {}, generated_at: "" }),
-    });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess({ summaries: {}, generated_at: "" });
+    setFetchMock(fetchMock);
 
     renderHook(() => useAllRatings());
 
@@ -62,11 +56,7 @@ describe("useAllRatings", () => {
   });
 
   it("handles fetch error", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    }) as typeof fetch;
+    setFetchMock(vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 
     const { result } = renderHook(() => useAllRatings());
 
@@ -75,8 +65,7 @@ describe("useAllRatings", () => {
   });
 
   it("handles network error", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    setFetchMock(mockFetchNetworkError("Network error"));
 
     const { result } = renderHook(() => useAllRatings());
 
@@ -85,24 +74,16 @@ describe("useAllRatings", () => {
   });
 
   it("getRating returns summary for known content", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ summaries: mockSummaries, generated_at: "" }),
-    });
+    setFetchMock(mockFetchSuccess(allRatingsResponse));
 
     const { result } = renderHook(() => useAllRatings());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.getRating("prompt-1")).toEqual(mockSummaries["prompt-1"]);
+    expect(result.current.getRating("idea-wizard")).toEqual(allRatingsSummaries["idea-wizard"]);
   });
 
   it("getRating returns null for unknown content", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ summaries: mockSummaries, generated_at: "" }),
-    });
+    setFetchMock(mockFetchSuccess(allRatingsResponse));
 
     const { result } = renderHook(() => useAllRatings());
 
@@ -111,12 +92,8 @@ describe("useAllRatings", () => {
   });
 
   it("refresh triggers a new fetch", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ summaries: mockSummaries, generated_at: "" }),
-    });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(allRatingsResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() => useAllRatings());
 

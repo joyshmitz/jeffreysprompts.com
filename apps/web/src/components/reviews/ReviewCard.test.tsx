@@ -3,9 +3,10 @@
  * @module components/reviews/ReviewCard.test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor , fireEvent} from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { ReviewCard } from "./ReviewCard";
+import { setFetchMock, fixtures } from "@/test-utils/fetch-fixtures";
 import type { Review } from "@/lib/reviews/review-store";
 
 // Mock framer-motion
@@ -29,7 +30,7 @@ vi.mock("@/hooks/use-reviews", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Fixtures
+// Fixtures based on shared realistic data
 // ---------------------------------------------------------------------------
 
 const now = new Date();
@@ -39,17 +40,17 @@ const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
 
 function makeReview(overrides: Partial<Review> = {}): Review {
   return {
-    id: "review-1",
-    contentType: "prompt",
-    contentId: "test-prompt",
-    userId: "user-1",
+    id: fixtures.review.id,
+    contentType: fixtures.review.contentType,
+    contentId: fixtures.review.contentId,
+    userId: fixtures.review.userId,
     displayName: "Alice",
-    rating: "up",
-    content: "This prompt is excellent for brainstorming sessions.",
+    rating: fixtures.review.rating,
+    content: fixtures.review.content,
     createdAt: yesterday,
     updatedAt: yesterday,
-    helpfulCount: 5,
-    notHelpfulCount: 1,
+    helpfulCount: fixtures.review.helpfulCount,
+    notHelpfulCount: fixtures.review.notHelpfulCount,
     reported: false,
     reportInfo: null,
     authorResponse: null,
@@ -62,16 +63,21 @@ function makeReview(overrides: Partial<Review> = {}): Review {
 // ---------------------------------------------------------------------------
 
 describe("ReviewCard", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     mockVote.mockClear();
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn();
+    setFetchMock(vi.fn());
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it("renders review content and author name", () => {
     render(<ReviewCard review={makeReview()} />);
     expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.getByText("This prompt is excellent for brainstorming sessions.")).toBeInTheDocument();
+    expect(screen.getByText(fixtures.review.content)).toBeInTheDocument();
   });
 
   it("shows Anonymous when displayName is null", () => {
@@ -195,7 +201,7 @@ describe("ReviewCard", () => {
     const review = makeReview({
       authorResponse: {
         id: "resp-1",
-        reviewId: "review-1",
+        reviewId: fixtures.review.id,
         authorId: "author-1",
         content: "Thank you for your feedback!",
         createdAt: today,
@@ -216,7 +222,7 @@ describe("ReviewCard", () => {
     const review = makeReview({
       authorResponse: {
         id: "resp-1",
-        reviewId: "review-1",
+        reviewId: fixtures.review.id,
         authorId: "author-1",
         content: "Thanks!",
         createdAt: today,
@@ -227,11 +233,9 @@ describe("ReviewCard", () => {
     expect(screen.getByText("Thanks!")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Author response"));
-    // After toggle, response should be hidden
     expect(screen.queryByText("Thanks!")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Author response"));
-    // After second toggle, response should be visible again
     expect(screen.getByText("Thanks!")).toBeInTheDocument();
   });
 

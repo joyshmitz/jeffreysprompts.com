@@ -210,23 +210,22 @@ test.describe("Moderation Actions - Report Processing", () => {
     });
 
     const reportId = (createResponse.body as { reportId?: string })?.reportId;
+    expect(reportId).toBeTruthy();
 
-    if (reportId) {
-      const warnResponse = await logger.step("apply warn action", async () => {
-        return processReport(request, {
-          reportId,
-          action: "warn",
-          notes: "Warning issued - community guidelines reminder",
-        });
+    const warnResponse = await logger.step("apply warn action", async () => {
+      return processReport(request, {
+        reportId: reportId!,
+        action: "warn",
+        notes: "Warning issued - community guidelines reminder",
       });
+    });
 
-      await logger.step("verify warn action applied", async () => {
-        expect(warnResponse.status).toBe(200);
-        const body = warnResponse.body as { success?: boolean; action?: string };
-        expect(body.success).toBe(true);
-        expect(body.action).toBe("warn");
-      });
-    }
+    await logger.step("verify warn action applied", async () => {
+      expect(warnResponse.status).toBe(200);
+      const body = warnResponse.body as { success?: boolean; action?: string };
+      expect(body.success).toBe(true);
+      expect(body.action).toBe("warn");
+    });
   });
 
   test("remove action on report", async ({ logger, request }) => {
@@ -240,23 +239,22 @@ test.describe("Moderation Actions - Report Processing", () => {
     });
 
     const reportId = (createResponse.body as { reportId?: string })?.reportId;
+    expect(reportId).toBeTruthy();
 
-    if (reportId) {
-      const removeResponse = await logger.step("apply remove action", async () => {
-        return processReport(request, {
-          reportId,
-          action: "remove",
-          notes: "Content removed due to copyright violation",
-        });
+    const removeResponse = await logger.step("apply remove action", async () => {
+      return processReport(request, {
+        reportId: reportId!,
+        action: "remove",
+        notes: "Content removed due to copyright violation",
       });
+    });
 
-      await logger.step("verify remove action applied", async () => {
-        expect(removeResponse.status).toBe(200);
-        const body = removeResponse.body as { success?: boolean; action?: string };
-        expect(body.success).toBe(true);
-        expect(body.action).toBe("remove");
-      });
-    }
+    await logger.step("verify remove action applied", async () => {
+      expect(removeResponse.status).toBe(200);
+      const body = removeResponse.body as { success?: boolean; action?: string };
+      expect(body.success).toBe(true);
+      expect(body.action).toBe("remove");
+    });
   });
 
   test("ban action on report", async ({ logger, request }) => {
@@ -270,23 +268,22 @@ test.describe("Moderation Actions - Report Processing", () => {
     });
 
     const reportId = (createResponse.body as { reportId?: string })?.reportId;
+    expect(reportId).toBeTruthy();
 
-    if (reportId) {
-      const banResponse = await logger.step("apply ban action", async () => {
-        return processReport(request, {
-          reportId,
-          action: "ban",
-          notes: "User banned for severe violation",
-        });
+    const banResponse = await logger.step("apply ban action", async () => {
+      return processReport(request, {
+        reportId: reportId!,
+        action: "ban",
+        notes: "User banned for severe violation",
       });
+    });
 
-      await logger.step("verify ban action applied", async () => {
-        expect(banResponse.status).toBe(200);
-        const body = banResponse.body as { success?: boolean; action?: string };
-        expect(body.success).toBe(true);
-        expect(body.action).toBe("ban");
-      });
-    }
+    await logger.step("verify ban action applied", async () => {
+      expect(banResponse.status).toBe(200);
+      const body = banResponse.body as { success?: boolean; action?: string };
+      expect(body.success).toBe(true);
+      expect(body.action).toBe("ban");
+    });
   });
 });
 

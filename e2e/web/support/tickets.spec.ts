@@ -240,10 +240,12 @@ test.describe("Ticket Lookup", () => {
       await page.getByRole("button", { name: "Find ticket" }).click();
     });
 
-    // Should show error or validation message
-    await logger.step("verify validation", async () => {
-      // Wait for potential toast or error
+    await logger.step("verify validation feedback", async () => {
+      // Should show validation error or the form should not navigate away
       await page.waitForTimeout(500);
+      const errorVisible = await page.getByText(/required|please fill|enter/i).isVisible().catch(() => false);
+      const stillOnPage = page.url().includes("/tickets");
+      expect(errorVisible || stillOnPage).toBe(true);
     });
   });
 
@@ -261,9 +263,11 @@ test.describe("Ticket Lookup", () => {
       await page.getByRole("button", { name: "Find ticket" }).click();
     });
 
-    // Should show not found message or toast
-    await logger.step("wait for response", async () => {
+    await logger.step("verify error or not-found feedback", async () => {
       await page.waitForTimeout(1000);
+      const errorVisible = await page.getByText(/not found|no ticket|invalid|error/i).isVisible().catch(() => false);
+      const toastVisible = await page.locator('[role="status"], [role="alert"]').isVisible().catch(() => false);
+      expect(errorVisible || toastVisible).toBe(true);
     });
   });
 });

@@ -6,40 +6,15 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLeaderboard } from "./useLeaderboard";
+import {
+  setFetchMock,
+  mockFetchSuccess,
+  mockFetchError,
+  mockFetchPending,
+  fixtures,
+} from "@/test-utils/fetch-fixtures";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const mockEntries = [
-  {
-    prompt: { id: "p1", title: "Top Prompt", slug: "top-prompt" },
-    rating: { contentType: "prompt", contentId: "p1", upvotes: 10, downvotes: 0, total: 10, approvalRate: 100, lastUpdated: null },
-  },
-  {
-    prompt: { id: "p2", title: "Good Prompt", slug: "good-prompt" },
-    rating: { contentType: "prompt", contentId: "p2", upvotes: 7, downvotes: 3, total: 10, approvalRate: 70, lastUpdated: null },
-  },
-];
-
-function mockFetchSuccess(data: unknown) {
-  return vi.fn().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve(data),
-  });
-}
-
-function mockFetchError(status = 500, body = { error: "Server error" }) {
-  return vi.fn().mockResolvedValue({
-    ok: false,
-    status,
-    json: () => Promise.resolve(body),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+const { leaderboardEntries, leaderboardResponse } = fixtures;
 
 describe("useLeaderboard", () => {
   const originalFetch = globalThis.fetch;
@@ -54,12 +29,7 @@ describe("useLeaderboard", () => {
   });
 
   it("starts with loading state and empty entries", () => {
-    // Keep request pending so this test asserts only the initial render state
-    // without triggering a post-test state update warning.
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(
-      () => new Promise(() => undefined)
-    ) as typeof fetch;
+    setFetchMock(mockFetchPending());
     const { result } = renderHook(() => useLeaderboard());
     expect(result.current.loading).toBe(true);
     expect(result.current.entries).toEqual([]);
@@ -67,23 +37,21 @@ describe("useLeaderboard", () => {
   });
 
   it("fetches leaderboard on mount", async () => {
-    const fetchMock = mockFetchSuccess({ entries: mockEntries, generated_at: "2026-01-15T00:00:00Z" });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(leaderboardResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() => useLeaderboard());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.entries).toEqual(mockEntries);
+    expect(result.current.entries).toEqual(leaderboardEntries);
     expect(result.current.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("passes default limit and minVotes params", async () => {
     const fetchMock = mockFetchSuccess({ entries: [], generated_at: "" });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     renderHook(() => useLeaderboard());
 
@@ -96,8 +64,7 @@ describe("useLeaderboard", () => {
 
   it("passes custom limit and minVotes", async () => {
     const fetchMock = mockFetchSuccess({ entries: [], generated_at: "" });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     renderHook(() => useLeaderboard({ limit: 5, minVotes: 3 }));
 
@@ -109,8 +76,7 @@ describe("useLeaderboard", () => {
   });
 
   it("sets error on fetch failure", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = mockFetchError();
+    setFetchMock(mockFetchError());
 
     const { result } = renderHook(() => useLeaderboard());
 
@@ -120,8 +86,7 @@ describe("useLeaderboard", () => {
   });
 
   it("handles network error", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network down"));
+    setFetchMock(vi.fn().mockRejectedValue(new Error("Network down")));
 
     const { result } = renderHook(() => useLeaderboard());
 
@@ -133,34 +98,30 @@ describe("useLeaderboard", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ entries: mockEntries, generated_at: "" }),
+        json: () => Promise.resolve(leaderboardResponse),
       })
       .mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Oops" }),
       });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() => useLeaderboard());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.entries).toEqual(mockEntries);
+    expect(result.current.entries).toEqual(leaderboardEntries);
 
-    // Trigger refresh which will fail
     await act(async () => {
       await result.current.refresh();
     });
 
-    // Previous entries preserved
-    expect(result.current.entries).toEqual(mockEntries);
+    expect(result.current.entries).toEqual(leaderboardEntries);
     expect(result.current.error).toBe("Failed to fetch leaderboard");
   });
 
   it("refresh triggers a new fetch", async () => {
-    const fetchMock = mockFetchSuccess({ entries: mockEntries, generated_at: "" });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(leaderboardResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() => useLeaderboard());
 
@@ -170,7 +131,6 @@ describe("useLeaderboard", () => {
       await result.current.refresh();
     });
 
-    // Initial fetch + refresh
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -4,8 +4,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor , fireEvent} from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { ReviewList } from "./ReviewList";
+import { fixtures } from "@/test-utils/fetch-fixtures";
 import type { Review } from "@/lib/reviews/review-store";
 
 // Mock framer-motion
@@ -47,24 +48,22 @@ vi.mock("@/hooks/use-reviews", () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Fixtures
+// Fixtures based on shared realistic data
 // ---------------------------------------------------------------------------
-
-const now = new Date().toISOString();
 
 function makeReview(overrides: Partial<Review> = {}): Review {
   return {
-    id: "review-1",
-    contentType: "prompt",
-    contentId: "test-prompt",
-    userId: "user-1",
+    id: fixtures.review.id,
+    contentType: fixtures.review.contentType,
+    contentId: fixtures.review.contentId,
+    userId: fixtures.review.userId,
     displayName: "Alice",
-    rating: "up",
-    content: "Great prompt for brainstorming sessions.",
-    createdAt: now,
-    updatedAt: now,
-    helpfulCount: 3,
-    notHelpfulCount: 0,
+    rating: fixtures.review.rating,
+    content: fixtures.review.content,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    helpfulCount: fixtures.review.helpfulCount,
+    notHelpfulCount: fixtures.review.notHelpfulCount,
     reported: false,
     reportInfo: null,
     authorResponse: null,
@@ -102,10 +101,9 @@ describe("ReviewList", () => {
   // -----------------------------------------------------------------------
 
   it("shows empty state when there are no reviews", () => {
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("No reviews yet")).toBeInTheDocument();
     expect(screen.getByText(/be the first/i)).toBeInTheDocument();
-    // Two "Write a review" buttons: header and empty state CTA
     const buttons = screen.getAllByRole("button", { name: /write a review/i });
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
@@ -118,16 +116,20 @@ describe("ReviewList", () => {
     hookState.reviews = [review1, review2];
     hookState.summary = { totalReviews: 2, averageHelpfulness: 80, recentReviews: 2 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
   });
 
   it("shows summary stats when reviews exist", () => {
     hookState.reviews = [review1];
-    hookState.summary = { totalReviews: 5, averageHelpfulness: 72, recentReviews: 4 };
+    hookState.summary = {
+      totalReviews: 5,
+      averageHelpfulness: fixtures.reviewSummary.averageHelpfulness - 28, // 72
+      recentReviews: 4,
+    };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("Total reviews")).toBeInTheDocument();
     expect(screen.getByText("72%")).toBeInTheDocument();
     expect(screen.getByText("This month")).toBeInTheDocument();
@@ -137,7 +139,7 @@ describe("ReviewList", () => {
     hookState.reviews = [review1];
     hookState.summary = { totalReviews: 10, averageHelpfulness: 90, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("(10)")).toBeInTheDocument();
   });
 
@@ -149,12 +151,12 @@ describe("ReviewList", () => {
     hookState.reviews = [review1];
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByLabelText("Sort reviews")).toBeInTheDocument();
   });
 
   it("does not show sort dropdown when empty", () => {
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.queryByLabelText("Sort reviews")).not.toBeInTheDocument();
   });
 
@@ -166,8 +168,7 @@ describe("ReviewList", () => {
     hookState.reviews = [review1];
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
-    // There could be a "Write a review" button in the header
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     const buttons = screen.getAllByRole("button", { name: /write a review/i });
     expect(buttons.length).toBeGreaterThan(0);
   });
@@ -177,8 +178,7 @@ describe("ReviewList", () => {
     hookState.userReview = review1;
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
-    // The header "Write a review" button should not appear
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.queryByText("Write a review")).not.toBeInTheDocument();
   });
 
@@ -191,7 +191,7 @@ describe("ReviewList", () => {
     hookState.userReview = review1;
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("Your review")).toBeInTheDocument();
   });
 
@@ -202,12 +202,9 @@ describe("ReviewList", () => {
     hookState.userReview = userReview;
     hookState.summary = { totalReviews: 2, averageHelpfulness: 50, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
-    // "Other" should appear in the list
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByText("Other")).toBeInTheDocument();
-    // "Me" should appear only in the "Your review" section, not duplicated
     const meElements = screen.getAllByText("Me");
-    // Only 1 occurrence (in the user review section)
     expect(meElements).toHaveLength(1);
   });
 
@@ -220,7 +217,7 @@ describe("ReviewList", () => {
     hookState.summary = { totalReviews: 5, averageHelpfulness: 100, recentReviews: 0 };
     hookState.pagination = { hasMore: true, page: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByRole("button", { name: /load more/i })).toBeInTheDocument();
   });
 
@@ -229,7 +226,7 @@ describe("ReviewList", () => {
     hookState.summary = { totalReviews: 5, averageHelpfulness: 100, recentReviews: 0 };
     hookState.pagination = { hasMore: true, page: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     fireEvent.click(screen.getByRole("button", { name: /load more/i }));
     expect(mockLoadMore).toHaveBeenCalledOnce();
   });
@@ -239,7 +236,7 @@ describe("ReviewList", () => {
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
     hookState.pagination = { hasMore: false, page: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
   });
 
@@ -252,7 +249,7 @@ describe("ReviewList", () => {
     hookState.userReview = review1;
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     fireEvent.click(screen.getByLabelText("Delete review"));
 
     await waitFor(() => {
@@ -265,7 +262,7 @@ describe("ReviewList", () => {
     hookState.userReview = review1;
     hookState.summary = { totalReviews: 1, averageHelpfulness: 100, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     fireEvent.click(screen.getByLabelText("Delete review"));
 
     await waitFor(() => {
@@ -287,7 +284,7 @@ describe("ReviewList", () => {
     hookState.reviews = [review1, review2];
     hookState.summary = { totalReviews: 2, averageHelpfulness: 50, recentReviews: 0 };
 
-    render(<ReviewList contentType="prompt" contentId="p1" />);
+    render(<ReviewList contentType="prompt" contentId="idea-wizard" />);
     expect(screen.getByRole("list", { name: "Reviews" })).toBeInTheDocument();
   });
 });

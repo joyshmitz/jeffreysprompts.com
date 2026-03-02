@@ -1,31 +1,33 @@
 /**
  * Unit tests for /api/ratings/leaderboard route (GET)
  * @module api/ratings/leaderboard/route.test
+ *
+ * Uses real core/prompts registry — no mocking of prompt data.
+ * Only the rating-store is mocked (provides synthetic rating data for real prompt IDs).
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+import { prompts } from "@jeffreysprompts/core/prompts/registry";
+
+// Use real prompt IDs from the registry
+const PROMPT_IDS = prompts.map((p) => p.id);
+const HIGH_RATED_ID = PROMPT_IDS[0]; // Will get 100% approval
+const MED_RATED_ID = PROMPT_IDS[1];  // Will get 70% approval
+const UNRATED_ID = PROMPT_IDS[2];    // Will get 0 votes
 
 // ---------------------------------------------------------------------------
-// Mock the rating store and prompt registry
-// (Data must be inline – vi.mock factories are hoisted above variable decls)
+// Mock only the rating store — prompts come from the real registry
 // ---------------------------------------------------------------------------
-
-vi.mock("@jeffreysprompts/core/prompts/registry", () => ({
-  prompts: [
-    { id: "p1", title: "Prompt A", slug: "prompt-a" },
-    { id: "p2", title: "Prompt B", slug: "prompt-b" },
-    { id: "p3", title: "Prompt C", slug: "prompt-c" },
-  ],
-}));
 
 vi.mock("@/lib/ratings/rating-store", () => ({
   getRatingSummary: ({ contentId }: { contentType: string; contentId: string }) => {
+    // Inline data keyed by real prompt IDs
     const ratings: Record<string, { upvotes: number; downvotes: number; total: number; approvalRate: number }> = {
-      p1: { upvotes: 10, downvotes: 0, total: 10, approvalRate: 100 },
-      p2: { upvotes: 7, downvotes: 3, total: 10, approvalRate: 70 },
-      p3: { upvotes: 0, downvotes: 0, total: 0, approvalRate: 0 },
+      [PROMPT_IDS[0]]: { upvotes: 10, downvotes: 0, total: 10, approvalRate: 100 },
+      [PROMPT_IDS[1]]: { upvotes: 7, downvotes: 3, total: 10, approvalRate: 70 },
+      [PROMPT_IDS[2]]: { upvotes: 0, downvotes: 0, total: 0, approvalRate: 0 },
     };
     const r = ratings[contentId];
     return r
@@ -56,9 +58,11 @@ describe("/api/ratings/leaderboard GET", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.entries).toHaveLength(2); // p3 has 0 votes, below minVotes=1
-    expect(data.entries[0].prompt.id).toBe("p1"); // 100% approval
-    expect(data.entries[1].prompt.id).toBe("p2"); // 70% approval
+    // Only prompts with >= minVotes(1) qualify: HIGH_RATED and MED_RATED have 10 votes
+    // UNRATED has 0 votes, all other prompts default to 0 votes
+    expect(data.entries).toHaveLength(2);
+    expect(data.entries[0].prompt.id).toBe(HIGH_RATED_ID); // 100% approval
+    expect(data.entries[1].prompt.id).toBe(MED_RATED_ID);  // 70% approval
   });
 
   it("includes generated_at timestamp", async () => {
@@ -72,7 +76,7 @@ describe("/api/ratings/leaderboard GET", () => {
     const res = await GET(makeRequest("http://localhost/api/ratings/leaderboard?limit=1"));
     const data = await res.json();
     expect(data.entries).toHaveLength(1);
-    expect(data.entries[0].prompt.id).toBe("p1");
+    expect(data.entries[0].prompt.id).toBe(HIGH_RATED_ID);
   });
 
   it("clamps limit to max 50", async () => {
@@ -99,7 +103,7 @@ describe("/api/ratings/leaderboard GET", () => {
   });
 
   it("respects minVotes filter", async () => {
-    // p1 and p2 have 10 total each, p3 has 0
+    // HIGH_RATED and MED_RATED have 10 total each, all others have 0
     const res = await GET(makeRequest("http://localhost/api/ratings/leaderboard?minVotes=10"));
     const data = await res.json();
     expect(data.entries).toHaveLength(2);
@@ -122,7 +126,8 @@ describe("/api/ratings/leaderboard GET", () => {
     const data = await res.json();
     const entry = data.entries[0];
     expect(entry.prompt).toBeDefined();
-    expect(entry.prompt.id).toBe("p1");
+    expect(entry.prompt.id).toBe(HIGH_RATED_ID);
+    expect(entry.prompt.title).toBe(prompts[0].title);
     expect(entry.rating).toBeDefined();
     expect(entry.rating.approvalRate).toBe(100);
     expect(entry.rating.total).toBe(10);

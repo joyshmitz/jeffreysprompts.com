@@ -184,7 +184,7 @@ test.describe("Admin Incidents - Validation", () => {
     const incidentId = createBody.incident?.id;
 
     if (!incidentId) {
-      // If we can't create (auth not configured), skip this assertion
+      test.skip(true, "Cannot create incident - admin auth not configured");
       return;
     }
 
@@ -219,8 +219,8 @@ test.describe("Admin Incidents - Statistics", () => {
       });
     });
 
-    // If auth is not configured, we'll get 401
     if (response.status() === 401) {
+      test.skip(true, "Admin auth not configured - skipping stats verification");
       return;
     }
 

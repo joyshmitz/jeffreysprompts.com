@@ -1,46 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useReviews, useReviewVote } from "./use-reviews";
+import {
+  setFetchMock,
+  mockFetchSuccess,
+  mockFetchError,
+  fixtures,
+} from "@/test-utils/fetch-fixtures";
 
-const mockReview = {
-  id: "review:prompt:test:user-1",
-  contentType: "prompt",
-  contentId: "test",
-  userId: "user-1",
-  displayName: "TestUser",
-  rating: "up",
-  content: "Great prompt for testing.",
-  createdAt: "2026-01-15T00:00:00Z",
-  updatedAt: "2026-01-15T00:00:00Z",
-  helpfulCount: 2,
-  notHelpfulCount: 0,
-  reported: false,
-  reportInfo: null,
-  authorResponse: null,
-};
-
-const mockSummary = {
-  contentType: "prompt",
-  contentId: "test",
-  totalReviews: 1,
-  averageHelpfulness: 100,
-  recentReviews: 1,
-};
-
-function mockFetchSuccess(data: unknown) {
-  return vi.fn().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve(data),
-  });
-}
-
-function mockFetchError(status = 500, body = { error: "Server error" }) {
-  return vi.fn().mockResolvedValue({
-    ok: false,
-    status,
-    json: () => Promise.resolve(body),
-  });
-}
+const {
+  review: mockReview,
+  reviewSummary: mockSummary,
+  reviewsGetResponse,
+  reviewsEmptyResponse,
+  reviewSubmitResponse,
+  voteResponse,
+  voteNullResponse,
+  voteSubmitResponse,
+} = fixtures;
 
 describe("useReviews", () => {
   const originalFetch = globalThis.fetch;
@@ -55,17 +32,11 @@ describe("useReviews", () => {
   });
 
   it("fetches reviews on mount", async () => {
-    const fetchMock = mockFetchSuccess({
-      reviews: [mockReview],
-      summary: mockSummary,
-      userReview: null,
-      pagination: { total: 1, limit: 10, offset: 0, hasMore: false },
-    });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(reviewsGetResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useReviews({ contentType: "prompt", contentId: "test" })
+      useReviews({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -77,19 +48,13 @@ describe("useReviews", () => {
   });
 
   it("passes sortBy parameter in fetch URL", async () => {
-    const fetchMock = mockFetchSuccess({
-      reviews: [],
-      summary: mockSummary,
-      userReview: null,
-      pagination: { total: 0, limit: 10, offset: 0, hasMore: false },
-    });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(reviewsEmptyResponse);
+    setFetchMock(fetchMock);
 
     renderHook(() =>
       useReviews({
         contentType: "prompt",
-        contentId: "test",
+        contentId: "idea-wizard",
         sortBy: "most-helpful",
       })
     );
@@ -101,11 +66,10 @@ describe("useReviews", () => {
   });
 
   it("handles fetch error gracefully", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = mockFetchError();
+    setFetchMock(mockFetchError());
 
     const { result } = renderHook(() =>
-      useReviews({ contentType: "prompt", contentId: "test" })
+      useReviews({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -115,37 +79,23 @@ describe("useReviews", () => {
   });
 
   it("submits a new review", async () => {
-    // First call: initial fetch; second call: POST submit
     let callCount = 0;
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => {
+    setFetchMock(vi.fn().mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              reviews: [],
-              summary: mockSummary,
-              userReview: null,
-              pagination: { total: 0, limit: 10, offset: 0, hasMore: false },
-            }),
+          json: () => Promise.resolve(reviewsEmptyResponse),
         });
       }
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            review: mockReview,
-            summary: { ...mockSummary, totalReviews: 1 },
-            isNew: true,
-          }),
+        json: () => Promise.resolve(reviewSubmitResponse),
       });
-    });
+    }));
 
     const { result } = renderHook(() =>
-      useReviews({ contentType: "prompt", contentId: "test" })
+      useReviews({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -154,7 +104,7 @@ describe("useReviews", () => {
     await act(async () => {
       submitResult = await result.current.submitReview({
         rating: "up",
-        content: "Great prompt for testing.",
+        content: "Great prompt for brainstorming product ideas.",
       });
     });
 
@@ -165,29 +115,22 @@ describe("useReviews", () => {
 
   it("handles submit error", async () => {
     let callCount = 0;
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => {
+    setFetchMock(vi.fn().mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              reviews: [],
-              summary: mockSummary,
-              userReview: null,
-              pagination: { total: 0, limit: 10, offset: 0, hasMore: false },
-            }),
+          json: () => Promise.resolve(reviewsEmptyResponse),
         });
       }
       return Promise.resolve({
         ok: false,
         json: () => Promise.resolve({ error: "Review too short" }),
       });
-    });
+    }));
 
     const { result } = renderHook(() =>
-      useReviews({ contentType: "prompt", contentId: "test" })
+      useReviews({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -205,37 +148,34 @@ describe("useReviews", () => {
   });
 
   it("loads more reviews with pagination", async () => {
+    const page1Response = {
+      ...reviewsGetResponse,
+      pagination: { total: 2, limit: 1, offset: 0, hasMore: true },
+    };
+    const page2Response = {
+      reviews: [{ ...mockReview, id: "review:prompt:idea-wizard:user-2", userId: "user-2" }],
+      summary: mockSummary,
+      userReview: null,
+      pagination: { total: 2, limit: 1, offset: 1, hasMore: false },
+    };
+
     let callCount = 0;
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => {
+    setFetchMock(vi.fn().mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              reviews: [mockReview],
-              summary: mockSummary,
-              userReview: null,
-              pagination: { total: 2, limit: 1, offset: 0, hasMore: true },
-            }),
+          json: () => Promise.resolve(page1Response),
         });
       }
-      // load more
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            reviews: [{ ...mockReview, id: "review:prompt:test:user-2", userId: "user-2" }],
-            summary: mockSummary,
-            userReview: null,
-            pagination: { total: 2, limit: 1, offset: 1, hasMore: false },
-          }),
+        json: () => Promise.resolve(page2Response),
       });
-    });
+    }));
 
     const { result } = renderHook(() =>
-      useReviews({ contentType: "prompt", contentId: "test", limit: 1 })
+      useReviews({ contentType: "prompt", contentId: "idea-wizard", limit: 1 })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -264,11 +204,10 @@ describe("useReviewVote", () => {
   });
 
   it("fetches existing vote on mount", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = mockFetchSuccess({ vote: { isHelpful: true } });
+    setFetchMock(mockFetchSuccess(voteResponse));
 
     const { result } = renderHook(() =>
-      useReviewVote({ reviewId: "review:prompt:test:user-1" })
+      useReviewVote({ reviewId: "review:prompt:idea-wizard:user-1" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -279,29 +218,22 @@ describe("useReviewVote", () => {
 
   it("submits a vote", async () => {
     let callCount = 0;
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => {
+    setFetchMock(vi.fn().mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        // initial GET
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ vote: null }),
+          json: () => Promise.resolve(voteNullResponse),
         });
       }
-      // POST vote
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            vote: { isHelpful: false },
-            review: mockReview,
-          }),
+        json: () => Promise.resolve(voteSubmitResponse),
       });
-    });
+    }));
 
     const { result } = renderHook(() =>
-      useReviewVote({ reviewId: "review:prompt:test:user-1" })
+      useReviewVote({ reviewId: "review:prompt:idea-wizard:user-1" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -317,23 +249,22 @@ describe("useReviewVote", () => {
 
   it("handles vote error", async () => {
     let callCount = 0;
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(() => {
+    setFetchMock(vi.fn().mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ vote: null }),
+          json: () => Promise.resolve(voteNullResponse),
         });
       }
       return Promise.resolve({
         ok: false,
         json: () => Promise.resolve({ error: "Cannot vote on own review" }),
       });
-    });
+    }));
 
     const { result } = renderHook(() =>
-      useReviewVote({ reviewId: "review:prompt:test:user-1" })
+      useReviewVote({ reviewId: "review:prompt:idea-wizard:user-1" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));

@@ -6,39 +6,15 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRating } from "./use-rating";
+import {
+  setFetchMock,
+  mockFetchSuccess,
+  mockFetchError,
+  mockFetchPending,
+  fixtures,
+} from "@/test-utils/fetch-fixtures";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const mockSummary = {
-  contentType: "prompt",
-  contentId: "test",
-  upvotes: 5,
-  downvotes: 1,
-  total: 6,
-  approvalRate: 83,
-  lastUpdated: "2026-01-15T00:00:00Z",
-};
-
-function mockFetchSuccess(data: unknown) {
-  return vi.fn().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve(data),
-  });
-}
-
-function mockFetchError(status = 500, body = { error: "Server error" }) {
-  return vi.fn().mockResolvedValue({
-    ok: false,
-    status,
-    json: () => Promise.resolve(body),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+const { ratingSummary, ratingGetResponse, ratingPostResponse } = fixtures;
 
 describe("useRating", () => {
   const originalFetch = globalThis.fetch;
@@ -53,14 +29,9 @@ describe("useRating", () => {
   });
 
   it("starts with loading state", () => {
-    // Keep request pending so this test asserts only initial state and
-    // does not trigger post-test state updates.
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockImplementation(
-      () => new Promise(() => undefined)
-    ) as typeof fetch;
+    setFetchMock(mockFetchPending());
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
     expect(result.current.loading).toBe(true);
     expect(result.current.summary).toBeNull();
@@ -69,31 +40,29 @@ describe("useRating", () => {
   });
 
   it("fetches rating on mount", async () => {
-    const fetchMock = mockFetchSuccess({ summary: mockSummary, userRating: "up" });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess({ ...ratingGetResponse, userRating: "up" });
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.summary).toEqual(mockSummary);
+    expect(result.current.summary).toEqual(ratingSummary);
     expect(result.current.userRating).toBe("up");
     expect(result.current.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock.mock.calls[0][0]).toContain("/api/ratings?");
     expect(fetchMock.mock.calls[0][0]).toContain("contentType=prompt");
-    expect(fetchMock.mock.calls[0][0]).toContain("contentId=test");
+    expect(fetchMock.mock.calls[0][0]).toContain("contentId=idea-wizard");
   });
 
   it("sets error on fetch failure", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = mockFetchError(500, { error: "Server error" });
+    setFetchMock(mockFetchError(500, { error: "Server error" }));
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -101,11 +70,10 @@ describe("useRating", () => {
   });
 
   it("handles network error", async () => {
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network failure"));
+    setFetchMock(vi.fn().mockRejectedValue(new Error("Network failure")));
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -114,25 +82,18 @@ describe("useRating", () => {
 
   it("submits a rating via rate()", async () => {
     const fetchMock = vi.fn()
-      // First call: initial fetch
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ summary: mockSummary, userRating: null }),
+        json: () => Promise.resolve(ratingGetResponse),
       })
-      // Second call: rate POST
       .mockResolvedValueOnce({
         ok: true,
-        json: () =>
-          Promise.resolve({
-            summary: { ...mockSummary, upvotes: 6, total: 7 },
-            rating: { value: "up" },
-          }),
+        json: () => Promise.resolve(ratingPostResponse),
       });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -145,7 +106,6 @@ describe("useRating", () => {
     expect(result.current.summary?.upvotes).toBe(6);
     expect(result.current.error).toBeNull();
 
-    // Verify POST was made
     const postCall = fetchMock.mock.calls[1];
     expect(postCall[0]).toBe("/api/ratings");
     expect(postCall[1].method).toBe("POST");
@@ -155,17 +115,16 @@ describe("useRating", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ summary: mockSummary, userRating: null }),
+        json: () => Promise.resolve(ratingGetResponse),
       })
       .mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Already rated" }),
       });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -181,17 +140,16 @@ describe("useRating", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ summary: mockSummary, userRating: "up" }),
+        json: () => Promise.resolve({ ...ratingGetResponse, userRating: "up" }),
       })
       .mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({ error: "Oops" }),
       });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -200,19 +158,17 @@ describe("useRating", () => {
       await result.current.rate("down");
     });
 
-    // Previous summary and userRating should be preserved
-    expect(result.current.summary).toEqual(mockSummary);
+    expect(result.current.summary).toEqual(ratingSummary);
     expect(result.current.userRating).toBe("up");
     expect(result.current.error).toBe("Oops");
   });
 
   it("refresh triggers new fetch", async () => {
-    const fetchMock = mockFetchSuccess({ summary: mockSummary, userRating: null });
-    // @ts-expect-error: Mocking global fetch for tests
-    globalThis.fetch = fetchMock;
+    const fetchMock = mockFetchSuccess(ratingGetResponse);
+    setFetchMock(fetchMock);
 
     const { result } = renderHook(() =>
-      useRating({ contentType: "prompt", contentId: "test" })
+      useRating({ contentType: "prompt", contentId: "idea-wizard" })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));

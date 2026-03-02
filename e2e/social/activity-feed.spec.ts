@@ -443,7 +443,9 @@ test.describe("Activity Feed - Real-time Updates", () => {
       const hasIndicator = await newIndicator.isVisible().catch(() => false);
 
       // Indicator is optional - may not appear if no new activity
-      // Test passes regardless since we're just verifying the UI works
+      // Verify the feed section is at least loaded and functional
+      const feedSection = getActivityFeedSection(page);
+      await expect(feedSection).toBeVisible();
     });
   });
 });

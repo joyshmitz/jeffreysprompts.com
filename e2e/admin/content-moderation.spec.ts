@@ -374,8 +374,8 @@ test.describe("Content Moderation - Report Cards", () => {
       const priorityBadge = firstCard.locator("text=/critical|high|medium|low/i");
       const hasPriority = await priorityBadge.isVisible().catch(() => false);
 
-      // Priority is optional - just log status
-      logger.log(`Priority badge visible: ${hasPriority}`);
+      // Priority is optional - verify the card at least renders properly
+      await expect(firstCard).toBeVisible();
     });
   });
 });
@@ -465,7 +465,7 @@ test.describe("Content Moderation - Single Actions", () => {
         .catch(() => false);
       const navigated = !page.url().includes("/admin/moderation");
 
-      expect(modalVisible || navigated || true).toBeTruthy(); // Non-blocking
+      expect(modalVisible || navigated).toBe(true);
     });
   });
 });
@@ -560,7 +560,7 @@ test.describe("Content Moderation - Bulk Actions", () => {
       const isVisible = await toolbar.isVisible().catch(() => false);
 
       // Toolbar should be hidden when no selection
-      expect(!isVisible || true).toBeTruthy();
+      expect(isVisible).toBe(false);
     });
   });
 
@@ -598,10 +598,9 @@ test.describe("Content Moderation - Dashboard Integration", () => {
         const cardText = await pendingCard.textContent();
         expect(cardText).toMatch(/\d+/);
       } else {
-        // May have different labeling
+        // May have different labeling - verify there's at least a link to moderation
         const moderationLink = page.locator("a[href='/admin/moderation']");
-        const hasLink = await moderationLink.isVisible().catch(() => false);
-        expect(hasLink || true).toBeTruthy();
+        await expect(moderationLink).toBeVisible();
       }
     });
   });

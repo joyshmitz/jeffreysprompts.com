@@ -1,19 +1,22 @@
 /**
  * Unit tests for /api/health route (GET)
  * @module api/health/route.test
+ *
+ * Uses real registry data via submodule import, injected through vi.mock
+ * to avoid zod import chain from the barrel module.
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { prompts, categories, tags } from "@jeffreysprompts/core/prompts/registry";
 import { GET } from "./route";
 
-vi.mock("@jeffreysprompts/core/prompts", () => ({
-  prompts: [
-    { id: "p1", title: "Prompt A" },
-    { id: "p2", title: "Prompt B" },
-  ],
-  categories: ["ideation", "documentation"],
-  tags: ["brainstorming", "ultrathink", "refactor"],
-}));
+// Provide real registry data for the barrel import used by the route handler
+vi.mock("@jeffreysprompts/core/prompts", async () => {
+  const registry = await vi.importActual<typeof import("@jeffreysprompts/core/prompts/registry")>(
+    "@jeffreysprompts/core/prompts/registry"
+  );
+  return registry;
+});
 
 describe("/api/health GET", () => {
   it("returns 200 with ok status", async () => {
@@ -24,13 +27,13 @@ describe("/api/health GET", () => {
     expect(data.status).toBe("ok");
   });
 
-  it("includes prompt counts", async () => {
+  it("includes prompt counts from real registry", async () => {
     const res = await GET();
     const data = await res.json();
 
-    expect(data.prompts.count).toBe(2);
-    expect(data.prompts.categories).toBe(2);
-    expect(data.prompts.tags).toBe(3);
+    expect(data.prompts.count).toBe(prompts.length);
+    expect(data.prompts.categories).toBe(categories.length);
+    expect(data.prompts.tags).toBe(tags.length);
   });
 
   it("includes timestamp", async () => {

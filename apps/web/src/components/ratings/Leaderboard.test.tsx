@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent} from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { Leaderboard } from "./Leaderboard";
+import { fixtures } from "@/test-utils/fetch-fixtures";
 
 vi.mock("framer-motion", () => ({
   motion: {
@@ -8,7 +9,6 @@ vi.mock("framer-motion", () => ({
       children,
       ...props
     }: React.PropsWithChildren<Record<string, unknown>>) => {
-       
       const { ...rest } = props;
       return <button {...rest}>{children}</button>;
     },
@@ -30,15 +30,15 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 
 const mockEntries = [
   {
-    prompt: { id: "p1", title: "Top Prompt", category: "automation" },
-    rating: { approvalRate: 95, total: 200 },
+    prompt: { id: fixtures.leaderboardEntries[0].prompt.id, title: fixtures.leaderboardEntries[0].prompt.title, category: "ideation" },
+    rating: { approvalRate: fixtures.leaderboardEntries[0].rating.approvalRate, total: fixtures.leaderboardEntries[0].rating.total },
   },
   {
-    prompt: { id: "p2", title: "Second Prompt", category: "ideation" },
-    rating: { approvalRate: 88, total: 150 },
+    prompt: { id: fixtures.leaderboardEntries[1].prompt.id, title: fixtures.leaderboardEntries[1].prompt.title, category: "code-review" },
+    rating: { approvalRate: fixtures.leaderboardEntries[1].rating.approvalRate, total: fixtures.leaderboardEntries[1].rating.total },
   },
   {
-    prompt: { id: "p3", title: "Third Prompt", category: "debugging" },
+    prompt: { id: "bug-report-template", title: "Bug Report Template", category: "debugging" },
     rating: { approvalRate: 82, total: 100 },
   },
 ];
@@ -90,11 +90,11 @@ describe("Leaderboard", () => {
       refresh: vi.fn(),
     });
     render(<Leaderboard />);
-    expect(screen.getByText("Top Prompt")).toBeInTheDocument();
-    expect(screen.getByText("Second Prompt")).toBeInTheDocument();
-    expect(screen.getByText("Third Prompt")).toBeInTheDocument();
-    expect(screen.getByText("95%")).toBeInTheDocument();
-    expect(screen.getByText("88%")).toBeInTheDocument();
+    expect(screen.getByText(fixtures.leaderboardEntries[0].prompt.title)).toBeInTheDocument();
+    expect(screen.getByText(fixtures.leaderboardEntries[1].prompt.title)).toBeInTheDocument();
+    expect(screen.getByText("Bug Report Template")).toBeInTheDocument();
+    expect(screen.getByText(`${fixtures.leaderboardEntries[0].rating.approvalRate}%`)).toBeInTheDocument();
+    expect(screen.getByText(`${fixtures.leaderboardEntries[1].rating.approvalRate}%`)).toBeInTheDocument();
   });
 
   it("calls onPromptClick when entry is clicked", () => {
@@ -106,7 +106,7 @@ describe("Leaderboard", () => {
     });
     const onClick = vi.fn();
     render(<Leaderboard onPromptClick={onClick} />);
-    fireEvent.click(screen.getByText("Top Prompt"));
+    fireEvent.click(screen.getByText(fixtures.leaderboardEntries[0].prompt.title));
     expect(onClick).toHaveBeenCalledWith(mockEntries[0].prompt);
   });
 

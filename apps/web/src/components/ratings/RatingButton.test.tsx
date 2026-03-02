@@ -1,6 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor , fireEvent} from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { RatingButton } from "./RatingButton";
+import {
+  setFetchMock,
+  mockFetchSuccess,
+  fixtures,
+} from "@/test-utils/fetch-fixtures";
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock("framer-motion", () => ({
@@ -13,62 +18,83 @@ vi.mock("framer-motion", () => ({
   useReducedMotion: () => false,
 }));
 
-// Mock the useRating hook
-const mockRate = vi.fn();
-vi.mock("@/hooks/use-rating", () => ({
-  useRating: () => ({
-    summary: { upvotes: 10, downvotes: 2, total: 12, approvalRate: 83 },
-    userRating: null,
-    loading: false,
-    error: null,
-    rate: mockRate,
-    refresh: vi.fn(),
-  }),
-}));
+const { ratingGetResponse, ratingSummary } = fixtures;
 
 describe("RatingButton", () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
-    mockRate.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
-  it("renders upvote and downvote buttons", () => {
-    render(<RatingButton contentType="prompt" contentId="test-prompt" />);
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.useRealTimers();
+  });
+
+  it("renders upvote and downvote buttons", async () => {
+    setFetchMock(mockFetchSuccess(ratingGetResponse));
+    render(<RatingButton contentType="prompt" contentId="idea-wizard" />);
+
+    await waitFor(() => expect(screen.getByLabelText("Upvote")).toBeEnabled());
 
     expect(screen.getByLabelText("Upvote")).toBeInTheDocument();
     expect(screen.getByLabelText("Downvote")).toBeInTheDocument();
   });
 
-  it("displays vote counts when showCount is true", () => {
-    render(<RatingButton contentType="prompt" contentId="test-prompt" showCount />);
+  it("displays vote counts when showCount is true", async () => {
+    setFetchMock(mockFetchSuccess(ratingGetResponse));
+    render(<RatingButton contentType="prompt" contentId="idea-wizard" showCount />);
 
-    expect(screen.getByText("10")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Upvote")).toBeEnabled());
+
+    expect(screen.getByText(String(ratingSummary.upvotes))).toBeInTheDocument();
+    expect(screen.getByText(String(ratingSummary.downvotes))).toBeInTheDocument();
   });
 
   it("calls rate function when upvote is clicked", async () => {
-    render(<RatingButton contentType="prompt" contentId="test-prompt" />);
+    const fetchMock = mockFetchSuccess(ratingGetResponse);
+    setFetchMock(fetchMock);
+    render(<RatingButton contentType="prompt" contentId="idea-wizard" />);
 
-    const upvoteButton = screen.getByLabelText("Upvote");
-    fireEvent.click(upvoteButton);
+    await waitFor(() => expect(screen.getByLabelText("Upvote")).toBeEnabled());
+
+    fireEvent.click(screen.getByLabelText("Upvote"));
 
     await waitFor(() => {
-      expect(mockRate).toHaveBeenCalledWith("up");
+      const postCalls = fetchMock.mock.calls.filter(
+        (c: unknown[]) => (c[1] as RequestInit | undefined)?.method === "POST"
+      );
+      expect(postCalls).toHaveLength(1);
+      const body = JSON.parse((postCalls[0][1] as RequestInit).body as string);
+      expect(body.value).toBe("up");
     });
   });
 
   it("calls rate function when downvote is clicked", async () => {
-    render(<RatingButton contentType="prompt" contentId="test-prompt" />);
+    const fetchMock = mockFetchSuccess(ratingGetResponse);
+    setFetchMock(fetchMock);
+    render(<RatingButton contentType="prompt" contentId="idea-wizard" />);
 
-    const downvoteButton = screen.getByLabelText("Downvote");
-    fireEvent.click(downvoteButton);
+    await waitFor(() => expect(screen.getByLabelText("Downvote")).toBeEnabled());
+
+    fireEvent.click(screen.getByLabelText("Downvote"));
 
     await waitFor(() => {
-      expect(mockRate).toHaveBeenCalledWith("down");
+      const postCalls = fetchMock.mock.calls.filter(
+        (c: unknown[]) => (c[1] as RequestInit | undefined)?.method === "POST"
+      );
+      expect(postCalls).toHaveLength(1);
+      const body = JSON.parse((postCalls[0][1] as RequestInit).body as string);
+      expect(body.value).toBe("down");
     });
   });
 
-  it("applies correct size class for sm variant", () => {
-    render(<RatingButton contentType="prompt" contentId="test-prompt" size="sm" />);
+  it("applies correct size class for sm variant", async () => {
+    setFetchMock(mockFetchSuccess(ratingGetResponse));
+    render(<RatingButton contentType="prompt" contentId="idea-wizard" size="sm" />);
+
+    await waitFor(() => expect(screen.getByLabelText("Upvote")).toBeEnabled());
 
     const upvoteButton = screen.getByLabelText("Upvote");
     expect(upvoteButton).toHaveClass("h-8", "w-8");

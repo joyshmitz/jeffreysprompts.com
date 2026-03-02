@@ -47,7 +47,7 @@ test.describe("Swap Meet - Prompt Detail", () => {
     });
 
     await logger.step("verify back link", async () => {
-      await expect(page.getByRole("button", { name: "Back to Swap Meet" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Back to Swap Meet" })).toBeVisible();
     });
   });
 });

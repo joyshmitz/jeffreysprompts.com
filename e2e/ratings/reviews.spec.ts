@@ -242,10 +242,10 @@ test.describe("Reviews - Sorting", () => {
     });
 
     await logger.step("verify reviews are reordered", async () => {
-      // Wait for reorder
       await page.waitForTimeout(500);
-      // Verify first review is most recent
       const reviewCards = getReviewCards(page);
+      const count = await reviewCards.count();
+      expect(count).toBeGreaterThan(0);
       await expect(reviewCards.first()).toBeVisible();
     });
   });
@@ -265,6 +265,8 @@ test.describe("Reviews - Sorting", () => {
     await logger.step("verify reviews are sorted by helpfulness", async () => {
       await page.waitForTimeout(500);
       const reviewCards = getReviewCards(page);
+      const count = await reviewCards.count();
+      expect(count).toBeGreaterThan(0);
       await expect(reviewCards.first()).toBeVisible();
     });
   });
