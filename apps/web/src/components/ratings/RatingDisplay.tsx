@@ -12,10 +12,12 @@
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRating } from "@/hooks/use-rating";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
 
 interface RatingDisplayProps {
   contentType: "prompt" | "bundle" | "workflow" | "collection" | "skill";
   contentId: string;
+  summary?: RatingSummary | null;
   variant?: "compact" | "detailed";
   className?: string;
 }
@@ -30,12 +32,19 @@ function formatCount(count: number): string {
 export function RatingDisplay({
   contentType,
   contentId,
+  summary: providedSummary,
   variant = "compact",
   className,
 }: RatingDisplayProps) {
-  const { summary, loading } = useRating({ contentType, contentId });
+  const shouldFetch = providedSummary === undefined;
+  const { summary: fetchedSummary, loading } = useRating({
+    contentType,
+    contentId,
+    enabled: shouldFetch,
+  });
+  const summary = providedSummary ?? fetchedSummary;
 
-  if (loading || !summary) {
+  if ((shouldFetch && loading) || !summary) {
     return null;
   }
 

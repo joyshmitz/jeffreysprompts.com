@@ -1037,6 +1037,7 @@ html.theme-transitioning *::after {
       0 2px 8px -2px oklch(0 0 0 / 0.06),
       0 8px 24px -8px oklch(0 0 0 / 0.08);
     transition: box-shadow 0.3s ease, transform 0.3s ease;
+    contain: layout style paint;
   }
 
   .glass-card:hover {
@@ -1695,6 +1696,7 @@ html.theme-transitioning *::after {
     overflow: hidden;
     background: var(--skeleton-base);
     border-radius: var(--radius);
+    contain: strict;
   }
 
   .skeleton-shimmer::after {
@@ -1992,6 +1994,7 @@ html.theme-transitioning *::after {
     transition:
       transform var(--duration-normal) var(--ease-out),
       box-shadow var(--duration-normal) var(--ease-out);
+    contain: layout style paint;
   }
 
   .feature-card:hover {
@@ -3597,11 +3600,34 @@ html.theme-transitioning *::after {
   scroll-snap-align: center;
 }
 
+/* --- HERO BACKGROUND BLOB ANIMATIONS --- */
+/* GPU-composited infinite animations (replaces Framer Motion JS-driven loops) */
+@keyframes hero-blob-cyan {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(50px, -40px) scale(1.1); }
+  50% { transform: translate(-30px, 60px) scale(0.9); }
+  75% { transform: translate(20px, 10px) scale(1.05); }
+}
+
+@keyframes hero-blob-amber {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-60px, 50px) scale(0.9); }
+  50% { transform: translate(40px, -40px) scale(1.1); }
+  75% { transform: translate(-20px, 10px) scale(0.95); }
+}
+
+@keyframes hero-blob-purple {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, 60px) scale(1.2); }
+  50% { transform: translate(-50px, -30px) scale(0.8); }
+  75% { transform: translate(-10px, 20px) scale(1.05); }
+}
+
 /* --- CONTENT VISIBILITY OPTIMIZATION --- */
 /* Improve rendering performance for off-screen content */
 .content-visibility-auto {
   content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
+  contain-intrinsic-size: auto 400px;
 }
 
 /* --- SUBTLE GRAIN OVERLAY --- */

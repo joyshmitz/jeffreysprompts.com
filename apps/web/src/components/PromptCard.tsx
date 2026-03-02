@@ -9,10 +9,19 @@
  * - Premium Shimmer Sweep on mount
  * - Terminal streaming preview for agentic feel
  * - Haptic feedback integration
+ * - Ultra-optimized render cycle
  */
 
-import { useState, useCallback, useRef, useEffect, useMemo, type MouseEvent, type KeyboardEvent } from "react";
-import { motion, AnimatePresence, useReducedMotion, useSpring, useMotionTemplate } from "framer-motion";
+import { useState, useCallback, useRef, useEffect, useMemo, memo, type MouseEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+  useSpring,
+  useMotionTemplate,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import {
   Copy,
   Check,
@@ -32,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { Prompt, PromptDifficulty } from "@jeffreysprompts/core/prompts/types";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
 import { RatingDisplay } from "@/components/ratings";
 import { useMousePosition } from "@/hooks/useMousePosition";
 import { FeaturedContentBadge } from "@/components/featured/staff-pick-badge";
@@ -39,9 +49,15 @@ import { TerminalStream } from "./TerminalStream";
 
 interface PromptCardProps {
   prompt: Prompt;
+  ratingSummary?: RatingSummary | null;
   index?: number;
   onCopy?: (prompt: Prompt) => void;
   onClick?: (prompt: Prompt) => void;
+}
+
+interface PromptCardPureProps extends PromptCardProps {
+  inBasket: boolean;
+  onAddToBasket: (prompt: Prompt) => void;
 }
 
 const difficultyConfig: Record<
@@ -68,7 +84,47 @@ const difficultyConfig: Record<
   },
 };
 
-export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardProps) {
+/**
+ * Isolated visual wrapper that handles 3D tilt without re-rendering children
+ */
+const TiltWrapper = memo(function TiltWrapper({
+  children,
+  enableTilt,
+  rotateX,
+  rotateY,
+}: {
+  children: ReactNode;
+  enableTilt: boolean;
+  rotateX: MotionValue<number>;
+  rotateY: MotionValue<number>;
+}) {
+  if (!enableTilt) {
+    return <div className="h-full">{children}</div>;
+  }
+
+  return (
+    <motion.div
+      style={{
+        rotateX,
+        rotateY,
+        transformStyle: "preserve-3d",
+      }}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
+  );
+});
+
+export const PromptCardPure = memo(function PromptCardPure({
+  prompt,
+  ratingSummary,
+  index = 0,
+  onCopy,
+  onClick,
+  inBasket,
+  onAddToBasket,
+}: PromptCardPureProps) {
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const prefersReducedMotion = useReducedMotion();
@@ -79,41 +135,27 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
   const isTouch = useMemo(() => typeof window !== "undefined" && !window.matchMedia("(hover: hover)").matches, []);
   const enableTilt = !prefersReducedMotion && !isTouch;
 
-  const { motionPercentageX, motionPercentageY, handleMouseMove, resetMousePosition } = useMousePosition();
+  const { motionPercentageX, motionPercentageY, cacheElementRect, handleMouseMove, resetMousePosition } = useMousePosition();
 
   // Spring configuration for smooth tilt
   const springConfig = { stiffness: 150, damping: 20 };
-  const rotateX = useSpring(0, springConfig);
-  const rotateY = useSpring(0, springConfig);
+  const rotateXBase = useTransform(motionPercentageY, (value) => (value - 50) / -8);
+  const rotateYBase = useTransform(motionPercentageX, (value) => (value - 50) / 8);
+  const rotateX = useSpring(rotateXBase, springConfig);
+  const rotateY = useSpring(rotateYBase, springConfig);
 
   const glowBackground = useMotionTemplate`radial-gradient(circle at ${motionPercentageX}% ${motionPercentageY}%, rgba(99, 102, 241, 0.1), transparent 70%)`;
 
   const { success, error } = useToast();
-  const { addItem, isInBasket } = useBasket();
-  const inBasket = isInBasket(prompt.id);
 
-  useEffect(() => {
-    if (!isHovered || !enableTilt) {
-      rotateX.set(0);
-      rotateY.set(0);
-      return;
-    }
+  // Memoize visible tags to prevent array reallocation
+  const visibleTags = useMemo(() => prompt.tags.slice(0, 3), [prompt.tags]);
+  const hiddenTagCount = prompt.tags.length > 3 ? prompt.tags.length - 3 : 0;
 
-    const unsubX = motionPercentageX.on("change", () => {
-      const rX = (motionPercentageY.get() - 50) / -8;
-      const rY = (motionPercentageX.get() - 50) / 8;
-      rotateX.set(rX);
-      rotateY.set(rY);
-    });
-    const unsubY = motionPercentageY.on("change", () => {
-      const rX = (motionPercentageY.get() - 50) / -8;
-      const rY = (motionPercentageX.get() - 50) / 8;
-      rotateX.set(rX);
-      rotateY.set(rY);
-    });
-
-    return () => { unsubX(); unsubY(); };
-  }, [isHovered, rotateX, rotateY, motionPercentageX, motionPercentageY, enableTilt]);
+  // Memoize truncated text
+  const previewText = useMemo(() => 
+    prompt.content.length > 200 ? `${prompt.content.slice(0, 200)}...` : prompt.content
+  , [prompt.content]);
 
   // Clean up copy timer on unmount
   useEffect(() => {
@@ -123,8 +165,9 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
   }, []);
 
   const handleMouseEnter = useCallback(() => {
+    cacheElementRect(cardRef.current);
     setIsHovered(true);
-  }, []);
+  }, [cacheElementRect]);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovered(false);
@@ -174,7 +217,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
     (e: MouseEvent) => {
       e.stopPropagation();
       if (!inBasket) {
-        addItem(prompt.id);
+        onAddToBasket(prompt);
 
         if ("vibrate" in navigator) {
           navigator.vibrate(50);
@@ -184,7 +227,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
         trackEvent("basket_add", { id: prompt.id, source: "card" });
       }
     },
-    [prompt, inBasket, addItem, success]
+    [inBasket, onAddToBasket, prompt, success]
   );
 
   const difficulty = prompt.difficulty && difficultyConfig[prompt.difficulty];
@@ -205,14 +248,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
       onMouseLeave={enableTilt ? handleMouseLeave : undefined}
       onMouseMove={enableTilt ? handleMouseMove : undefined}
     >
-      <motion.div
-        style={{
-          rotateX,
-          rotateY,
-          transformStyle: "preserve-3d",
-        }}
-        className="h-full"
-      >
+      <TiltWrapper enableTilt={enableTilt} rotateX={rotateX} rotateY={rotateY}>
         <Card
           data-testid="prompt-card"
           className={cn(
@@ -287,7 +323,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
             </p>
 
             <div className="flex flex-wrap gap-2">
-              {prompt.tags.slice(0, 3).map((tag) => (
+              {visibleTags.map((tag) => (
                 <motion.span
                   key={tag}
                   whileHover={enableTilt ? { scale: 1.05 } : undefined}
@@ -296,9 +332,9 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                   {tag}
                 </motion.span>
               ))}
-              {prompt.tags.length > 3 && (
+              {hiddenTagCount > 0 && (
                 <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500 px-1 py-1">
-                  +{prompt.tags.length - 3}
+                  +{hiddenTagCount}
                 </span>
               )}
             </div>
@@ -310,7 +346,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
               <div className="relative rounded-xl overflow-hidden bg-neutral-50/50 dark:bg-black/20 border border-neutral-200/30 dark:border-neutral-800/30 backdrop-blur-md">
                 <div className="p-4 h-[84px] overflow-hidden">
                   <TerminalStream 
-                    text={prompt.content.length > 200 ? `${prompt.content.slice(0, 200)}...` : prompt.content}
+                    text={previewText}
                     className="font-mono text-xs leading-relaxed text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap"
                   />
                 </div>
@@ -329,6 +365,7 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
                     <RatingDisplay
                       contentType="prompt"
                       contentId={prompt.id}
+                      summary={ratingSummary}
                       variant="compact"
                     />
                   </div>
@@ -397,9 +434,33 @@ export function PromptCard({ prompt, index = 0, onCopy, onClick }: PromptCardPro
             </div>
           </CardFooter>
         </Card>
-      </motion.div>
+      </TiltWrapper>
     </motion.div>
   );
-}
+});
+
+PromptCardPure.displayName = "PromptCardPure";
+
+export const PromptCard = memo(function PromptCard(props: PromptCardProps) {
+  const { addItem, isInBasket } = useBasket();
+  const inBasket = isInBasket(props.prompt.id);
+
+  const handleAddToBasket = useCallback(
+    (promptToAdd: Prompt) => {
+      addItem(promptToAdd.id);
+    },
+    [addItem]
+  );
+
+  return (
+    <PromptCardPure
+      {...props}
+      inBasket={inBasket}
+      onAddToBasket={handleAddToBasket}
+    />
+  );
+});
+
+PromptCard.displayName = "PromptCard";
 
 export default PromptCard;

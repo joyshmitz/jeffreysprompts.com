@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { prompts, getPrompt } from "@jeffreysprompts/core/prompts/registry";
 import { searchPrompts } from "@jeffreysprompts/core/search/engine";
-import { PromptCard } from "./PromptCard";
+import { PromptCardPure } from "./PromptCard";
+import { useBasket } from "@/hooks/use-basket";
+import { useAllRatings } from "@/hooks/useAllRatings";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
 
 interface RelatedPromptsProps {
@@ -46,6 +48,16 @@ function scoreRelatedPrompts(promptId: string, limit: number): ScoredPrompt[] {
 
 export function RelatedPrompts({ promptId, limit = 4 }: RelatedPromptsProps) {
   const prefersReducedMotion = useReducedMotion();
+  const { items, addItem } = useBasket();
+  const { summaries: ratingSummaries } = useAllRatings();
+  const basketSet = useMemo(() => new Set(items), [items]);
+
+  const handleAddToBasket = useCallback(
+    (prompt: Prompt) => {
+      addItem(prompt.id);
+    },
+    [addItem]
+  );
   
   const related = useMemo(() => {
     const scored = scoreRelatedPrompts(promptId, limit);
@@ -83,8 +95,11 @@ export function RelatedPrompts({ promptId, limit = 4 }: RelatedPromptsProps) {
                 ease: [0.23, 1, 0.32, 1],
               }}
             >
-              <PromptCard 
-                prompt={prompt} 
+              <PromptCardPure 
+                prompt={prompt}
+                ratingSummary={ratingSummaries[prompt.id] ?? null}
+                inBasket={basketSet.has(prompt.id)}
+                onAddToBasket={handleAddToBasket}
                 index={index}
               />
             </motion.div>

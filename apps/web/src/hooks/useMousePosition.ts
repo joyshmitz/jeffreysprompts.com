@@ -12,12 +12,47 @@ import { useMotionValue } from "framer-motion";
  */
 export function useMousePosition() {
   const positionRef = useRef({ x: 0, y: 0, percentageX: 50, percentageY: 50 });
+  const elementRectRef = useRef<{
+    target: EventTarget | null;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   const motionPercentageX = useMotionValue(50);
   const motionPercentageY = useMotionValue(50);
 
+  const cacheElementRect = useCallback((element: HTMLElement | null) => {
+    if (!element) {
+      elementRectRef.current = null;
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    elementRectRef.current = {
+      target: element,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  }, []);
+
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    let rect = elementRectRef.current;
+    if (!rect || rect.target !== e.currentTarget) {
+      const nextRect = e.currentTarget.getBoundingClientRect();
+      rect = {
+        target: e.currentTarget,
+        left: nextRect.left,
+        top: nextRect.top,
+        width: nextRect.width,
+        height: nextRect.height,
+      };
+      elementRectRef.current = rect;
+    }
+
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -31,6 +66,7 @@ export function useMousePosition() {
 
   const resetMousePosition = useCallback(() => {
     positionRef.current = { x: 0, y: 0, percentageX: 50, percentageY: 50 };
+    elementRectRef.current = null;
     motionPercentageX.set(50);
     motionPercentageY.set(50);
   }, [motionPercentageX, motionPercentageY]);
@@ -39,6 +75,7 @@ export function useMousePosition() {
     positionRef,
     motionPercentageX,
     motionPercentageY,
+    cacheElementRect,
     handleMouseMove,
     resetMousePosition,
   };

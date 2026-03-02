@@ -15,7 +15,6 @@ import { prompts } from "@jeffreysprompts/core/prompts/registry";
 const PROMPT_IDS = prompts.map((p) => p.id);
 const HIGH_RATED_ID = PROMPT_IDS[0]; // Will get 100% approval
 const MED_RATED_ID = PROMPT_IDS[1];  // Will get 70% approval
-const UNRATED_ID = PROMPT_IDS[2];    // Will get 0 votes
 
 // ---------------------------------------------------------------------------
 // Mock only the rating store — prompts come from the real registry

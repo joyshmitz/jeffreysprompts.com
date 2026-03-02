@@ -104,12 +104,13 @@ function extractPromptPayload(payload: unknown): PromptPayload | null {
 
 function buildPromptForExport(payload: PromptPayload): Prompt | null {
   if (!payload.content || typeof payload.content !== "string") return null;
-  const created =
+  const rawCreated =
     payload.created ||
     payload.created_at ||
     payload.saved_at ||
     payload.updated_at ||
     new Date().toISOString();
+  const created = rawCreated.split("T")[0];
 
   return {
     id: payload.id,
@@ -139,7 +140,7 @@ function buildPromptFromOffline(id: string): Prompt | null {
     tags: offlinePrompt.tags ?? [],
     author: "",
     version: "1.0.0",
-    created: offlinePrompt.saved_at,
+    created: (offlinePrompt.saved_at || new Date().toISOString()).split("T")[0],
   };
 }
 

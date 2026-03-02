@@ -136,23 +136,19 @@ test.describe("Full Page Visual Regression", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
-    // Use SpotlightSearch to search then close
-    await page.keyboard.press("Meta+k");
-    await page.waitForSelector('[role="dialog"]');
-    await page.fill('input[type="text"]', "debugging");
+    // Open SpotlightSearch and type a query
+    await page.keyboard.press("Control+k");
+    await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+    await page.fill('[role="dialog"] input', "debugging");
     await page.waitForTimeout(500);
 
-    // Close the dialog
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-
-    // Now capture the filtered page (search should apply to main grid if implemented)
-    await expect(page).toHaveScreenshot("home-page-searched.png", {
-      fullPage: true,
-      maxDiffPixels: 500,
+    // Capture the Spotlight with search results visible
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toHaveScreenshot("spotlight-search-debugging.png", {
+      maxDiffPixels: 300,
     });
 
-    console.log("[VISUAL] Home page searched - captured");
+    console.log("[VISUAL] Spotlight search results - captured");
   });
 });
 

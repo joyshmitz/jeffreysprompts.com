@@ -208,52 +208,57 @@ const typeStyles: Record<ToastType, { icon: React.FC<{ className?: string }>; co
 interface ToastItemProps {
   toast: Toast;
   index: number;
-  onRemove: () => void;
+  onRemove: (id: string) => void;
 }
 
 function ToastItem({ toast, index, onRemove }: ToastItemProps) {
-  const [progress, setProgress] = React.useState(100);
   const [isPaused, setIsPaused] = React.useState(false);
+  const [started, setStarted] = React.useState(false);
   const duration = toast.duration ?? 5000;
   const dismissible = toast.dismissible !== false;
+  const remainingRef = React.useRef(duration);
+  const dismissTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseTimeRef = React.useRef<number | null>(null);
 
   const { icon: Icon, colors } = typeStyles[toast.type];
 
-  // Progress animation
+  // Trigger CSS animation on mount (rAF ensures initial paint before animation starts)
   React.useEffect(() => {
-    if (isPaused) return;
+    const raf = requestAnimationFrame(() => setStarted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
-    const startTime = Date.now();
-    const startProgress = progress;
-    const interval = 16; // ~60fps
-
-    const timer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remainingPercent = startProgress - (elapsed / duration) * 100;
-      
-      if (remainingPercent <= 0) {
-        setProgress(0);
-        clearInterval(timer);
-      } else {
-        setProgress(remainingPercent);
+  // Auto-dismiss timer that respects pause
+  React.useEffect(() => {
+    if (isPaused) {
+      pauseTimeRef.current = Date.now();
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
       }
-    }, interval);
-
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duration, isPaused]); // Re-binds when paused state changes, capturing new 'progress' as start point
-
-  // Auto-dismiss when progress reaches 0
-  React.useEffect(() => {
-    if (progress <= 0) {
-      onRemove();
+      return;
     }
-  }, [progress, onRemove]);
+
+    // If resuming from pause, reduce remaining time for the timer
+    if (pauseTimeRef.current) {
+      const pausedFor = Date.now() - pauseTimeRef.current;
+      remainingRef.current = Math.max(0, remainingRef.current - pausedFor);
+      pauseTimeRef.current = null;
+    }
+
+    dismissTimerRef.current = setTimeout(() => onRemove(toast.id), remainingRef.current);
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+    };
+  }, [isPaused, onRemove, toast.id]);
 
   // Swipe-to-dismiss handler
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (Math.abs(info.offset.x) > 100 || Math.abs(info.velocity.x) > 500) {
-      onRemove();
+      onRemove(toast.id);
     }
   };
 
@@ -350,7 +355,7 @@ function ToastItem({ toast, index, onRemove }: ToastItemProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            onClick={onRemove}
+            onClick={() => onRemove(toast.id)}
             className={cn(
               "shrink-0 size-7 rounded-full",
               "flex items-center justify-center",
@@ -366,9 +371,9 @@ function ToastItem({ toast, index, onRemove }: ToastItemProps) {
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar - CSS animation with play-state for pause/resume */}
       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-100 dark:bg-neutral-800">
-        <motion.div
+        <div
           className={cn(
             "h-full origin-left",
             toast.type === "success" && "bg-emerald-500",
@@ -376,8 +381,13 @@ function ToastItem({ toast, index, onRemove }: ToastItemProps) {
             toast.type === "info" && "bg-sky-500",
             toast.type === "warning" && "bg-amber-500"
           )}
-          style={{ width: `${progress}%` }}
-          transition={{ duration: 0.1 }}
+          style={{
+            width: started ? undefined : "100%",
+            animation: started
+              ? `toast-progress ${duration}ms linear forwards`
+              : "none",
+            animationPlayState: isPaused ? "paused" : "running",
+          }}
         />
       </div>
     </motion.div>
@@ -414,7 +424,7 @@ function ToastContainer({ toasts, removeToast }: { toasts: Toast[]; removeToast:
             <ToastItem
               toast={toast}
               index={index}
-              onRemove={() => removeToast(toast.id)}
+              onRemove={removeToast}
             />
           </div>
         ))}

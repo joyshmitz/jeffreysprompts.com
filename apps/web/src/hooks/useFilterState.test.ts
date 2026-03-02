@@ -14,6 +14,7 @@ import type { PromptCategory } from "@jeffreysprompts/core/prompts/types";
 
 // Mock Next.js navigation hooks
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockSearchParams = new URLSearchParams();
 let mockPathname = "/";
 
@@ -21,7 +22,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
     prefetch: vi.fn(),
     back: vi.fn(),
     forward: vi.fn(),
@@ -145,7 +146,7 @@ describe("useFilterState", () => {
         result.current.setQuery("wizard");
       });
 
-      expect(mockPush).toHaveBeenCalledWith("/?q=wizard", { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith("/?q=wizard", { scroll: false });
     });
 
     it("removes q param when query is empty", () => {
@@ -156,7 +157,7 @@ describe("useFilterState", () => {
         result.current.setQuery("");
       });
 
-      expect(mockPush).toHaveBeenCalledWith("/", { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith("/", { scroll: false });
     });
 
     it("preserves other params when setting query", () => {
@@ -167,8 +168,8 @@ describe("useFilterState", () => {
         result.current.setQuery("test");
       });
 
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("q=test"), { scroll: false });
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("category=ideation"), { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining("q=test"), { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining("category=ideation"), { scroll: false });
     });
 
     it("encodes special characters in query", () => {
@@ -178,7 +179,7 @@ describe("useFilterState", () => {
         result.current.setQuery("test & demo");
       });
 
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining("q=test+%26+demo"), { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining("q=test+%26+demo"), { scroll: false });
     });
   });
 
@@ -456,7 +457,7 @@ describe("useFilterState", () => {
         result.current.setQuery("test");
       });
 
-      expect(mockPush).toHaveBeenCalledWith("/prompts/featured?q=test", { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith("/prompts/featured?q=test", { scroll: false });
     });
 
     it("removes query string but keeps pathname when clearing filters", () => {
@@ -495,7 +496,7 @@ describe("useFilterState", () => {
         result.current.setQuery("test");
       });
 
-      expect(mockPush).toHaveBeenCalledWith(expect.any(String), { scroll: false });
+      expect(mockReplace).toHaveBeenCalledWith(expect.any(String), { scroll: false });
     });
   });
 });

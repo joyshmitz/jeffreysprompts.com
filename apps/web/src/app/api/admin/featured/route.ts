@@ -81,7 +81,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: "invalid_body", message: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!body.resourceType || !body.resourceId || !body.featureType) {
@@ -175,7 +182,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: "invalid_body", message: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
 
     // Handle reorder
     if (body.action === "reorder" && Array.isArray(body.ids)) {

@@ -34,6 +34,7 @@ interface ScorerField {
   name: string;
   tokens: string[];
   tokenSet: Set<string>;
+  tokenFirstPos: Map<string, number>;
   raw: string;
   weight: number;
 }
@@ -57,11 +58,23 @@ export interface ScorerResult {
 
 export interface ScorerSearchOptions {
   expandSynonyms?: boolean;
+  candidateIds?: Set<string> | null;
+  limit?: number;
 }
 
 // ---------------------------------------------------------------------------
 // Index building
 // ---------------------------------------------------------------------------
+
+function buildTokenFirstPos(tokens: string[]): Map<string, number> {
+  const firstPos = new Map<string, number>();
+  for (let i = 0; i < tokens.length; i++) {
+    if (!firstPos.has(tokens[i])) {
+      firstPos.set(tokens[i], i);
+    }
+  }
+  return firstPos;
+}
 
 function buildField(name: string, text: string, weight: number): ScorerField {
   const tokens = tokenize(text);
@@ -69,6 +82,7 @@ function buildField(name: string, text: string, weight: number): ScorerField {
     name,
     tokens,
     tokenSet: new Set(tokens),
+    tokenFirstPos: buildTokenFirstPos(tokens),
     raw: text.toLowerCase(),
     weight,
   };
@@ -95,6 +109,7 @@ export function buildScorerIndex(promptsList: Prompt[]): ScorerIndex {
             name: "tags",
             tokens: tagTokens,
             tokenSet: new Set(tagTokens),
+            tokenFirstPos: buildTokenFirstPos(tagTokens),
             raw: p.tags.join(" ").toLowerCase(),
             weight: FIELD_WEIGHTS.tags,
           },
@@ -174,7 +189,8 @@ function scoreTokenField(
 
   // 1. Exact — O(1) via Set
   if (field.tokenSet.has(qt)) {
-    return { score: w, matchPos: field.tokens.indexOf(qt) };
+    const matchPos = field.tokenFirstPos.get(qt);
+    return { score: w, matchPos: matchPos ?? -1 };
   }
 
   // 2. Prefix (proportional)
@@ -320,6 +336,38 @@ export function searchScorerIndex(
   query: string,
   options: ScorerSearchOptions = {},
 ): ScorerResult[] {
+  const candidateIds = options.candidateIds ?? null;
+  if (candidateIds && candidateIds.size === 0) return [];
+  const limit =
+    options.limit && Number.isFinite(options.limit) && options.limit > 0
+      ? Math.floor(options.limit)
+      : null;
+
+  const pushTopK = (top: ScorerResult[], result: ScorerResult) => {
+    if (!limit) {
+      top.push(result);
+      return;
+    }
+
+    let insertAt = top.length;
+    for (let i = 0; i < top.length; i++) {
+      if (result.score > top[i].score) {
+        insertAt = i;
+        break;
+      }
+    }
+
+    if (top.length < limit) {
+      top.splice(insertAt, 0, result);
+      return;
+    }
+
+    if (insertAt < limit) {
+      top.splice(insertAt, 0, result);
+      top.pop();
+    }
+  };
+
   const rawTokens = [...new Set(tokenize(query))];
 
   // Normalized query for exact-ID and acronym matching
@@ -333,6 +381,8 @@ export function searchScorerIndex(
     // Still check acronym + exact-ID even if tokenize produced nothing
     const results: ScorerResult[] = [];
     for (const entry of index.entries) {
+      if (candidateIds && !candidateIds.has(entry.id)) continue;
+
       let score = 0;
       const matchedFields: string[] = [];
       if (rawQueryNormalized === entry.idNormalized) {
@@ -346,9 +396,11 @@ export function searchScorerIndex(
         score += ACRONYM_SCORE;
         matchedFields.push("title");
       }
-      if (score > 0) results.push({ id: entry.id, score, matchedFields });
+      if (score > 0) {
+        pushTopK(results, { id: entry.id, score, matchedFields });
+      }
     }
-    return results.sort((a, b) => b.score - a.score);
+    return limit ? results : results.sort((a, b) => b.score - a.score);
   }
 
   // Synonym expansion
@@ -365,15 +417,19 @@ export function searchScorerIndex(
 
   const results: ScorerResult[] = [];
   for (const entry of index.entries) {
+    if (candidateIds && !candidateIds.has(entry.id)) continue;
+
     const result = scoreEntry(
       entry,
       allTokens,
       synonymOnlyTokens,
       rawQueryNormalized,
     );
-    if (result) results.push(result);
+    if (result) {
+      pushTopK(results, result);
+    }
   }
-  return results.sort((a, b) => b.score - a.score);
+  return limit ? results : results.sort((a, b) => b.score - a.score);
 }
 
 /**

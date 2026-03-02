@@ -9,10 +9,10 @@
  */
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { PromptCard } from "@/components/PromptCard";
-import { PromptDetailModal } from "@/components/PromptDetailModal";
+import { PromptCardPure } from "@/components/PromptCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBasket } from "@/hooks/use-basket";
+import { useAllRatings } from "@/hooks/useAllRatings";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { formatCategoryLabel } from "@/lib/discovery/recommendation-helpers";
 import { getOrCreateLocalUserId, listHistory } from "@/lib/history/client";
@@ -54,6 +55,11 @@ const DEFAULT_PREFERENCES: RecommendationPreferences = {
   excludeCategories: [],
 };
 
+const PromptDetailModal = dynamic(
+  () => import("@/components/PromptDetailModal").then((mod) => mod.PromptDetailModal),
+  { ssr: false }
+);
+
 function getCutoffMs(timeframe: Timeframe): number | null {
   if (timeframe === "all") return null;
   const days = timeframe === "7d" ? 7 : 30;
@@ -70,7 +76,8 @@ function filterHistoryByTimeframe(entries: ViewHistoryEntry[], timeframe: Timefr
 }
 
 export default function ForYouPage() {
-  const { items: basketItems } = useBasket();
+  const { items: basketItems, addItem } = useBasket();
+  const { summaries: ratingSummaries } = useAllRatings();
   const [preferences] = useLocalStorage<RecommendationPreferences>(
     PREFERENCES_STORAGE_KEY,
     DEFAULT_PREFERENCES
@@ -86,6 +93,14 @@ export default function ForYouPage() {
   const modalCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const promptMap = useMemo(() => new Map(prompts.map((prompt) => [prompt.id, prompt])), []);
+  const basketSet = useMemo(() => new Set(basketItems), [basketItems]);
+
+  const handleAddToBasket = useCallback(
+    (prompt: Prompt) => {
+      addItem(prompt.id);
+    },
+    [addItem]
+  );
 
   const loadHistory = useCallback(async () => {
     const userId = getOrCreateLocalUserId();
@@ -313,8 +328,11 @@ export default function ForYouPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {recommendations.map((result, index) => (
               <div key={result.prompt.id} className="space-y-2">
-                <PromptCard
+                <PromptCardPure
                   prompt={result.prompt}
+                  ratingSummary={ratingSummaries[result.prompt.id] ?? null}
+                  inBasket={basketSet.has(result.prompt.id)}
+                  onAddToBasket={handleAddToBasket}
                   index={index}
                   onClick={handlePromptClick}
                 />

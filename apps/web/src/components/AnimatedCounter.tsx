@@ -45,20 +45,20 @@ export function AnimatedCounter({
   });
 
   useEffect(() => {
-    if (isInView) {
+    if (!isInView) return;
+
+    if (!hasAnimated.current) {
+      // Initial animation with delay
       const timer = setTimeout(() => {
         motionValue.set(value);
         hasAnimated.current = true;
       }, delay * 1000);
       return () => clearTimeout(timer);
     }
-  }, [isInView, value, motionValue, delay]);
 
-  useEffect(() => {
-    if (isInView && hasAnimated.current) {
-      motionValue.set(value);
-    }
-  }, [value, isInView, motionValue]);
+    // Subsequent value updates - animate immediately
+    motionValue.set(value);
+  }, [isInView, value, motionValue, delay]);
 
   useEffect(() => {
     const unsubscribe = springValue.on("change", (latest) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
 import { AlertTriangle } from "lucide-react";
@@ -12,11 +12,28 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useServiceWorker } from "@/hooks/useServiceWorker";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "@/hooks/useKeyboardShortcuts";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
+const KeyboardShortcutsModal = dynamic(
+  () => import("@/components/KeyboardShortcutsModal").then((mod) => mod.KeyboardShortcutsModal),
+  { ssr: false }
+);
 import { BottomTabBar } from "@/components/mobile/BottomTabBar";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { OfflineBanner } from "@/components/offline-banner";
 import { MouseSpotlight } from "@/components/desktop/MouseSpotlight";
+
+/** Defers MouseSpotlight rendering until the first mouse interaction */
+function LazyMouseSpotlight() {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const activate = () => setActive(true);
+    window.addEventListener("mousemove", activate, { once: true });
+    return () => window.removeEventListener("mousemove", activate);
+  }, []);
+
+  if (!active) return null;
+  return <MouseSpotlight />;
+}
 
 // Lazy load SpotlightSearch - it's only needed when user presses Cmd+K
 const SpotlightSearch = dynamic(
@@ -149,7 +166,7 @@ export function Providers({ children }: ProvidersProps) {
     <ThemeProvider defaultTheme="system">
       <ToastProvider>
         <BasketProvider>
-          <MouseSpotlight />
+          <LazyMouseSpotlight />
           <ErrorBoundary variant="default">
             {children}
           </ErrorBoundary>

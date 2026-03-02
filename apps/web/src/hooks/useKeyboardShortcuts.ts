@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useMemo } from "react";
 
 export interface KeyboardShortcut {
   /** Unique identifier for the shortcut */
@@ -174,6 +174,12 @@ export function useKeyboardShortcuts(
   const sequenceBuffer = useRef<string[]>([]);
   const sequenceTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  // Pre-parse all shortcut keys once at init (or when shortcuts change)
+  const parsedShortcuts = useMemo(
+    () => shortcuts.map((s) => ({ shortcut: s, parsed: parseKeys(s.keys) })),
+    [shortcuts]
+  );
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!enabled) return;
@@ -186,7 +192,7 @@ export function useKeyboardShortcuts(
         document.activeElement?.getAttribute("contenteditable") === "true";
 
       const key = e.key.toLowerCase();
-      
+
       // Update sequence buffer
       const nextBuffer = [...sequenceBuffer.current, key];
       const nextBufferStr = nextBuffer.join(" ");
@@ -194,10 +200,8 @@ export function useKeyboardShortcuts(
       let fullMatch: KeyboardShortcut | null = null;
 
       // Check sequences first
-      for (const shortcut of shortcuts) {
+      for (const { shortcut, parsed } of parsedShortcuts) {
         if (isInputFocused && !shortcut.global) continue;
-        
-        const parsed = parseKeys(shortcut.keys);
         if (!parsed.sequence) continue;
 
         const sequenceStr = parsed.sequence.join(" ");
@@ -230,14 +234,9 @@ export function useKeyboardShortcuts(
       }
 
       // No sequence match (full or partial). Check if this key starts a NEW sequence.
-      // This handles the case where "g h" is a shortcut, buffer is "x", user types "g".
-      // Previous buffer "x" failed. "x g" failed. 
-      // But "g" might start "g h".
-      
       let startsNewSequence = false;
-      for (const shortcut of shortcuts) {
+      for (const { shortcut, parsed } of parsedShortcuts) {
         if (isInputFocused && !shortcut.global) continue;
-        const parsed = parseKeys(shortcut.keys);
         if (parsed.sequence && parsed.sequence[0] === key) {
           startsNewSequence = true;
           break;
@@ -250,18 +249,14 @@ export function useKeyboardShortcuts(
         sequenceTimeout.current = setTimeout(() => {
           sequenceBuffer.current = [];
         }, 1000);
-        // Don't return, allow single key handlers to fire if they match?
-        // Usually sequences consume keys. But if "g" is also a single key shortcut?
-        // Let's assume sequences take precedence.
         return;
       } else {
         sequenceBuffer.current = [];
       }
 
       // Handle single key combinations (only if no sequence activity was detected/kept)
-      for (const shortcut of shortcuts) {
+      for (const { shortcut, parsed } of parsedShortcuts) {
         if (isInputFocused && !shortcut.global) continue;
-        const parsed = parseKeys(shortcut.keys);
         if (parsed.sequence) continue;
 
         if (matchesKeys(e, parsed)) {
@@ -273,7 +268,7 @@ export function useKeyboardShortcuts(
         }
       }
     },
-    [shortcuts, enabled]
+    [parsedShortcuts, enabled]
   );
 
   useEffect(() => {

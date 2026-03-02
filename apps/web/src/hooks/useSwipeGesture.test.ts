@@ -28,8 +28,8 @@ describe("useSwipeGesture", () => {
   it("starts with idle state", () => {
     const { result } = renderHook(() => useSwipeGesture());
     expect(result.current.state.isSwiping).toBe(false);
-    expect(result.current.state.deltaX).toBe(0);
-    expect(result.current.state.deltaY).toBe(0);
+    expect(result.current.state.deltaX.get()).toBe(0);
+    expect(result.current.state.deltaY.get()).toBe(0);
     expect(result.current.state.direction).toBeNull();
     expect(result.current.state.velocity).toBe(0);
   });
@@ -58,8 +58,8 @@ describe("useSwipeGesture", () => {
       result.current.handlers.onTouchMove(createTouchEvent("touchmove", 160, 200));
     });
 
-    expect(result.current.state.deltaX).toBe(60);
-    expect(result.current.state.deltaY).toBe(0); // horizontal axis default
+    expect(result.current.state.deltaX.get()).toBe(60);
+    expect(result.current.state.deltaY.get()).toBe(0); // horizontal axis default
     expect(onSwipeMove).toHaveBeenCalled();
   });
 
@@ -152,7 +152,7 @@ describe("useSwipeGesture", () => {
       result.current.reset();
     });
     expect(result.current.state.isSwiping).toBe(false);
-    expect(result.current.state.deltaX).toBe(0);
+    expect(result.current.state.deltaX.get()).toBe(0);
   });
 
   it("locks to vertical axis when configured", () => {
@@ -168,8 +168,8 @@ describe("useSwipeGesture", () => {
     });
 
     // Horizontal delta should be 0 with vertical axis
-    expect(result.current.state.deltaX).toBe(0);
-    expect(result.current.state.deltaY).toBe(100);
+    expect(result.current.state.deltaX.get()).toBe(0);
+    expect(result.current.state.deltaY.get()).toBe(100);
   });
 
   it("calls preventDefault when configured", () => {

@@ -525,16 +525,16 @@ export async function doctorCommand(options: JsonOptions): Promise<void> {
     if (hasBun) {
       // Check version
       const bunVer = spawn("bun", ["--version"]);
-      let version = "";
+      let bunVersion = "";
       bunVer.stdout.on("data", (data) => {
-        version += data.toString().trim();
+        bunVersion += data.toString().trim();
       });
       await new Promise<void>((resolve) => bunVer.on("close", () => resolve()));
       
       results.push({
         check: "Bun runtime",
         status: "ok",
-        message: `Available (v${version})`,
+        message: `Available (v${bunVersion})`,
       });
     } else {
       results.push({

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { PromptCard } from "@/components/PromptCard";
+import { PromptCardPure } from "@/components/PromptCard";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
 import {
   getForYouRecommendations,
   type RecommendationResult,
@@ -20,6 +21,7 @@ interface ForYouPromptsSectionProps {
   prompts: Prompt[];
   onPromptClick: (prompt: Prompt) => void;
   onPromptCopy?: (prompt: Prompt) => void;
+  ratingSummaries?: Record<string, RatingSummary>;
 }
 
 const HISTORY_LIMIT = 20;
@@ -36,6 +38,7 @@ export function ForYouPromptsSection({
   prompts,
   onPromptClick,
   onPromptCopy,
+  ratingSummaries,
 }: ForYouPromptsSectionProps) {
   const [loading, setLoading] = useState(true);
   const [historyIds, setHistoryIds] = useState<string[]>([]);
@@ -45,7 +48,14 @@ export function ForYouPromptsSection({
     PREFERENCES_STORAGE_KEY,
     DEFAULT_PREFERENCES
   );
-  const { items: basketItems } = useBasket();
+  const { items: basketItems, addItem } = useBasket();
+  const basketSet = useMemo(() => new Set(basketItems), [basketItems]);
+  const handleAddToBasket = useCallback(
+    (prompt: Prompt) => {
+      addItem(prompt.id);
+    },
+    [addItem]
+  );
 
   const promptMap = useMemo(() => {
     return new Map(prompts.map((prompt) => [prompt.id, prompt]));
@@ -197,23 +207,22 @@ export function ForYouPromptsSection({
           </div>
         </motion.div>
 
-        <div className="lg:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-4 pb-4" style={{ width: "max-content" }}>
+        <div className="-mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto lg:overflow-visible scrollbar-hide">
+          <div className="flex lg:grid lg:grid-cols-3 gap-4 lg:gap-6 pb-4 lg:pb-0 w-max lg:w-auto">
             {recommendations.map((result, index) => (
-              <motion.div
+              <div
                 key={result.prompt.id}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="w-[300px] flex-shrink-0"
+                className="w-[300px] lg:w-auto flex-shrink-0 lg:flex-shrink"
               >
                 <div className="space-y-2">
-                  <PromptCard
+                  <PromptCardPure
                     prompt={result.prompt}
+                    ratingSummary={ratingSummaries?.[result.prompt.id] ?? null}
+                    inBasket={basketSet.has(result.prompt.id)}
+                    onAddToBasket={handleAddToBasket}
                     index={index}
-                    onClick={() => onPromptClick(result.prompt)}
-                    onCopy={() => onPromptCopy?.(result.prompt)}
+                    onClick={onPromptClick}
+                    onCopy={onPromptCopy}
                   />
                   {result.reasons.length > 0 ? (
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -221,35 +230,9 @@ export function ForYouPromptsSection({
                     </p>
                   ) : null}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-        </div>
-
-        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
-          {recommendations.map((result, index) => (
-            <motion.div
-              key={result.prompt.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <div className="space-y-2">
-                <PromptCard
-                  prompt={result.prompt}
-                  index={index}
-                  onClick={() => onPromptClick(result.prompt)}
-                  onCopy={() => onPromptCopy?.(result.prompt)}
-                />
-                {result.reasons.length > 0 ? (
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {result.reasons.slice(0, 2).join(" · ")}
-                  </p>
-                ) : null}
-              </div>
-            </motion.div>
-          ))}
         </div>
       </div>
     </section>

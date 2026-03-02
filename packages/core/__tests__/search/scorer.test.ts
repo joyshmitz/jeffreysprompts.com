@@ -418,6 +418,45 @@ describe("buildScorerIndex + searchScorerIndex", () => {
     const idx = buildScorerIndex([makePrompt()]);
     expect(searchScorerIndex(idx, "")).toEqual([]);
   });
+
+  it("respects candidateIds prefilter", () => {
+    const idx = buildScorerIndex([
+      makePrompt({ id: "a", title: "Robot Mode" }),
+      makePrompt({ id: "b", title: "Robot Maker" }),
+    ]);
+
+    const results = searchScorerIndex(idx, "robot", {
+      candidateIds: new Set(["b"]),
+    });
+
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe("b");
+  });
+
+  it("returns empty for empty candidateIds", () => {
+    const idx = buildScorerIndex([
+      makePrompt({ id: "a", title: "Robot Mode" }),
+    ]);
+
+    expect(
+      searchScorerIndex(idx, "robot", {
+        candidateIds: new Set(),
+      }),
+    ).toEqual([]);
+  });
+
+  it("respects limit and returns top results in score order", () => {
+    const idx = buildScorerIndex([
+      makePrompt({ id: "a", title: "Robot Mode Maker" }),
+      makePrompt({ id: "b", title: "Robot Helper" }),
+      makePrompt({ id: "c", title: "Robot" }),
+    ]);
+
+    const results = searchScorerIndex(idx, "robot", { limit: 2 });
+    expect(results.length).toBe(2);
+    expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
+    expect(results.map((r) => r.id)).toEqual(["a", "b"]);
+  });
 });
 
 // ---------------------------------------------------------------------------

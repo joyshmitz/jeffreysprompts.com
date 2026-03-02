@@ -258,6 +258,7 @@ describe("copyCommand - Real Clipboard Tests", () => {
       const clipboardContent = await readClipboard();
       expect(clipboardContent).not.toBeNull();
       // Content length should match (trim to handle trailing newlines)
+      expect(clipboardContent).toBeDefined();
       expect(clipboardContent!.trim().length).toBe(parsed.characters);
     }
   });

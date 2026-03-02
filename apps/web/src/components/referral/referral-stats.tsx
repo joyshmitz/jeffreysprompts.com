@@ -53,7 +53,7 @@ export function ReferralStats({ className }: ReferralStatsProps) {
     async function fetchStats() {
       try {
         const response = await fetch("/api/referral/stats?includeReferrals=true", { signal: controller.signal });
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
         if (!mounted) return;
         if (result.success) {
           setData(result.data);

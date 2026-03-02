@@ -46,15 +46,12 @@ test.describe("Keyboard Navigation", () => {
   });
 
   test("escape closes the spotlight search", async ({ page }) => {
-    // Open spotlight search with keyboard
-    await page.keyboard.press("Meta+k");
+    // Open spotlight search (Control+k works cross-platform)
+    await page.keyboard.press("Control+k");
 
     // Wait for dialog to appear
     const dialog = page.locator('[role="dialog"]');
-    await expect(dialog).toBeVisible({ timeout: 2000 }).catch(() => {
-      // Try Ctrl+K for non-Mac
-      return page.keyboard.press("Control+k");
-    });
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
     // Press Escape to close
     await page.keyboard.press("Escape");
@@ -65,7 +62,7 @@ test.describe("Keyboard Navigation", () => {
 
   test("arrow keys navigate search results", async ({ page }) => {
     // Open spotlight search
-    await page.keyboard.press("Meta+k").catch(() => page.keyboard.press("Control+k"));
+    await page.keyboard.press("Control+k");
 
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]');
     if (await searchInput.isVisible()) {
@@ -85,24 +82,24 @@ test.describe("Keyboard Navigation", () => {
   test("prompt cards are keyboard accessible", async ({ page }) => {
     // Find a prompt card
     const card = page.locator('[data-testid="prompt-card"]').first();
+    await expect(card).toBeVisible({ timeout: 10000 });
 
-    // If card exists, verify it can receive focus
-    if (await card.count() > 0) {
-      // Tab until we reach a card (or its buttons)
-      for (let i = 0; i < 20; i++) {
-        await page.keyboard.press("Tab");
-        const focused = await page.evaluate(() => document.activeElement?.closest('[data-testid="prompt-card"]'));
-        if (focused) break;
-      }
-
-      // Verify a card-related element is focused
-      const focusedInCard = await page.evaluate(() => {
+    // Tab until we reach an interactive element inside a prompt card
+    let reachedCard = false;
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press("Tab");
+      const inCard = await page.evaluate(() => {
         const active = document.activeElement;
-        return active?.closest('[data-testid="prompt-card"]') !== null ||
-               active?.tagName === "BUTTON";
+        return active?.closest('[data-testid="prompt-card"]') !== null;
       });
-      expect(focusedInCard).toBe(true);
+      if (inCard) {
+        reachedCard = true;
+        break;
+      }
     }
+
+    // Verify we reached a focusable element within a prompt card
+    expect(reachedCard).toBe(true);
   });
 
   test("focus is visible on interactive elements", async ({ page }) => {

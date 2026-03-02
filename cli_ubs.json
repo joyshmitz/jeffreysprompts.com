@@ -1,0 +1,301 @@
+{
+  "project": "/data/projects/jeffreysprompts.com/packages/cli/src",
+  "timestamp": "2026-03-01 16:07:54",
+  "scanners": [
+    {
+      "project": "/data/projects/jeffreysprompts.com/packages/cli/src",
+      "timestamp": "2026-03-01T21:07:54Z",
+      "files": 41,
+      "critical": 10,
+      "warning": 644,
+      "info": 1714,
+      "version": "4.7",
+      "language": "js",
+      "extras": {
+        "deep_guard": {
+          "unguarded": 2,
+          "guarded": 0,
+          "samples": [
+            {
+              "file": "/tmp/tmp.h9M8VaOjzd/scan/commands/suggest.ts",
+              "line": 88,
+              "code": "text: `${r.prompt.title} ${r.prompt.description} ${r.prompt.tags.join(\" \")}`,"
+            }
+          ]
+        }
+      },
+      "findings": [
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All DOM queries appear to be guarded",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "Minimal optional chaining opportunities",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 2,
+          "title": "Deep property access detected",
+          "description": ""
+        },
+        {
+          "severity": "warning",
+          "count": 26,
+          "title": "Division by variable - verify non-zero",
+          "description": "Add guards: if (divisor === 0) throw; or use fallback"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "No direct NaN comparisons",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All NaN checks use Number.isNaN()",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 27,
+          "title": "Bitwise operations detected - ensure integer inputs",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 1,
+          "title": "Array offset access - review bounds checking",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All comparisons use strict equality",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 136,
+          "title": "Type comparisons - verify both sides match",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 10,
+          "title": "Truthy checks on .length/.size",
+          "description": "Prefer explicit comparisons"
+        },
+        {
+          "severity": "info",
+          "count": 56,
+          "title": "String concatenation with +",
+          "description": "Use Number() for math; template literals for strings"
+        },
+        {
+          "severity": "info",
+          "count": 109,
+          "title": "Async functions found",
+          "description": "Verifying proper await/error handling..."
+        },
+        {
+          "severity": "info",
+          "count": 2,
+          "title": "Promise.race/any usage - verify error handling",
+          "description": "Ensure losers don't cause side effects"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All async operations appear protected",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 0,
+          "title": "Async fallback disabled",
+          "description": "Run with --fail-on-warning to surface missing .catch()/try blocks when ast-grep is unavailable"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "Hooks dependency arrays look accurate",
+          "description": ""
+        },
+        {
+          "severity": "warning",
+          "count": 10,
+          "title": "Potentially unsafe type narrowing",
+          "description": "Examples: /tmp/tmp.h9M8VaOjzd/scan/commands/auth.ts:70:30 → Value 'creds' may still be null/undefined after guard /tmp/tmp.h9M8VaOjzd/scan/commands/bundles.ts:80:19 → Value 'bundle' may still be null/undefined after guard /tmp/tmp.h9M8VaOjzd/scan/commands/completion.ts:307:15 → Value 'output' may still be null/undefined after guard (and 7 more)"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "Error handling patterns look healthy",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "No eval() detected",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "No tainted sources reach dangerous sinks",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 55,
+          "title": "Arrow functions with { } - verify return intent",
+          "description": "() => {x:1} returns undefined; wrap object: () => ({x:1})"
+        },
+        {
+          "severity": "info",
+          "count": 309,
+          "title": "Many callback-style functions detected",
+          "description": "Review for unnecessary nesting; prefer async/await or Promises"
+        },
+        {
+          "severity": "warning",
+          "count": 24,
+          "title": "Function declarations in blocks - use function expressions",
+          "description": "Hoisting is inconsistent"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All parseInt calls specify radix",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "JSON.parse usage appears guarded by try/catch",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 34,
+          "title": "Date construction - verify input validation",
+          "description": "new Date('invalid') → Invalid Date"
+        },
+        {
+          "severity": "warning",
+          "count": 6,
+          "title": "Switch cases may be missing break",
+          "description": "Add break or /* falls through */"
+        },
+        {
+          "severity": "warning",
+          "count": 9,
+          "title": "Nested ternary operators - unreadable",
+          "description": "Refactor to if/else"
+        },
+        {
+          "severity": "warning",
+          "count": 565,
+          "title": "Many console.* statements",
+          "description": "Use a logging library"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "No debugger statements",
+          "description": ""
+        },
+        {
+          "severity": "warning",
+          "count": 4,
+          "title": "Blocking dialogs - poor UX",
+          "description": "Use modals or toast notifications instead"
+        },
+        {
+          "severity": "critical",
+          "count": 10,
+          "title": "Logging sensitive data",
+          "description": "Remove sensitive logs"
+        },
+        {
+          "severity": "info",
+          "count": 2,
+          "title": "Event listeners attached",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 2,
+          "title": "Event listeners removed",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "No var declarations (using let/const)",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "Using const appropriately",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 954,
+          "title": "Many variable declarations - check for unused vars",
+          "description": "Use ESLint no-unused-vars for precision"
+        },
+        {
+          "severity": "info",
+          "count": 1,
+          "title": "Minimal technical debt",
+          "description": ""
+        },
+        {
+          "severity": "info",
+          "count": 0,
+          "title": "DOM queries found",
+          "description": "Ensure all queries have null checks before property access"
+        },
+        {
+          "severity": "info",
+          "count": 1,
+          "title": "Explicit any types present",
+          "description": "Prefer unknown or generics"
+        },
+        {
+          "severity": "info",
+          "count": 13,
+          "title": "Non-null assertions used",
+          "description": "Audit for potential NPE at runtime"
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All tracked resource acquisitions have matching cleanups",
+          "description": ""
+        },
+        {
+          "severity": "good",
+          "count": 0,
+          "title": "All tracked resource acquisitions have matching cleanups",
+          "description": ""
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "critical": 10,
+    "warning": 644,
+    "info": 1714,
+    "files": 41
+  }
+}

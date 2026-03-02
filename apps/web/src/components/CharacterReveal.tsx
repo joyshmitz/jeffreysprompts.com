@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, memo } from "react";
 import { motion, useInView, useReducedMotion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +75,7 @@ const presetConfigs = {
  * </h1>
  * ```
  */
-export function CharacterReveal({
+export const CharacterReveal = memo(function CharacterReveal({
   text,
   className,
   delay = 0,
@@ -200,6 +200,6 @@ export function CharacterReveal({
       ))}
     </motion.div>
   );
-}
+});
 
 export default CharacterReveal;

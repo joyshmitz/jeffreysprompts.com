@@ -11,7 +11,7 @@
  * - Staggered entrance animations for visual flow
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Search, Sparkles, LayoutGrid, Zap, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,16 @@ export function Hero({
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasMounted = useRef(false);
+
+  // Stable callbacks for category pills - avoids new function per pill per render
+  const categoryClickHandlers = useMemo(() => {
+    const handlers = new Map<PromptCategory | null, () => void>();
+    handlers.set(null, () => onCategorySelect?.(null));
+    for (const cat of categories) {
+      handlers.set(cat, () => onCategorySelect?.(cat));
+    }
+    return handlers;
+  }, [categories, onCategorySelect]);
 
   const modifierKey =
     typeof navigator === "undefined"
@@ -244,7 +254,7 @@ export function Hero({
                     ? ""
                     : "bg-neutral-100/50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
                 )}
-                onClick={() => onCategorySelect?.(null)}
+                onClick={categoryClickHandlers.get(null)}
               >
                 All
               </MagneticButton>
@@ -262,7 +272,7 @@ export function Hero({
                       ? ""
                       : "bg-neutral-100/50 dark:bg-neutral-800/50 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
                   )}
-                  onClick={() => onCategorySelect?.(category)}
+                  onClick={categoryClickHandlers.get(category)}
                 >
                   {category}
                 </MagneticButton>

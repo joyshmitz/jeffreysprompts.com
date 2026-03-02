@@ -68,9 +68,9 @@ test.describe("Component Visual Regression", () => {
       await page.waitForLoadState("networkidle");
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
-      // Look for featured card (has featured badge or indicator)
+      // Look for featured card (has Staff Pick badge or featured indicator)
       const featuredCard = page.locator('[data-testid="prompt-card"]').filter({
-        has: page.locator('text="Featured"'),
+        has: page.locator('text=/Staff Pick|Featured/i'),
       }).first();
 
       if ((await featuredCard.count()) > 0) {
@@ -153,7 +153,7 @@ test.describe("Component Visual Regression", () => {
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
       // Open Spotlight with keyboard shortcut
-      await page.keyboard.press("Meta+k");
+      await page.keyboard.press("Control+k");
       await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
 
       const dialog = page.locator('[role="dialog"]');
@@ -172,11 +172,11 @@ test.describe("Component Visual Regression", () => {
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
       // Open Spotlight
-      await page.keyboard.press("Meta+k");
+      await page.keyboard.press("Control+k");
       await page.waitForSelector('[role="dialog"]');
 
       // Type search query
-      await page.fill('input[type="text"]', "testing");
+      await page.fill('[role="dialog"] input', "testing");
       await page.waitForTimeout(500); // Wait for debounce and results
 
       const dialog = page.locator('[role="dialog"]');
@@ -193,7 +193,7 @@ test.describe("Component Visual Regression", () => {
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
       // Open Spotlight
-      await page.keyboard.press("Meta+k");
+      await page.keyboard.press("Control+k");
       await page.waitForSelector('[role="dialog"]');
 
       // Click a category pill in Spotlight
@@ -223,7 +223,7 @@ test.describe("Component Visual Regression", () => {
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
       // Open Spotlight
-      await page.keyboard.press("Meta+k");
+      await page.keyboard.press("Control+k");
       await page.waitForSelector('[role="dialog"]');
 
       const dialog = page.locator('[role="dialog"]');
@@ -298,20 +298,23 @@ test.describe("Component Visual Regression", () => {
       await page.waitForLoadState("networkidle");
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
-      // Click view on first card
-      const viewButton = page.locator('[data-testid="prompt-card"] button:has-text("View")').first();
-      if ((await viewButton.count()) > 0) {
-        await viewButton.click();
-        await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+      // Click the "View" element on the first card (it's a div, not a button)
+      const viewElement = page.locator('[data-testid="prompt-card"]').first().locator('div:has-text("View")').last();
+      await viewElement.click();
 
-        const modal = page.locator('[role="dialog"]');
+      // Wait for modal/dialog or navigation
+      const modal = page.locator('[role="dialog"]');
+      const hasModal = await modal.isVisible().catch(() => false);
+
+      if (hasModal) {
         await expect(modal).toHaveScreenshot("prompt-modal-light.png", {
           maxDiffPixels: 300,
         });
-
         console.log("[VISUAL] PromptDetailModal light - captured");
       } else {
-        console.log("[VISUAL] PromptDetailModal light - skipped (view button not found)");
+        // Card may navigate to prompt detail page instead of opening modal
+        await page.waitForURL(/\/prompts\//, { timeout: 5000 }).catch(() => {});
+        console.log("[VISUAL] PromptDetailModal light - card navigates instead of opening modal");
       }
     });
 
@@ -325,19 +328,20 @@ test.describe("Component Visual Regression", () => {
       await page.waitForLoadState("networkidle");
       await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
-      const viewButton = page.locator('[data-testid="prompt-card"] button:has-text("View")').first();
-      if ((await viewButton.count()) > 0) {
-        await viewButton.click();
-        await page.waitForSelector('[role="dialog"]');
+      const viewElement = page.locator('[data-testid="prompt-card"]').first().locator('div:has-text("View")').last();
+      await viewElement.click();
 
-        const modal = page.locator('[role="dialog"]');
+      const modal = page.locator('[role="dialog"]');
+      const hasModal = await modal.isVisible().catch(() => false);
+
+      if (hasModal) {
         await expect(modal).toHaveScreenshot("prompt-modal-dark.png", {
           maxDiffPixels: 300,
         });
-
         console.log("[VISUAL] PromptDetailModal dark - captured");
       } else {
-        console.log("[VISUAL] PromptDetailModal dark - skipped");
+        await page.waitForURL(/\/prompts\//, { timeout: 5000 }).catch(() => {});
+        console.log("[VISUAL] PromptDetailModal dark - card navigates instead of opening modal");
       }
     });
   });

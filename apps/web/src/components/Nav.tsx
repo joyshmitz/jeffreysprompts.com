@@ -1,13 +1,12 @@
 "use client";
 
-import { Menu, X, Sparkles, ShoppingBasket, Crown } from "lucide-react";
+import { Menu, X, Sparkles, ShoppingBasket, Crown, Search } from "lucide-react";
 import { ViewTransitionLink } from "./ViewTransitionLink";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { SpotlightTrigger } from "./SpotlightSearch";
 import { BasketSidebar } from "./BasketSidebar";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
@@ -26,18 +25,18 @@ function useScrollHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
+  const isMobileRef = useRef(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
 
   const updateScrollState = useCallback(() => {
     const scrollY = window.scrollY;
     const scrollDelta = scrollY - lastScrollY.current;
 
-    // Only hide/show on mobile (check viewport width)
-    const isMobile = window.innerWidth < 768;
-
     // Update scrolled state (for shadow)
     setIsScrolled(scrollY > 20);
 
-    if (isMobile) {
+    if (isMobileRef.current) {
       // Hide on scroll down (after scrolling 50px), show on scroll up
       if (scrollDelta > 10 && scrollY > 100) {
         setIsHidden(true);
@@ -61,19 +60,20 @@ function useScrollHeader() {
       }
     };
 
-    // Also handle resize to reset on viewport change
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsHidden(false);
-      }
+    // Track mobile breakpoint via matchMedia instead of reading innerWidth per frame
+    const mql = window.matchMedia("(max-width: 767px)");
+    const handleBreakpoint = (e: MediaQueryListEvent | MediaQueryList) => {
+      isMobileRef.current = e.matches;
+      if (!e.matches) setIsHidden(false);
     };
+    handleBreakpoint(mql);
+    mql.addEventListener("change", handleBreakpoint);
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleResize, { passive: true });
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
+      mql.removeEventListener("change", handleBreakpoint);
     };
   }, [updateScrollState]);
 
@@ -82,6 +82,7 @@ function useScrollHeader() {
 
 // Pro site URL - use env var if available, otherwise default
 const PRO_URL = process.env.NEXT_PUBLIC_PRO_URL ?? "https://pro.jeffreysprompts.com";
+const openProSite = () => window.open(PRO_URL, "_blank");
 
 // Simplified nav - only essential links. Workflows + How It Was Made moved to footer.
 const navLinks = [
@@ -102,6 +103,9 @@ export function Nav() {
   const [basketOpen, setBasketOpen] = useState(false);
   const { items } = useBasket();
   const { isHidden, isScrolled } = useScrollHeader();
+  const openSpotlight = useCallback(() => {
+    window.dispatchEvent(new Event("jfp:open-spotlight"));
+  }, []);
 
   useEffect(() => {
     const handleToggleBasket = () => {
@@ -190,7 +194,7 @@ export function Nav() {
             strength={0.15}
             glowColor="rgba(99, 102, 241, 0.2)"
             className="hidden lg:flex items-center gap-1.5 h-10 px-5 rounded-full font-bold"
-            onClick={() => window.open(PRO_URL, "_blank")}
+            onClick={openProSite}
           >
             <Crown className="h-4 w-4 text-white" />
             <span>Go Pro</span>
@@ -200,7 +204,14 @@ export function Nav() {
             <div className="hidden sm:block mr-1">
               <LanguageSwitcher />
             </div>
-            <SpotlightTrigger hideText className="mr-1 size-10 p-0 border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full flex items-center justify-center" />
+            <button
+              type="button"
+              onClick={openSpotlight}
+              aria-label="Search prompts (Cmd+K)"
+              className="mr-1 size-10 p-0 border-none bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full flex items-center justify-center text-muted-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Search className="size-5" aria-hidden="true" />
+            </button>
             <Button
               variant="ghost"
               size="icon"

@@ -65,7 +65,7 @@ export function MagneticButton({
   const enableMagnetic = !prefersReducedMotion && !isTouch && !disabled;
   const [isHovered, setIsHovered] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
-  const [glowPosition, setGlowPosition] = useState({ x: 50, y: 50 });
+  const glowRef = useRef<HTMLDivElement>(null);
 
   // Spring configuration for magnetic movement
   const springConfig = { stiffness: 400, damping: 30 };
@@ -91,17 +91,21 @@ export function MagneticButton({
     x.set(deltaX * strength);
     y.set(deltaY * strength);
 
-    // Update glow position (percentage based)
-    const glowX = ((e.clientX - rect.left) / rect.width) * 100;
-    const glowY = ((e.clientY - rect.top) / rect.height) * 100;
-    setGlowPosition({ x: glowX, y: glowY });
+    // Update glow position directly via ref (avoids React re-render)
+    if (glowRef.current) {
+      const glowX = ((e.clientX - rect.left) / rect.width) * 100;
+      const glowY = ((e.clientY - rect.top) / rect.height) * 100;
+      glowRef.current.style.background = `radial-gradient(circle at ${glowX}% ${glowY}%, ${glowColor}, transparent 70%)`;
+    }
   };
 
   const handleMouseLeave = () => {
     x.set(0);
     y.set(0);
     setIsHovered(false);
-    setGlowPosition({ x: 50, y: 50 });
+    if (glowRef.current) {
+      glowRef.current.style.background = `radial-gradient(circle at 50% 50%, ${glowColor}, transparent 70%)`;
+    }
   };
 
   const handleMouseEnter = () => {
@@ -173,11 +177,12 @@ export function MagneticButton({
         className
       )}
     >
-      {/* Glow effect layer */}
+      {/* Glow effect layer - position updated via ref to avoid re-renders */}
       <motion.div
+        ref={glowRef}
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle at ${glowPosition.x}% ${glowPosition.y}%, ${glowColor}, transparent 70%)`,
+          background: `radial-gradient(circle at 50% 50%, ${glowColor}, transparent 70%)`,
         }}
         animate={{
           opacity: isHovered ? glowIntensity : 0,

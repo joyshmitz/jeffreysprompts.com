@@ -91,7 +91,7 @@ test.describe("Mobile Visual Regression", () => {
     await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
     // On mobile, Spotlight takes full screen
-    await page.keyboard.press("Meta+k");
+    await page.keyboard.press("Control+k");
     await page.waitForSelector('[role="dialog"]');
     await page.waitForTimeout(300);
 
@@ -109,10 +109,10 @@ test.describe("Mobile Visual Regression", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.getByText("The Idea Wizard")).toBeVisible({ timeout: 10000 });
 
-    await page.keyboard.press("Meta+k");
+    await page.keyboard.press("Control+k");
     await page.waitForSelector('[role="dialog"]');
 
-    await page.fill('input[type="text"]', "test");
+    await page.fill('[role="dialog"] input', "test");
     await page.waitForTimeout(500);
 
     const dialog = page.locator('[role="dialog"]');

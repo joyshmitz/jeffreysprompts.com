@@ -56,34 +56,33 @@ test.describe("Screen Reader Support", () => {
 
   test("links have descriptive text", async ({ page }) => {
     const links = await page.locator("a[href]").all();
+    const linksWithoutText: string[] = [];
 
     for (const link of links) {
       const ariaLabel = await link.getAttribute("aria-label");
       const ariaLabelledby = await link.getAttribute("aria-labelledby");
       const textContent = await link.textContent();
 
-      // Skip empty/hidden links or those with sr-only children
-      if (!textContent && !ariaLabel && !ariaLabelledby) {
+      // Skip links with sr-only children (accessible via screen reader)
+      if (!textContent?.trim() && !ariaLabel && !ariaLabelledby) {
         const srOnly = await link.locator(".sr-only").count();
         if (srOnly > 0) continue;
 
         const outerHtml = await link.evaluate((el) => el.outerHTML.slice(0, 200));
-        console.warn("Link without accessible text:", outerHtml);
-      }
-
-      // Check for generic "click here" or "read more" without context
-      if (textContent) {
-        const genericPatterns = /^(click here|read more|here|more|link)$/i;
-        if (genericPatterns.test(textContent.trim())) {
-          console.warn("Generic link text found:", textContent);
-        }
+        linksWithoutText.push(outerHtml);
       }
     }
+
+    if (linksWithoutText.length > 0) {
+      console.warn("Links without accessible text:", linksWithoutText);
+    }
+    expect(linksWithoutText).toEqual([]);
   });
 
   test("decorative icons have aria-hidden", async ({ page }) => {
     // Check SVG icons in buttons (should be aria-hidden)
     const buttonSvgs = await page.locator("button svg").all();
+    const iconsWithoutAriaHidden: string[] = [];
 
     for (const svg of buttonSvgs) {
       const ariaHidden = await svg.getAttribute("aria-hidden");
@@ -93,10 +92,15 @@ test.describe("Screen Reader Support", () => {
       const isHidden = ariaHidden === "true" || role === "presentation" || role === "img";
 
       if (!isHidden) {
-        const parentButton = await svg.evaluate((el) => el.closest("button")?.outerHTML.slice(0, 150));
-        console.warn("Icon may need aria-hidden:", parentButton);
+        const parentButton = await svg.evaluate((el) => el.closest("button")?.outerHTML.slice(0, 150) ?? "unknown");
+        iconsWithoutAriaHidden.push(parentButton);
       }
     }
+
+    if (iconsWithoutAriaHidden.length > 0) {
+      console.warn("Icons without aria-hidden:", iconsWithoutAriaHidden);
+    }
+    expect(iconsWithoutAriaHidden).toEqual([]);
   });
 
   test("aria-live regions exist for dynamic content", async ({ page }) => {
@@ -179,40 +183,41 @@ test.describe("Screen Reader Support", () => {
 test.describe("ARIA Widget Patterns", () => {
   test("dialogs have proper ARIA attributes", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
-    // Open a dialog (e.g., spotlight search)
+    // Open spotlight search dialog
     await page.keyboard.press("Control+k");
-    await page.waitForTimeout(500);
 
     const dialog = page.locator('[role="dialog"]');
-    const isVisible = await dialog.isVisible().catch(() => false);
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
-    if (isVisible) {
-      // Dialog should have aria-modal
-      const ariaModal = await dialog.getAttribute("aria-modal");
-      expect(ariaModal).toBe("true");
+    // Dialog should have aria-modal
+    const ariaModal = await dialog.getAttribute("aria-modal");
+    expect(ariaModal).toBe("true");
 
-      // Dialog should have aria-labelledby or aria-label
-      const ariaLabel = await dialog.getAttribute("aria-label");
-      const ariaLabelledby = await dialog.getAttribute("aria-labelledby");
-      expect(ariaLabel || ariaLabelledby).toBeTruthy();
-    }
+    // Dialog should have aria-labelledby or aria-label
+    const ariaLabel = await dialog.getAttribute("aria-label");
+    const ariaLabelledby = await dialog.getAttribute("aria-labelledby");
+    expect(ariaLabel || ariaLabelledby).toBeTruthy();
   });
 
   test("combobox search has proper ARIA", async ({ page }) => {
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
 
     // Open spotlight search
     await page.keyboard.press("Control+k");
-    await page.waitForTimeout(500);
+
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
     const combobox = page.locator('[role="combobox"]');
-    const isVisible = await combobox.isVisible().catch(() => false);
+    const hasCombobox = (await combobox.count()) > 0;
 
-    if (isVisible) {
-      // Combobox should have aria-expanded
+    if (hasCombobox) {
+      // Combobox should have aria-expanded attribute (value can be "true" or "false")
       const ariaExpanded = await combobox.getAttribute("aria-expanded");
-      expect(ariaExpanded).toBeTruthy();
+      expect(ariaExpanded).not.toBeNull();
 
       // Should have aria-controls pointing to listbox
       const ariaControls = await combobox.getAttribute("aria-controls");
@@ -221,6 +226,10 @@ test.describe("ARIA Widget Patterns", () => {
       // Should have aria-autocomplete
       const ariaAutocomplete = await combobox.getAttribute("aria-autocomplete");
       expect(ariaAutocomplete).toBeTruthy();
+    } else {
+      // If no combobox role, at least verify the search input exists
+      const searchInput = dialog.locator('input[type="search"], input[type="text"]');
+      await expect(searchInput).toBeVisible();
     }
   });
 

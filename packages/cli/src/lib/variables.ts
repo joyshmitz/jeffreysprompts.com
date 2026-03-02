@@ -17,11 +17,13 @@ export const MAX_FILE_VAR_SIZE = 102400;
  */
 export function parseVariables(args: string[]): Record<string, string> {
   const vars: Record<string, string> = {};
-  for (const arg of args) {
-    // Match template extraction pattern: [a-zA-Z0-9_]+
-    const match = arg.match(/^--([a-zA-Z][a-zA-Z0-9_]*)=(.*)$/);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    // Match --VAR=value format
+    let match = arg.match(/^--([a-zA-Z][a-zA-Z0-9_]*)=(.*)$/);
     if (match) {
       vars[match[1]] = match[2];
+      continue;
     }
   }
   return vars;

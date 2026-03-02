@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -22,15 +22,17 @@ export function TagFilter({
   maxVisible = 15,
   className,
 }: TagFilterProps) {
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+
   const handleToggle = useCallback(
     (tag: string) => {
-      if (selected.includes(tag)) {
+      if (selectedSet.has(tag)) {
         onChange(selected.filter((t) => t !== tag));
       } else {
         onChange([...selected, tag]);
       }
     },
-    [selected, onChange]
+    [selected, selectedSet, onChange]
   );
 
   const handleClear = useCallback(() => {
@@ -39,8 +41,8 @@ export function TagFilter({
 
   // Sort tags: selected first, then by count (if available), then alphabetically
   const sortedTags = [...tags].sort((a, b) => {
-    const aSelected = selected.includes(a);
-    const bSelected = selected.includes(b);
+    const aSelected = selectedSet.has(a);
+    const bSelected = selectedSet.has(b);
     if (aSelected && !bSelected) return -1;
     if (!aSelected && bSelected) return 1;
     
@@ -79,7 +81,7 @@ export function TagFilter({
         className="flex flex-wrap gap-2"
       >
         {visibleTags.map((tag) => {
-          const isSelected = selected.includes(tag);
+          const isSelected = selectedSet.has(tag);
           return (
             <button
               key={tag}

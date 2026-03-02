@@ -43,7 +43,7 @@ export function ReferralCard({ className }: ReferralCardProps) {
     async function fetchCode() {
       try {
         const response = await fetch("/api/referral/code", { signal: controller.signal });
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (!mounted) return;
         if (data.success) {
           setReferralData(data.data);

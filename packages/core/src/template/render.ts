@@ -15,7 +15,16 @@ function applyVariableDefaults(
       .filter((v) => v.default !== undefined)
       .map((v) => [v.name, String(v.default)])
   );
-  return { ...defaults, ...vars };
+  
+  const merged = { ...defaults };
+  for (const [k, v] of Object.entries(vars)) {
+    if (v !== undefined && v !== "") {
+      merged[k] = v;
+    } else if (v === "" && defaults[k] === undefined) {
+      merged[k] = v;
+    }
+  }
+  return merged;
 }
 
 /**

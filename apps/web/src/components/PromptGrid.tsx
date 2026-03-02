@@ -1,14 +1,22 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { PromptCard } from "./PromptCard";
-import { SwipeablePromptCard } from "@/components/mobile/SwipeablePromptCard";
+import { useCallback, useMemo } from "react";
+import { PromptCardPure } from "./PromptCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsSmallScreen } from "@/hooks/useIsMobile";
+import { useBasket } from "@/hooks/use-basket";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
+
+const SwipeablePromptCard = dynamic(
+  () => import("@/components/mobile/SwipeablePromptCard").then((mod) => mod.SwipeablePromptCard)
+);
 
 interface PromptGridProps {
   prompts: Prompt[];
+  ratingSummaries?: Record<string, RatingSummary>;
   loading?: boolean;
   onPromptCopy?: (prompt: Prompt) => void;
   onPromptClick?: (prompt: Prompt) => void;
@@ -16,11 +24,22 @@ interface PromptGridProps {
 
 export function PromptGrid({
   prompts,
+  ratingSummaries,
   loading = false,
   onPromptCopy,
   onPromptClick,
 }: PromptGridProps) {
   const isMobile = useIsSmallScreen();
+  const { items, addItem } = useBasket();
+
+  const basketSet = useMemo(() => new Set(items), [items]);
+
+  const handleAddToBasket = useCallback(
+    (prompt: Prompt) => {
+      addItem(prompt.id);
+    },
+    [addItem]
+  );
 
   if (loading) {
     return (
@@ -49,15 +68,16 @@ export function PromptGrid({
 
   return (
     <div
-      className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 content-visibility-auto"
     >
-      <AnimatePresence mode="sync" initial={false}>
+      <AnimatePresence mode="popLayout" initial={false}>
         {prompts.map((prompt, index) => (
           <motion.div
             key={prompt.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            layout="position"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className="h-full"
           >
@@ -65,6 +85,9 @@ export function PromptGrid({
               <div>
                 <SwipeablePromptCard
                   prompt={prompt}
+                  ratingSummary={ratingSummaries ? (ratingSummaries[prompt.id] ?? null) : undefined}
+                  inBasket={basketSet.has(prompt.id)}
+                  onAddToBasket={handleAddToBasket}
                   index={index}
                   onCopy={onPromptCopy}
                   onClick={onPromptClick}
@@ -72,8 +95,11 @@ export function PromptGrid({
                 />
               </div>
             ) : (
-              <PromptCard
+              <PromptCardPure
                 prompt={prompt}
+                ratingSummary={ratingSummaries ? (ratingSummaries[prompt.id] ?? null) : undefined}
+                inBasket={basketSet.has(prompt.id)}
+                onAddToBasket={handleAddToBasket}
                 index={index}
                 onCopy={onPromptCopy}
                 onClick={onPromptClick}

@@ -81,7 +81,7 @@ export function useFilterState(): UseFilterStateReturn {
 
   // Update URL with new params
   const updateUrl = useCallback(
-    (updates: Partial<FilterState>) => {
+    (updates: Partial<FilterState>, options?: { replace?: boolean }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if ("query" in updates) {
@@ -128,14 +128,18 @@ export function useFilterState(): UseFilterStateReturn {
         ? `${pathname}?${params.toString()}`
         : pathname;
 
-      router.push(newUrl, { scroll: false });
+      if (options?.replace) {
+        router.replace(newUrl, { scroll: false });
+      } else {
+        router.push(newUrl, { scroll: false });
+      }
     },
     [searchParams, router, pathname]
   );
 
   const setQuery = useCallback(
     (query: string) => {
-      updateUrl({ query });
+      updateUrl({ query }, { replace: true });
     },
     [updateUrl]
   );

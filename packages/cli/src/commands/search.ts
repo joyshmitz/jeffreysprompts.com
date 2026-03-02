@@ -97,7 +97,7 @@ function searchOffline(query: string, limit: number): MergedSearchResult[] {
     tags: p.tags || [],
     author: "",
     version: "1.0.0",
-    created: p.saved_at,
+    created: (p.saved_at || new Date().toISOString()).split("T")[0],
     featured: false,
   }));
 

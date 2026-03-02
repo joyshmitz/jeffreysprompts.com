@@ -1,15 +1,19 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, Sparkles } from "lucide-react";
-import { PromptCard } from "@/components/PromptCard";
+import { PromptCardPure } from "@/components/PromptCard";
+import { useBasket } from "@/hooks/use-basket";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
 
 interface FeaturedPromptsSectionProps {
   prompts: Prompt[];
   totalCount: number;
   onPromptClick: (prompt: Prompt) => void;
   onPromptCopy?: (prompt: Prompt) => void;
+  ratingSummaries?: Record<string, RatingSummary>;
 }
 
 export function FeaturedPromptsSection({
@@ -17,7 +21,17 @@ export function FeaturedPromptsSection({
   totalCount,
   onPromptClick,
   onPromptCopy,
+  ratingSummaries,
 }: FeaturedPromptsSectionProps) {
+  const { items, addItem } = useBasket();
+  const basketSet = useMemo(() => new Set(items), [items]);
+  const handleAddToBasket = useCallback(
+    (prompt: Prompt) => {
+      addItem(prompt.id);
+    },
+    [addItem]
+  );
+
   // Take first 6 prompts (featured ones should be at the front)
   const featuredPrompts = prompts.slice(0, 6);
 
@@ -54,47 +68,25 @@ export function FeaturedPromptsSection({
           </a>
         </motion.div>
 
-        {/* Mobile: Horizontal scroll */}
-        <div className="lg:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-4 pb-4" style={{ width: "max-content" }}>
+        <div className="-mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto lg:overflow-visible scrollbar-hide">
+          <div className="flex lg:grid lg:grid-cols-3 gap-4 lg:gap-6 pb-4 lg:pb-0 w-max lg:w-auto">
             {featuredPrompts.map((prompt, index) => (
-              <motion.div
+              <div
                 key={prompt.id}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="w-[300px] flex-shrink-0"
+                className="w-[300px] lg:w-auto flex-shrink-0 lg:flex-shrink"
               >
-                <PromptCard
+                <PromptCardPure
                   prompt={prompt}
+                  ratingSummary={ratingSummaries?.[prompt.id] ?? null}
+                  inBasket={basketSet.has(prompt.id)}
+                  onAddToBasket={handleAddToBasket}
                   index={index}
-                  onClick={() => onPromptClick(prompt)}
-                  onCopy={() => onPromptCopy?.(prompt)}
+                  onClick={onPromptClick}
+                  onCopy={onPromptCopy}
                 />
-              </motion.div>
+              </div>
             ))}
           </div>
-        </div>
-
-        {/* Desktop: 3x2 Grid */}
-        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
-          {featuredPrompts.map((prompt, index) => (
-            <motion.div
-              key={prompt.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <PromptCard
-                prompt={prompt}
-                index={index}
-                onClick={() => onPromptClick(prompt)}
-                onCopy={() => onPromptCopy?.(prompt)}
-              />
-            </motion.div>
-          ))}
         </div>
       </div>
     </section>

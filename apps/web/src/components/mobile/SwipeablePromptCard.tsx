@@ -2,34 +2,37 @@
 
 import {
   useCallback,
+  memo,
   useState,
   useRef,
   useEffect,
   type ReactNode,
 } from "react";
-import { motion, useAnimation, AnimatePresence } from "framer-motion";
+import { motion, useAnimation, useTransform, AnimatePresence } from "framer-motion";
 import { Copy, Check, ShoppingBasket, Plus, Heart, Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PromptCard } from "@/components/PromptCard";
+import { PromptCardPure } from "@/components/PromptCard";
 import { GestureHint } from "@/components/onboarding";
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useIsSmallScreen } from "@/hooks/useIsMobile";
-import { useBasket } from "@/hooks/use-basket";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useToast } from "@/components/ui/toast";
 import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
 import { focusTrap } from "@/lib/accessibility";
 import type { Prompt } from "@jeffreysprompts/core/prompts/types";
+import type { RatingSummary } from "@/lib/ratings/rating-store";
 
 interface SwipeablePromptCardProps {
   prompt: Prompt;
+  ratingSummary?: RatingSummary | null;
   index?: number;
   onCopy?: (prompt: Prompt) => void;
   onClick?: (prompt: Prompt) => void;
   onSave?: (prompt: Prompt) => void;
   isMobile?: boolean;
+  inBasket: boolean;
+  onAddToBasket: (prompt: Prompt) => void;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -37,25 +40,25 @@ const SWIPE_COMPLETE_THRESHOLD = 120;
 const DOUBLE_TAP_DELAY = 300;
 const LONG_PRESS_DELAY = 500;
 
-export function SwipeablePromptCard({
+export const SwipeablePromptCard = memo(function SwipeablePromptCard({
   prompt,
+  ratingSummary,
   index = 0,
   onCopy,
   onClick,
   onSave,
   isMobile: isMobileProp,
+  inBasket,
+  onAddToBasket,
 }: SwipeablePromptCardProps) {
-  const fallbackIsMobile = useIsSmallScreen();
   const [actionTriggered, setActionTriggered] = useState<"copy" | "basket" | "save" | null>(null);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const controls = useAnimation();
   const haptic = useHaptic();
   const { success, error } = useToast();
-  const { addItem, isInBasket } = useBasket();
   const { shouldShowHint, dismissHint } = useOnboarding();
   const showGestureHint = shouldShowHint("swipe-gestures");
-  const inBasket = isInBasket(prompt.id);
   const lastHapticThreshold = useRef(0);
   const lastTapTime = useRef(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,7 +135,7 @@ export function SwipeablePromptCard({
     return timer;
   }, []);
 
-  const isMobile = typeof isMobileProp === "boolean" ? isMobileProp : fallbackIsMobile;
+  const isMobile = Boolean(isMobileProp);
 
   const handleCopy = useCallback(async () => {
     const result = await copyToClipboard(prompt.content);
@@ -152,12 +155,12 @@ export function SwipeablePromptCard({
 
   const handleAddToBasket = useCallback(() => {
     if (inBasket) return;
-    addItem(prompt.id);
+    onAddToBasket(prompt);
     haptic.success();
     success("Added to basket", prompt.title, { duration: 3000 });
     setActionTriggered("basket");
     safeTimeout(() => setActionTriggered(null), 1500);
-  }, [prompt, inBasket, addItem, haptic, success, safeTimeout]);
+  }, [inBasket, onAddToBasket, prompt, haptic, success, safeTimeout]);
 
   const handleDoubleTap = useCallback(() => {
     setShowHeartAnimation(true);
@@ -214,7 +217,8 @@ export function SwipeablePromptCard({
   const { handlers, state } = useSwipeGesture(
     {
       onSwipeMove: (s) => {
-        const absX = Math.abs(s.deltaX);
+        const deltaX = s.deltaX.get();
+        const absX = Math.abs(deltaX);
         if (absX >= SWIPE_THRESHOLD && lastHapticThreshold.current < SWIPE_THRESHOLD) {
           haptic.medium();
           lastHapticThreshold.current = SWIPE_THRESHOLD;
@@ -223,11 +227,18 @@ export function SwipeablePromptCard({
           haptic.heavy();
           lastHapticThreshold.current = SWIPE_COMPLETE_THRESHOLD;
         }
+
+        const clampedX = Math.max(
+          -SWIPE_COMPLETE_THRESHOLD - 20,
+          Math.min(SWIPE_COMPLETE_THRESHOLD + 20, deltaX)
+        );
+        controls.set({ x: clampedX });
       },
       onSwipeEnd: (s) => {
         lastHapticThreshold.current = 0;
-        if (Math.abs(s.deltaX) >= SWIPE_COMPLETE_THRESHOLD || s.velocity > 0.8) {
-          if (s.deltaX < 0) {
+        const deltaX = s.deltaX.get();
+        if (Math.abs(deltaX) >= SWIPE_COMPLETE_THRESHOLD || s.velocity > 0.8) {
+          if (deltaX < 0) {
             handleCopy();
           } else {
             handleAddToBasket();
@@ -242,26 +253,28 @@ export function SwipeablePromptCard({
     { axis: "horizontal", threshold: SWIPE_THRESHOLD, velocityThreshold: 0.8 }
   );
 
-  useEffect(() => {
-    if (state.isSwiping) {
-      const clampedX = Math.max(-SWIPE_COMPLETE_THRESHOLD - 20, Math.min(SWIPE_COMPLETE_THRESHOLD + 20, state.deltaX));
-      controls.set({ x: clampedX });
-    }
-  }, [state.deltaX, state.isSwiping, controls]);
+  const leftProgress = useTransform(state.deltaX, (x) =>
+    Math.min(1, Math.max(0, -x / SWIPE_COMPLETE_THRESHOLD))
+  );
+  const rightProgress = useTransform(state.deltaX, (x) =>
+    Math.min(1, Math.max(0, x / SWIPE_COMPLETE_THRESHOLD))
+  );
+  const leftRevealWidth = useTransform(state.deltaX, (x) => Math.max(0, -x) + 80);
+  const rightRevealWidth = useTransform(state.deltaX, (x) => Math.max(0, x) + 80);
 
   if (!isMobile) {
     return (
-      <PromptCard
+      <PromptCardPure
         prompt={prompt}
+        ratingSummary={ratingSummary}
+        inBasket={inBasket}
+        onAddToBasket={onAddToBasket}
         index={index}
         onCopy={onCopy}
         onClick={onClick}
       />
     );
   }
-
-  const leftProgress = Math.min(1, Math.max(0, -state.deltaX / SWIPE_COMPLETE_THRESHOLD));
-  const rightProgress = Math.min(1, Math.max(0, state.deltaX / SWIPE_COMPLETE_THRESHOLD));
 
   return (
     <div className="relative overflow-hidden rounded-2xl h-full shadow-sm">
@@ -273,7 +286,7 @@ export function SwipeablePromptCard({
           actionTriggered === "copy" && "from-emerald-500 to-emerald-400"
         )}
         style={{
-          width: `${Math.max(0, -state.deltaX) + 80}px`,
+          width: leftRevealWidth,
           opacity: leftProgress,
         }}
       >
@@ -318,7 +331,7 @@ export function SwipeablePromptCard({
           actionTriggered === "basket" && "from-emerald-500 to-emerald-400"
         )}
         style={{
-          width: `${Math.max(0, state.deltaX) + 80}px`,
+          width: rightRevealWidth,
           opacity: rightProgress,
         }}
       >
@@ -352,8 +365,11 @@ export function SwipeablePromptCard({
         }}
       >
         <div className="h-full">
-          <PromptCard
+          <PromptCardPure
             prompt={prompt}
+            ratingSummary={ratingSummary}
+            inBasket={inBasket}
+            onAddToBasket={onAddToBasket}
             index={index}
             onCopy={onCopy}
             onClick={onClick}
@@ -501,6 +517,8 @@ export function SwipeablePromptCard({
       </AnimatePresence>
     </div>
   );
-}
+});
+
+SwipeablePromptCard.displayName = "SwipeablePromptCard";
 
 export default SwipeablePromptCard;

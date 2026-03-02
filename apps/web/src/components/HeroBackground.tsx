@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 /**
@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
  * - Grainy texture overlay for premium depth
  * - Respects reduced motion settings
  * - Optimized for zero layout shift
+ * - Uses CSS @keyframes instead of Framer Motion for infinite animations (compositor thread)
  */
 export function HeroBackground() {
   const prefersReducedMotion = useReducedMotion();
@@ -23,59 +24,32 @@ export function HeroBackground() {
 
   if (!mounted) return null;
 
+  const animate = !prefersReducedMotion;
+
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none select-none">
       {/* Base background */}
       <div className="absolute inset-0 bg-neutral-50 dark:bg-neutral-950 transition-colors duration-500" />
 
-      {/* Animated Mesh Blobs */}
-      {!prefersReducedMotion && (
+      {/* Animated Mesh Blobs - CSS @keyframes for compositor-thread animation */}
+      {animate && (
         <>
           {/* Cyan Blob */}
-          <motion.div
-            animate={{
-              x: [0, 50, -30, 0],
-              y: [0, -40, 60, 0],
-              scale: [1, 1.1, 0.9, 1],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+          <div
             className="absolute -top-[10%] -left-[10%] w-[50%] h-[60%] rounded-full bg-cyan-400/20 dark:bg-cyan-500/10 blur-[120px] mix-blend-multiply dark:mix-blend-screen will-change-transform"
+            style={{ animation: "hero-blob-cyan 25s ease-in-out infinite" }}
           />
 
           {/* Amber Blob */}
-          <motion.div
-            animate={{
-              x: [0, -60, 40, 0],
-              y: [0, 50, -40, 0],
-              scale: [1, 0.9, 1.1, 1],
-            }}
-            transition={{
-              duration: 30,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1,
-            }}
+          <div
             className="absolute top-[20%] -right-[10%] w-[45%] h-[55%] rounded-full bg-amber-400/15 dark:bg-amber-500/10 blur-[100px] mix-blend-multiply dark:mix-blend-screen will-change-transform"
+            style={{ animation: "hero-blob-amber 30s ease-in-out 1s infinite" }}
           />
 
           {/* Purple Blob */}
-          <motion.div
-            animate={{
-              x: [0, 40, -50, 0],
-              y: [0, 60, -30, 0],
-              scale: [1, 1.2, 0.8, 1],
-            }}
-            transition={{
-              duration: 22,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 2,
-            }}
+          <div
             className="absolute -bottom-[20%] left-[20%] w-[60%] h-[50%] rounded-full bg-purple-400/10 dark:bg-purple-500/10 blur-[140px] mix-blend-multiply dark:mix-blend-screen will-change-transform"
+            style={{ animation: "hero-blob-purple 22s ease-in-out 2s infinite" }}
           />
         </>
       )}

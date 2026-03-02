@@ -9,10 +9,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { prompts, categories, tags } from "@jeffreysprompts/core/prompts/registry";
-import { bundles } from "@jeffreysprompts/core/prompts/bundles";
-import { workflows } from "@jeffreysprompts/core/prompts/workflows";
-import { getPrompt } from "@jeffreysprompts/core/prompts/registry";
+import { prompts } from "@jeffreysprompts/core/prompts/registry";
 import { GET } from "./route";
 
 // Provide real registry data for the barrel import used by the route handler

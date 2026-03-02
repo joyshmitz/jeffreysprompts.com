@@ -62,13 +62,13 @@ async function trySpawn(cmd: string[], input: string): Promise<boolean> {
     });
 
     const writeAndWait = async () => {
-      if (proc!.stdin && typeof proc!.stdin !== "number") {
+      if (proc?.stdin && typeof proc.stdin !== "number") {
         const encoder = new TextEncoder();
         const data = encoder.encode(input);
-        await proc!.stdin.write(data);
-        await proc!.stdin.end();
+        await proc.stdin.write(data);
+        await proc.stdin.end();
       }
-      return proc!.exited;
+      return proc?.exited;
     };
 
     // Race between process exit and timeout

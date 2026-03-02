@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useCallback, useState } from "react";
+import { useMotionValue, MotionValue } from "framer-motion";
 
 export type SwipeDirection = "left" | "right" | "up" | "down" | null;
 
@@ -8,9 +9,9 @@ interface SwipeState {
   /** Whether a swipe is currently in progress */
   isSwiping: boolean;
   /** Current horizontal displacement */
-  deltaX: number;
+  deltaX: MotionValue<number>;
   /** Current vertical displacement */
-  deltaY: number;
+  deltaY: MotionValue<number>;
   /** Detected swipe direction (null if not determined) */
   direction: SwipeDirection;
   /** Swipe velocity (pixels per millisecond) */
@@ -42,29 +43,10 @@ interface SwipeHandlers {
  * useSwipeGesture - Hook for detecting swipe gestures on touch devices.
  *
  * Features:
+ * - Uses Framer Motion's useMotionValue to bypass React render cycle during drags
  * - Configurable swipe threshold and velocity
  * - Axis locking (horizontal, vertical, or both)
  * - Velocity-based dismissal
- * - Spring-back animation support via state
- *
- * @example
- * ```tsx
- * function SwipeableCard() {
- *   const { handlers, state, reset } = useSwipeGesture({
- *     onSwipeLeft: () => console.log("Swiped left!"),
- *     onSwipeRight: () => console.log("Swiped right!"),
- *   });
- *
- *   return (
- *     <div
- *       {...handlers}
- *       style={{ transform: `translateX(${state.deltaX}px)` }}
- *     >
- *       Swipe me!
- *     </div>
- *   );
- * }
- * ```
  */
 export function useSwipeGesture(
   callbacks: SwipeHandlers = {},
@@ -77,10 +59,11 @@ export function useSwipeGesture(
     preventDefault = false,
   } = config;
 
-  const [state, setState] = useState<SwipeState>({
+  const deltaX = useMotionValue(0);
+  const deltaY = useMotionValue(0);
+
+  const [state, setState] = useState<Omit<SwipeState, "deltaX" | "deltaY">>({
     isSwiping: false,
-    deltaX: 0,
-    deltaY: 0,
     direction: null,
     velocity: 0,
   });
@@ -88,39 +71,28 @@ export function useSwipeGesture(
   const startPos = useRef({ x: 0, y: 0 });
   const startTime = useRef(0);
   const currentPos = useRef({ x: 0, y: 0 });
-  const rafIdRef = useRef<number | null>(null);
-
-  // Cleanup animation frame on unmount to prevent state updates after unmount
-  useEffect(() => {
-    return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-    };
-  }, []);
 
   const reset = useCallback(() => {
+    deltaX.set(0);
+    deltaY.set(0);
     setState({
       isSwiping: false,
-      deltaX: 0,
-      deltaY: 0,
       direction: null,
       velocity: 0,
     });
-  }, []);
+  }, [deltaX, deltaY]);
 
   const calculateDirection = useCallback(
-    (deltaX: number, deltaY: number): SwipeDirection => {
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
+    (dX: number, dY: number): SwipeDirection => {
+      const absX = Math.abs(dX);
+      const absY = Math.abs(dY);
 
       if (axis === "horizontal" || (axis === "both" && absX > absY)) {
         if (absX < 10) return null;
-        return deltaX > 0 ? "right" : "left";
+        return dX > 0 ? "right" : "left";
       } else if (axis === "vertical" || (axis === "both" && absY > absX)) {
         if (absY < 10) return null;
-        return deltaY > 0 ? "down" : "up";
+        return dY > 0 ? "down" : "up";
       }
       return null;
     },
@@ -129,10 +101,6 @@ export function useSwipeGesture(
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
       const touch = e.touches[0];
       startPos.current = { x: touch.clientX, y: touch.clientY };
       currentPos.current = { x: touch.clientX, y: touch.clientY };
@@ -153,18 +121,22 @@ export function useSwipeGesture(
       const touch = e.touches[0];
       currentPos.current = { x: touch.clientX, y: touch.clientY };
 
-      const deltaX = touch.clientX - startPos.current.x;
-      const deltaY = touch.clientY - startPos.current.y;
+      const dX = touch.clientX - startPos.current.x;
+      const dY = touch.clientY - startPos.current.y;
 
       // Lock to axis
-      let finalDeltaX = deltaX;
-      let finalDeltaY = deltaY;
+      let finalDeltaX = dX;
+      let finalDeltaY = dY;
 
       if (axis === "horizontal") {
         finalDeltaY = 0;
       } else if (axis === "vertical") {
         finalDeltaX = 0;
       }
+
+      // Update motion values directly to skip React renders
+      deltaX.set(finalDeltaX);
+      deltaY.set(finalDeltaY);
 
       const direction = calculateDirection(finalDeltaX, finalDeltaY);
 
@@ -173,33 +145,39 @@ export function useSwipeGesture(
       const distance = Math.sqrt(finalDeltaX ** 2 + finalDeltaY ** 2);
       const velocity = elapsed > 0 ? distance / elapsed : 0;
 
-      const newState: SwipeState = {
+      // We don't call setState here during the drag to keep it smooth!
+      const currentState: SwipeState = {
         isSwiping: true,
-        deltaX: finalDeltaX,
-        deltaY: finalDeltaY,
+        deltaX,
+        deltaY,
         direction,
         velocity,
       };
 
-      setState(newState);
-      callbacks.onSwipeMove?.(newState);
+      callbacks.onSwipeMove?.(currentState);
     },
-    [axis, calculateDirection, callbacks, preventDefault]
+    [axis, calculateDirection, callbacks, preventDefault, deltaX, deltaY]
   );
 
   const handleTouchEnd = useCallback(() => {
-    const deltaX = currentPos.current.x - startPos.current.x;
-    const deltaY = currentPos.current.y - startPos.current.y;
+    const dX = currentPos.current.x - startPos.current.x;
+    const dY = currentPos.current.y - startPos.current.y;
+    
+    let finalDeltaX = dX;
+    let finalDeltaY = dY;
+    if (axis === "horizontal") finalDeltaY = 0;
+    if (axis === "vertical") finalDeltaX = 0;
+
     const elapsed = Date.now() - startTime.current;
-    const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+    const distance = Math.sqrt(finalDeltaX ** 2 + finalDeltaY ** 2);
     const velocity = elapsed > 0 ? distance / elapsed : 0;
 
-    const direction = calculateDirection(deltaX, deltaY);
+    const direction = calculateDirection(finalDeltaX, finalDeltaY);
 
     const finalState: SwipeState = {
       isSwiping: false,
-      deltaX: axis === "horizontal" ? deltaX : axis === "vertical" ? 0 : deltaX,
-      deltaY: axis === "vertical" ? deltaY : axis === "horizontal" ? 0 : deltaY,
+      deltaX,
+      deltaY,
       direction,
       velocity,
     };
@@ -208,8 +186,8 @@ export function useSwipeGesture(
 
     // Check if swipe exceeds threshold
     const meetsThreshold =
-      Math.abs(deltaX) > threshold ||
-      Math.abs(deltaY) > threshold ||
+      Math.abs(finalDeltaX) > threshold ||
+      Math.abs(finalDeltaY) > threshold ||
       velocity > velocityThreshold;
 
     if (meetsThreshold && direction) {
@@ -229,18 +207,12 @@ export function useSwipeGesture(
       }
     }
 
-    // Reset state after animation frame (store ID for cleanup on unmount)
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      setState({
-        isSwiping: false,
-        deltaX: 0,
-        deltaY: 0,
-        direction: null,
-        velocity: 0,
-      });
+    setState({
+      isSwiping: false,
+      direction: null,
+      velocity: 0,
     });
-  }, [axis, calculateDirection, callbacks, threshold, velocityThreshold]);
+  }, [axis, calculateDirection, callbacks, threshold, velocityThreshold, deltaX, deltaY]);
 
   const handlers = {
     onTouchStart: handleTouchStart,
@@ -250,11 +222,12 @@ export function useSwipeGesture(
   };
 
   return {
-    /** Touch event handlers to spread on the element */
     handlers,
-    /** Current swipe state */
-    state,
-    /** Reset the swipe state */
+    state: {
+      ...state,
+      deltaX,
+      deltaY
+    },
     reset,
   };
 }

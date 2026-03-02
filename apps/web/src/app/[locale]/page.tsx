@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useMemo, useCallback, useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { Suspense, useMemo, useCallback, useState, useEffect, useRef, useDeferredValue } from "react";
 import Link from "next/link";
 import { AlertTriangle, Sparkles, X } from "lucide-react";
 import { prompts, categories, tags } from "@jeffreysprompts/core/prompts/registry";
@@ -12,19 +13,26 @@ import { TagFilter } from "@/components/TagFilter";
 import { SortSelector } from "@/components/SortSelector";
 import { RatingFilter } from "@/components/RatingFilter";
 import { ActiveFilterChips } from "@/components/ActiveFilterChips";
-import { PromptDetailModal } from "@/components/PromptDetailModal";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useFilterState } from "@/hooks/useFilterState";
 import { useAllRatings } from "@/hooks/useAllRatings";
 import { FeaturedPromptsSection, ForYouPromptsSection } from "@/components/landing";
-import { RecentlyViewedSidebar } from "@/components/history/RecentlyViewedSidebar";
-import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { AnimatedSection } from "@/components/AnimatedSection";
 import { trackEvent } from "@/lib/analytics";
 import { trackHistoryView } from "@/lib/history/client";
 import { useAnnounceCount } from "@/hooks/useAnnounce";
 import type { Prompt, PromptCategory } from "@jeffreysprompts/core/prompts/types";
+
+const PromptDetailModal = dynamic(() => import("@/components/PromptDetailModal").then(mod => mod.PromptDetailModal), { ssr: false });
+const Leaderboard = dynamic(() => import("@/components/ratings/Leaderboard").then(mod => mod.Leaderboard), { 
+  ssr: true, 
+  loading: () => <div className="h-[400px] animate-pulse bg-neutral-100 dark:bg-neutral-800 rounded-xl" /> 
+});
+const RecentlyViewedSidebar = dynamic(() => import("@/components/history/RecentlyViewedSidebar").then(mod => mod.RecentlyViewedSidebar), { 
+  ssr: false, // Relies on client-side localStorage
+  loading: () => <div className="h-[300px] animate-pulse bg-neutral-100 dark:bg-neutral-800 rounded-xl" /> 
+});
 
 function PromptGridFallback({ onRefresh }: { onRefresh: () => void }) {
   return (
@@ -47,6 +55,7 @@ function HomeContent() {
   const { filters, setQuery, setCategory, setTags, setSortBy, setMinRating, clearFilters, hasActiveFilters } =
     useFilterState();
   const { summaries: ratingSummaries, loading: ratingsLoading } = useAllRatings();
+  const deferredQuery = useDeferredValue(filters.query);
 
   // Modal state for viewing prompt details
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
@@ -61,53 +70,43 @@ function HomeContent() {
   // Screen reader announcements for filter results
   const announceResults = useAnnounceCount();
 
-  // Compute category counts based on current filters (but ignoring category filter itself)
-  const categoryCounts = useMemo(() => {
-    const counts: Record<PromptCategory, number> = {} as Record<PromptCategory, number>;
+  // Shared search results to avoid calling searchPrompts multiple times per render
+  const baseSearchResults = useMemo(() => {
+    if (!deferredQuery.trim()) return null;
+    return searchPrompts(deferredQuery.trim(), { limit: 500 }).map((r) => r.prompt);
+  }, [deferredQuery]);
+
+  // Compute category and tag counts in a single pass based on current filters
+  const { categoryCounts, tagCounts } = useMemo(() => {
+    const categories: Record<PromptCategory, number> = {} as Record<PromptCategory, number>;
+    const tagsMap: Record<string, number> = {};
     
-    // Apply search query and tag filters, but NOT category filter
-    let results = [...prompts];
-    if (filters.query.trim()) {
-      const searchResults = searchPrompts(filters.query, {
-        tags: filters.tags.length > 0 ? filters.tags : undefined,
-        limit: 500,
-      });
-      results = searchResults.map((r) => r.prompt);
-    } else if (filters.tags.length > 0) {
-      results = results.filter((p) =>
-        filters.tags.some((tag) => p.tags.includes(tag))
-      );
-    }
-
-    for (const prompt of results) {
-      counts[prompt.category] = (counts[prompt.category] ?? 0) + 1;
-    }
-    return counts;
-  }, [filters.query, filters.tags]);
-
-  // Compute tag counts based on current filters (but ignoring tags filter itself)
-  const tagCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const results = baseSearchResults ?? prompts;
     
-    // Apply search query and category filters, but NOT tag filter
-    let results = [...prompts];
-    if (filters.query.trim()) {
-      const searchResults = searchPrompts(filters.query, {
-        category: filters.category ?? undefined,
-        limit: 500,
-      });
-      results = searchResults.map((r) => r.prompt);
-    } else if (filters.category) {
-      results = results.filter((p) => p.category === filters.category);
-    }
-
-    for (const prompt of results) {
-      for (const tag of prompt.tags) {
-        counts[tag] = (counts[tag] ?? 0) + 1;
+    // For category counts, we apply tag filters but ignore the category filter itself
+    const hasTags = filters.tags.length > 0;
+    
+    for (let i = 0; i < results.length; i++) {
+      const prompt = results[i];
+      
+      // Determine if this prompt matches tag filters (for category counts)
+      const matchesTags = !hasTags || filters.tags.some(t => prompt.tags.includes(t));
+      if (matchesTags) {
+        categories[prompt.category] = (categories[prompt.category] ?? 0) + 1;
+      }
+      
+      // Determine if this prompt matches category filters (for tag counts)
+      const matchesCategory = !filters.category || prompt.category === filters.category;
+      if (matchesCategory) {
+        for (let j = 0; j < prompt.tags.length; j++) {
+          const tag = prompt.tags[j];
+          tagsMap[tag] = (tagsMap[tag] ?? 0) + 1;
+        }
       }
     }
-    return counts;
-  }, [filters.query, filters.category]);
+    
+    return { categoryCounts: categories, tagCounts: tagsMap };
+  }, [baseSearchResults, filters.tags, filters.category]);
 
   // Count active filters for badge
   const filterCount = useMemo(() => {
@@ -128,22 +127,28 @@ function HomeContent() {
     return [...featured, ...nonFeatured].slice(0, 6);
   }, []);
 
+  const featuredPromptIds = useMemo(() => new Set(featuredPrompts.map(p => p.id)), [featuredPrompts]);
+
   // Filter and sort prompts based on search, category, tags, and sort option
   const filteredPrompts = useMemo(() => {
     let results: Prompt[];
 
-    if (filters.query.trim()) {
-      const searchResults = searchPrompts(filters.query, {
-        category: filters.category ?? undefined,
-        tags: filters.tags.length > 0 ? filters.tags : undefined,
-        limit: 40, // Reasonable limit for search results
-      });
-      results = searchResults.map((r) => r.prompt);
+    if (baseSearchResults) {
+      results = baseSearchResults;
+      if (filters.category) {
+        results = results.filter((p) => p.category === filters.category);
+      }
+      if (filters.tags.length > 0) {
+        results = results.filter((p) =>
+          filters.tags.some((tag) => p.tags.includes(tag))
+        );
+      }
+      results = results.slice(0, 40);
     } else {
       // Exclude featured prompts from the main grid if no filters are active to avoid duplication
       const baseResults = hasActiveFilters 
-        ? [...prompts] 
-        : prompts.filter(p => !featuredPrompts.some(fp => fp.id === p.id));
+        ? prompts 
+        : prompts.filter(p => !featuredPromptIds.has(p.id));
 
       results = baseResults;
 
@@ -205,7 +210,7 @@ function HomeContent() {
     }
 
     return results;
-  }, [filters, ratingSummaries, hasActiveFilters, featuredPrompts]);
+  }, [filters, ratingSummaries, hasActiveFilters, baseSearchResults, featuredPromptIds]);
 
   const handlePromptClick = useCallback((prompt: Prompt) => {
     if (modalCloseTimerRef.current) {
@@ -310,6 +315,7 @@ function HomeContent() {
             prompts={featuredPrompts}
             totalCount={prompts.length}
             onPromptClick={handlePromptClick}
+            ratingSummaries={ratingSummaries}
           />
         </ErrorBoundary>
       )}
@@ -320,6 +326,7 @@ function HomeContent() {
           <ForYouPromptsSection
             prompts={prompts}
             onPromptClick={handlePromptClick}
+            ratingSummaries={ratingSummaries}
           />
         </ErrorBoundary>
       )}
@@ -450,6 +457,7 @@ function HomeContent() {
             <ErrorBoundary fallback={<PromptGridFallback onRefresh={handleRefresh} />}>
               <PromptGrid
                 prompts={filteredPrompts}
+                ratingSummaries={ratingSummaries}
                 onPromptClick={handlePromptClick}
               />
             </ErrorBoundary>

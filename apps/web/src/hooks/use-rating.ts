@@ -13,6 +13,7 @@ interface RatingState {
 interface UseRatingOptions {
   contentType: "prompt" | "bundle" | "workflow" | "collection" | "skill";
   contentId: string;
+  enabled?: boolean;
 }
 
 interface UseRatingReturn extends RatingState {
@@ -20,17 +21,19 @@ interface UseRatingReturn extends RatingState {
   refresh: () => Promise<void>;
 }
 
-export function useRating({ contentType, contentId }: UseRatingOptions): UseRatingReturn {
+export function useRating({ contentType, contentId, enabled = true }: UseRatingOptions): UseRatingReturn {
   const [state, setState] = useState<RatingState>({
     summary: null,
     userRating: null,
-    loading: true,
+    loading: enabled,
     error: null,
   });
 
   const mountedRef = useRef(true);
 
   const fetchRating = useCallback(async (signal?: AbortSignal) => {
+    if (!enabled) return;
+
     const params = new URLSearchParams({
       contentType,
       contentId,
@@ -60,7 +63,7 @@ export function useRating({ contentType, contentId }: UseRatingOptions): UseRati
         }));
       }
     }
-  }, [contentType, contentId]);
+  }, [contentType, contentId, enabled]);
 
   const rate = useCallback(
     async (value: RatingValue) => {
@@ -106,6 +109,21 @@ export function useRating({ contentType, contentId }: UseRatingOptions): UseRati
 
   useEffect(() => {
     mountedRef.current = true;
+
+    if (!enabled) {
+      setState((prev) =>
+        prev.loading
+          ? {
+              ...prev,
+              loading: false,
+            }
+          : prev
+      );
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
     const controller = new AbortController();
     fetchRating(controller.signal);
 
@@ -113,11 +131,11 @@ export function useRating({ contentType, contentId }: UseRatingOptions): UseRati
       mountedRef.current = false;
       controller.abort();
     };
-  }, [fetchRating]);
+  }, [enabled, fetchRating]);
 
   return {
     ...state,
     rate,
-    refresh: () => fetchRating(),
+    refresh: () => (enabled ? fetchRating() : Promise.resolve()),
   };
 }

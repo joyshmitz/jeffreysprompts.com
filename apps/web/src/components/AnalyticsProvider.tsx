@@ -19,6 +19,7 @@ export function AnalyticsProvider() {
 
   const startTimeRef = useRef<number | null>(null);
   const scrollTrackedRef = useRef<Set<number>>(new Set());
+  const scrollTickingRef = useRef(false);
   const webVitalsInitRef = useRef(false);
 
   // Initialize Web Vitals tracking (once per session)
@@ -64,7 +65,8 @@ export function AnalyticsProvider() {
       }
     };
 
-    const handleScroll = () => {
+    const processScroll = () => {
+      scrollTickingRef.current = false;
       const doc = document.documentElement;
       const maxScroll = doc.scrollHeight - window.innerHeight;
       const percent = maxScroll <= 0 ? 100 : Math.min(100, Math.round((window.scrollY / maxScroll) * 100));
@@ -74,6 +76,13 @@ export function AnalyticsProvider() {
           scrollTrackedRef.current.add(threshold);
           trackGaEvent("scroll_depth", { percent: threshold, page_path: url });
         }
+      }
+    };
+
+    const handleScroll = () => {
+      if (!scrollTickingRef.current) {
+        scrollTickingRef.current = true;
+        requestAnimationFrame(processScroll);
       }
     };
 

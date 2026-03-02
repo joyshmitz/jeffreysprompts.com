@@ -86,26 +86,24 @@ test.describe("Accessibility Audit (axe-core)", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // Open spotlight search
+    // Open spotlight search (use Control+k for cross-platform compatibility)
     await page.keyboard.press("Control+k");
 
-    // Wait for modal
+    // Wait for modal to appear
     const dialog = page.locator('[role="dialog"]');
-    const isVisible = await dialog.isVisible().catch(() => false);
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
-    if (isVisible) {
-      // Run audit on the modal
-      const accessibilityScanResults = await new AxeBuilder({ page })
-        .include('[role="dialog"]')
-        .withTags(["wcag2a", "wcag2aa"])
-        .analyze();
+    // Run audit on the modal
+    const accessibilityScanResults = await new AxeBuilder({ page })
+      .include('[role="dialog"]')
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
 
-      const criticalViolations = accessibilityScanResults.violations.filter(
-        (v) => v.impact === "critical" || v.impact === "serious"
-      );
+    const criticalViolations = accessibilityScanResults.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious"
+    );
 
-      expect(criticalViolations).toEqual([]);
-    }
+    expect(criticalViolations).toEqual([]);
   });
 });
 
@@ -147,17 +145,22 @@ test.describe("WCAG Specific Checks", () => {
     expect(h1Count).toBe(1);
 
     // Heading levels should not skip (e.g., h1 -> h3)
+    const skippedLevels: string[] = [];
     let prevLevel = 0;
     for (const heading of headings) {
       // Can go up any amount, but only down by 1
       if (heading.level > prevLevel + 1 && prevLevel !== 0) {
-        console.warn(
-          `Heading level skipped: ${prevLevel} -> ${heading.level}`,
-          heading.text
+        skippedLevels.push(
+          `h${prevLevel} -> h${heading.level} ("${heading.text}")`
         );
       }
       prevLevel = heading.level;
     }
+
+    if (skippedLevels.length > 0) {
+      console.warn("Heading level skips:", skippedLevels);
+    }
+    expect(skippedLevels).toEqual([]);
   });
 
   test("form inputs have associated labels (1.3.1 Info and Relationships)", async ({
@@ -198,7 +201,7 @@ test.describe("WCAG Specific Checks", () => {
 
     const accessibilityScanResults = await new AxeBuilder({ page })
       .withTags(["wcag2aa"])
-      .options({ runOnly: ["color-contrast"] })
+      .withRules(["color-contrast"])
       .analyze();
 
     const contrastViolations = accessibilityScanResults.violations;
