@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../lib/playwright-logger";
 import AxeBuilder from "@axe-core/playwright";
 
 test.describe("Keyboard Navigation", () => {

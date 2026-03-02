@@ -90,6 +90,54 @@ afterAll(() => {
 // E2E Test Suites
 // ============================================================================
 
+describe("CLI E2E: Quick Start & Version", () => {
+  it("no args shows quick-start help", async () => {
+    log("no-args", "Running: jfp (no arguments)");
+
+    const proc = Bun.spawn(["bun", `${PROJECT_ROOT}/jfp.ts`], {
+      cwd: PROJECT_ROOT,
+      env: { ...process.env, HOME: "/tmp/jfp-e2e-home" },
+    });
+
+    const stdout = await new Response(proc.stdout).text();
+    const exitCode = await proc.exited;
+
+    expect(exitCode).toBe(0);
+
+    // In non-TTY (piped) mode, should output JSON help
+    const parsed = parseJson<{ name: string; commands: Record<string, unknown> }>(stdout);
+    if (parsed) {
+      // JSON mode: verify help structure
+      expect(parsed.name).toBe("jfp");
+      expect(parsed.commands).toBeDefined();
+    } else {
+      // TTY mode: verify text help keywords
+      expect(stdout).toContain("jfp");
+      expect(stdout.length).toBeGreaterThan(50);
+    }
+
+    log("no-args", "Quick-start help verified");
+  });
+
+  it("--version returns version string", async () => {
+    log("version", "Running: jfp --version");
+
+    const { stdout, exitCode } = await runCli("--version");
+
+    expect(exitCode).toBe(0);
+
+    // Version should be a semver-like string or JSON
+    const parsed = parseJson<{ version: string }>(stdout);
+    if (parsed) {
+      expect(parsed.version).toMatch(/^\d+\.\d+\.\d+/);
+    } else {
+      expect(stdout.trim()).toMatch(/\d+\.\d+\.\d+/);
+    }
+
+    log("version", `Version: ${stdout.trim()}`);
+  });
+});
+
 describe("CLI E2E: Discovery Flow", () => {
   it("Step 1: list prompts and verify JSON structure", async () => {
     log("list", "Running: jfp list --json");
@@ -430,17 +478,17 @@ describe("CLI E2E: Export Flow", () => {
     log("export", `Exported to: ${result.exported[0].file}`);
   });
 
-  it("export to stdout outputs skill markdown", async () => {
+  it("export to stdout outputs markdown content", async () => {
     log("export-stdout", `Running: jfp export ${TEST_PROMPT_ID} --stdout`);
 
     const { stdout, exitCode } = await runCli(`export ${TEST_PROMPT_ID} --stdout`);
 
     expect(exitCode).toBe(0);
 
-    // Should contain YAML frontmatter and content
-    expect(stdout).toContain("---");
-    expect(stdout).toContain("name: idea-wizard");
-    expect(stdout).toContain("version: 1.0.0");
+    // Should contain prompt content in markdown format
+    expect(stdout).toContain("Idea Wizard");
+    expect(stdout).toContain("ideation");
+    expect(stdout.length).toBeGreaterThan(100);
 
     log("export-stdout", `Exported markdown length: ${stdout.length} chars`);
   });

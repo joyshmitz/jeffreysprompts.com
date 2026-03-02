@@ -23,6 +23,7 @@
     "test:e2e:web:ui": "bunx playwright test --config e2e/playwright.config.ts --ui",
     "test:e2e:prod": "bunx playwright test --config e2e/playwright.production.config.ts",
     "test:e2e:prod:headed": "bunx playwright test --config e2e/playwright.production.config.ts --headed",
+    "test:e2e:prod:smoke": "bunx playwright test --config e2e/playwright.production.config.ts e2e/web/production-smoke.spec.ts",
     "test:e2e:console-health": "bunx playwright test --config e2e/playwright.config.ts e2e/web/console-health.spec.ts",
     "test:e2e:pom": "bunx playwright test --config e2e/playwright.config.ts e2e/web/homepage-pom.spec.ts",
     "test:e2e": "./scripts/run-e2e.sh",
