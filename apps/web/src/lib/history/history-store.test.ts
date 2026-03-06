@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { recordView, listHistory, clearHistory } from "./history-store";
+import type { ViewHistoryEntry } from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,6 +22,34 @@ function getEntriesByUserMap(): Map<string, string[]> | null {
     | { entriesByUser?: Map<string, string[]> }
     | undefined;
   return store?.entriesByUser ?? null;
+}
+
+function seedStoreWithUsers(count: number) {
+  const g = globalThis as unknown as Record<string, unknown>;
+  const entries = new Map<string, ViewHistoryEntry>();
+  const entriesByUser = new Map<string, string[]>();
+  const viewedAt = new Date().toISOString();
+
+  for (let i = 0; i < count; i++) {
+    const entryId = `seed-entry-${i}`;
+    const userId = `seed-user-${i}`;
+    entries.set(entryId, {
+      id: entryId,
+      userId,
+      resourceType: "prompt",
+      resourceId: `prompt-${i}`,
+      searchQuery: null,
+      source: null,
+      viewedAt,
+      duration: null,
+    });
+    entriesByUser.set(userId, [entryId]);
+  }
+
+  g["__jfp_view_history_store__"] = {
+    entries,
+    entriesByUser,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +317,28 @@ describe("history-store", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("keeps recently active users when user eviction runs", () => {
+      seedStoreWithUsers(10_000);
+
+      recordView({
+        userId: "seed-user-0",
+        resourceType: "prompt",
+        resourceId: "fresh-activity",
+      });
+      recordView({
+        userId: "seed-user-10000",
+        resourceType: "prompt",
+        resourceId: "overflow-user",
+      });
+
+      // Trigger pruning after crossing the in-memory user limit.
+      listHistory({ userId: "seed-user-10000" });
+
+      const recentUserHistory = listHistory({ userId: "seed-user-0" });
+      expect(recentUserHistory.length).toBeGreaterThan(0);
+      expect(recentUserHistory.some((entry) => entry.resourceId === "fresh-activity")).toBe(true);
     });
   });
 });

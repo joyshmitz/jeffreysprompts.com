@@ -39,6 +39,7 @@ import { HistoryTracker } from "@/components/history/HistoryTracker";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
+import { defaultLocale, localizeHref } from "@/i18n/config";
 import type { Prompt } from "@jeffreysprompts/core/prompts";
 import { generateBundleMarkdown, generateWorkflowMarkdown } from "@jeffreysprompts/core/export/markdown";
 import { getBundlePrompts, type Bundle } from "@jeffreysprompts/core/prompts/bundles";
@@ -83,6 +84,13 @@ interface SharePresentation {
   badges: string[];
 }
 
+const CONTENT_TYPE_LABELS: Record<ShareLinkInfo["contentType"], string> = {
+  prompt: "Prompt",
+  bundle: "Bundle",
+  workflow: "Workflow",
+  collection: "Collection",
+};
+
 function isPromptContent(content: ShareContent): content is Prompt {
   return "content" in content;
 }
@@ -96,16 +104,7 @@ function isWorkflowContent(content: ShareContent): content is Workflow {
 }
 
 function getContentTypeLabel(contentType: ShareLinkInfo["contentType"]): string {
-  switch (contentType) {
-    case "prompt":
-      return "Prompt";
-    case "bundle":
-      return "Bundle";
-    case "workflow":
-      return "Workflow";
-    case "collection":
-      return "Collection";
-  }
+  return CONTENT_TYPE_LABELS[contentType];
 }
 
 function getSharePresentation(
@@ -181,6 +180,8 @@ export default function SharePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const linkCode = params.linkCode as string;
+  const locale = typeof params.locale === "string" ? params.locale : defaultLocale;
+  const homeHref = localizeHref(locale, "/");
 
   // Load share data from API
   useEffect(() => {
@@ -374,7 +375,7 @@ export default function SharePage() {
           <p className="mt-2 text-neutral-600 dark:text-neutral-400">
             This link doesn&apos;t exist or has been removed.
           </p>
-          <Button className="mt-6" onClick={() => router.push("/")}>
+          <Button className="mt-6" onClick={() => router.push(homeHref)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go to Homepage
           </Button>
@@ -403,7 +404,7 @@ export default function SharePage() {
               This share link has expired.
             </p>
           )}
-          <Button className="mt-6" onClick={() => router.push("/")}>
+          <Button className="mt-6" onClick={() => router.push(homeHref)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Go to Homepage
           </Button>
@@ -459,7 +460,7 @@ export default function SharePage() {
 
             <p className="mt-6 text-center text-sm text-neutral-500">
               Don&apos;t have the password?{" "}
-              <Link href="/" className="text-primary hover:underline">
+              <Link href={homeHref} className="text-primary hover:underline">
                 Explore other prompts
               </Link>
             </p>
@@ -488,7 +489,7 @@ export default function SharePage() {
         <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <Link
-              href="/"
+              href={homeHref}
               className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -632,7 +633,7 @@ export default function SharePage() {
                   </p>
                 </div>
                 <Button
-                  onClick={() => router.push("/")}
+                  onClick={() => router.push(homeHref)}
                   className="shrink-0 bg-violet-600 hover:bg-violet-700"
                 >
                   Browse All Prompts

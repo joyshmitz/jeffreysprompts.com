@@ -38,10 +38,23 @@ const originalExit = process.exit;
 // Capture console output
 let consoleOutput: string[] = [];
 
+function parseJsonOutput(): Record<string, unknown> {
+  const output = consoleOutput.join("\n");
+  try {
+    return JSON.parse(output) as Record<string, unknown>;
+  } catch (error) {
+    throw new Error(
+      `Expected JSON output but received: ${output || "<empty>"}; ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
 // Setup for each test
 function setupTest() {
   // Create unique test directory for each test
-  TEST_DIR = join(tmpdir(), "jfp-login-test-" + Date.now() + "-" + Math.random().toString(36).slice(2));
+  TEST_DIR = join(tmpdir(), `jfp-login-test-${crypto.randomUUID()}`);
   FAKE_HOME = join(TEST_DIR, "home");
   FAKE_CONFIG = join(FAKE_HOME, ".config");
 
@@ -107,8 +120,7 @@ describe("loginCommand - already logged in", () => {
 
     await loginCommand({ json: true });
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+    const parsed = parseJsonOutput();
 
     expect(parsed.error).toBe(true);
     expect(parsed.code).toBe("already_logged_in");
@@ -140,8 +152,7 @@ describe("loginCommand - already logged in", () => {
       // Expected: process.exit
     }
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+    const parsed = parseJsonOutput();
 
     expect(parsed.error).toBe(true);
     expect(parsed.code).toBe("network_error");
@@ -171,8 +182,7 @@ describe("Device Code Flow", () => {
       // Expected
     }
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+    const parsed = parseJsonOutput();
 
     expect(parsed.error).toBe(true);
     expect(parsed.code).toBe("network_error");
@@ -196,11 +206,35 @@ describe("Device Code Flow", () => {
       // Expected
     }
 
-    const output = consoleOutput.join("\n");
-    const parsed = JSON.parse(output);
+    const parsed = parseJsonOutput();
 
     expect(parsed.error).toBe(true);
     expect(parsed.code).toBe("device_code_failed");
+    expect(exitCode).toBe(1);
+  });
+
+  it("uses JFP_PREMIUM_URL for auth endpoints", async () => {
+    const mockFetch = mock(() =>
+      Promise.resolve(new Response("Internal Server Error", { status: 500 }))
+    );
+    globalThis.fetch = mockFetch;
+
+    let exitCode: number | undefined;
+    process.exit = ((code?: number) => {
+      exitCode = code;
+      throw new Error("EXIT_" + code);
+    }) as never;
+
+    try {
+      await loginCommand({ remote: true, json: true });
+    } catch {
+      // Expected
+    }
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://test-premium.example.com/api/cli/device-code",
+      expect.objectContaining({ method: "POST" })
+    );
     expect(exitCode).toBe(1);
   });
 

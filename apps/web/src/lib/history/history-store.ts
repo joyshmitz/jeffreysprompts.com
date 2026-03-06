@@ -33,7 +33,10 @@ function getStore(): HistoryStore {
 
 function touchEntry(store: HistoryStore, userId: string, entryId: string) {
   const list = store.entriesByUser.get(userId) ?? [];
-  store.entriesByUser.set(userId, [entryId, ...list.filter((id) => id !== entryId)]);
+  const nextEntries = [entryId, ...list.filter((id) => id !== entryId)];
+  // Reinsert the user bucket so Map iteration order reflects recent activity.
+  store.entriesByUser.delete(userId);
+  store.entriesByUser.set(userId, nextEntries);
 }
 
 function safeDateMs(value: string): number | null {

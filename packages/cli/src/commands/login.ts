@@ -14,14 +14,16 @@ import boxen from "boxen";
 import { saveCredentials, loadCredentials, isExpired, type Credentials } from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
 
-// Premium site URL for authentication
-const PREMIUM_URL = process.env.JFP_PREMIUM_URL ?? "https://pro.jeffreysprompts.com";
 const DEFAULT_TIMEOUT = 120_000; // 2 minutes
 
 export interface LoginOptions {
   remote?: boolean;
   timeout?: number;
   json?: boolean;
+}
+
+function getPremiumUrl(): string {
+  return process.env.JFP_PREMIUM_URL ?? "https://pro.jeffreysprompts.com";
 }
 
 /**
@@ -83,7 +85,7 @@ async function loginLocal(options: LoginOptions): Promise<void> {
   const { port, tokenPromise, close } = await startCallbackServer(timeout);
 
   // Build auth URL
-  const authUrl = new URL(`${PREMIUM_URL}/cli/auth`);
+  const authUrl = new URL(`${getPremiumUrl()}/cli/auth`);
   authUrl.searchParams.set("port", String(port));
   authUrl.searchParams.set("redirect", "local");
 
@@ -161,8 +163,9 @@ interface CallbackServer {
  */
 async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
   return new Promise((resolve, reject) => {
-    let resolveToken: (creds: Credentials) => void;
-    let rejectToken: (err: Error) => void;
+    let resolveToken!: (creds: Credentials) => void;
+    let rejectToken!: (err: Error) => void;
+    let callbackServerReady = false;
 
     const tokenPromise = new Promise<Credentials>((res, rej) => {
       resolveToken = res;
@@ -216,6 +219,14 @@ async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
       }
     });
 
+    const closeServer = () => {
+      try {
+        server.close();
+      } catch {
+        // Ignore close errors for already-closed servers.
+      }
+    };
+
     // Configure server timeouts to prevent hung connections
     // Keep-alive timeout: close idle connections after 5 seconds
     server.keepAliveTimeout = 5000;
@@ -230,7 +241,10 @@ async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
       const port = typeof addr === "object" && addr ? addr.port : 0;
 
       if (port === 0) {
-        rejectToken(new Error("Failed to bind to a port"));
+        const error = new Error("Failed to bind to a port");
+        closeServer();
+        reject(error);
+        rejectToken(error);
         return;
       }
 
@@ -239,16 +253,20 @@ async function startCallbackServer(timeoutMs: number): Promise<CallbackServer> {
         rejectToken(new Error("timeout"));
       }, timeoutMs);
 
+      callbackServerReady = true;
       resolve({
         port,
         tokenPromise: tokenPromise.finally(() => clearTimeout(timeoutId)),
-        close: () => server.close(),
+        close: closeServer,
       });
     });
 
     server.on("error", (err) => {
-      reject(err);
-      rejectToken(err);
+      closeServer();
+      if (!callbackServerReady) {
+        reject(err);
+      }
+      rejectToken(err instanceof Error ? err : new Error(String(err)));
     });
   });
 }
@@ -360,7 +378,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
   // Request device code from API
   let deviceCodeResponse: Response;
   try {
-    deviceCodeResponse = await fetch(`${PREMIUM_URL}/api/cli/device-code`, {
+    const premiumUrl = getPremiumUrl();
+    deviceCodeResponse = await fetch(`${premiumUrl}/api/cli/device-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_id: "jfp-cli" }),
@@ -448,7 +467,8 @@ async function loginRemote(options: LoginOptions): Promise<void> {
     attempts++;
 
     try {
-      const tokenResponse = await fetch(`${PREMIUM_URL}/api/cli/device-token`, {
+      const premiumUrl = getPremiumUrl();
+      const tokenResponse = await fetch(`${premiumUrl}/api/cli/device-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -498,7 +518,9 @@ async function loginRemote(options: LoginOptions): Promise<void> {
         if (jsonOutput) {
           writeJsonError("invalid_response", `Server returned non-JSON error (status ${tokenResponse.status})`);
         } else {
-          console.log(chalk.red(`\n\nServer returned invalid response (status ${tokenResponse.status})`));
+          process.stderr.write(
+            `${chalk.red(`\n\nServer returned invalid response (status ${tokenResponse.status})`)}\n`
+          );
         }
         process.exit(1);
       }
