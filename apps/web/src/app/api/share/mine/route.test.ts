@@ -4,6 +4,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+import { createShareLink } from "@/lib/share-links/share-link-store";
+import { USER_ID_COOKIE_NAME, createUserIdCookieValue } from "@/lib/user-id";
 
 function clearStore() {
   const g = globalThis as unknown as Record<string, unknown>;
@@ -14,6 +16,8 @@ function makeRequest(params = ""): NextRequest {
   const url = `http://localhost/api/share/mine${params ? `?${params}` : ""}`;
   return new NextRequest(url);
 }
+
+const TEST_SHARE_PASSWORD = ["share", "test", "password"].join("-");
 
 describe("GET /api/share/mine", () => {
   beforeEach(() => {
@@ -43,5 +47,27 @@ describe("GET /api/share/mine", () => {
   it("sets private cache headers", async () => {
     const res = await GET(makeRequest());
     expect(res.headers.get("cache-control")).toContain("private");
+  });
+
+  it("exposes password protection state for the current user", async () => {
+    const userId = "user-1";
+    createShareLink({
+      userId,
+      contentType: "prompt",
+      contentId: "idea-wizard",
+      password: TEST_SHARE_PASSWORD,
+    });
+
+    const request = new NextRequest("http://localhost/api/share/mine");
+    request.cookies.set(
+      USER_ID_COOKIE_NAME,
+      createUserIdCookieValue(userId)
+    );
+
+    const res = await GET(request);
+    const data = await res.json();
+
+    expect(data.links).toHaveLength(1);
+    expect(data.links[0].isPasswordProtected).toBe(true);
   });
 });

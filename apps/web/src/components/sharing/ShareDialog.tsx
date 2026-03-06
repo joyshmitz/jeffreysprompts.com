@@ -4,7 +4,7 @@
  * ShareDialog - Modal for creating and managing share links
  *
  * Features:
- * - Generate shareable links for prompts, packs, and skills
+ * - Generate shareable links for prompts, bundles, and workflows
  * - Optional password protection
  * - Configurable expiration
  * - Social sharing options (Twitter, LinkedIn)
@@ -52,12 +52,19 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { trackEvent } from "@/lib/analytics";
 
 // Types
-export type ShareableContentType = "prompt" | "pack" | "skill" | "collection";
+export type ShareableContentType =
+  | "prompt"
+  | "bundle"
+  | "workflow"
+  | "collection"
+  | "pack"
+  | "skill";
 
 export interface ShareLink {
   linkCode: string;
   url: string;
   password: string | null;
+  isPasswordProtected?: boolean;
   expiresAt: string | null;
   viewCount: number;
   createdAt: string;
@@ -88,6 +95,23 @@ const EXPIRATION_OPTIONS = [
   { value: "90", label: "90 days" },
 ];
 
+function getContentTypeLabel(contentType: ShareableContentType): string {
+  switch (contentType) {
+    case "prompt":
+      return "Prompt";
+    case "bundle":
+      return "Bundle";
+    case "workflow":
+      return "Workflow";
+    case "collection":
+      return "Collection";
+    case "pack":
+      return "Pack";
+    case "skill":
+      return "Skill";
+  }
+}
+
 export function ShareDialog({
   open,
   onOpenChange,
@@ -107,7 +131,7 @@ export function ShareDialog({
 
   // Form state
   const [passwordEnabled, setPasswordEnabled] = useState(
-    !!existingShare?.password
+    Boolean(existingShare?.isPasswordProtected || existingShare?.password)
   );
   const [password, setPassword] = useState("");
   const [expiration, setExpiration] = useState<string>(
@@ -117,6 +141,10 @@ export function ShareDialog({
   // Derived state
   const shareUrl = existingShare?.url || null;
   const hasExistingShare = !!existingShare;
+  const hasPasswordProtection = Boolean(
+    existingShare?.isPasswordProtected || existingShare?.password
+  );
+  const contentTypeLabel = getContentTypeLabel(contentType);
 
   const handleCopyLink = useCallback(async () => {
     if (!shareUrl) return;
@@ -157,6 +185,7 @@ export function ShareDialog({
         linkCode: data.linkCode,
         url: data.url,
         password: passwordEnabled ? password : null,
+        isPasswordProtected: passwordEnabled,
         expiresAt: data.expiresAt,
         viewCount: 0,
         createdAt: new Date().toISOString(),
@@ -254,7 +283,7 @@ export function ShareDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-5 w-5 text-primary" />
-            Share {contentType === "prompt" ? "Prompt" : contentType}
+            Share {contentTypeLabel}
           </DialogTitle>
           <DialogDescription>
             Create a shareable link for &quot;{contentTitle}&quot;
@@ -341,7 +370,7 @@ export function ShareDialog({
                     <Eye className="h-4 w-4" />
                     <span>{existingShare.viewCount} views</span>
                   </div>
-                  {existingShare.password && (
+                  {hasPasswordProtection && (
                     <div className="flex items-center gap-1.5">
                       <Lock className="h-4 w-4" />
                       <span>Password protected</span>

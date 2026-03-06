@@ -197,7 +197,14 @@ export function useFilterState(): UseFilterStateReturn {
   }, [searchParams, router, pathname]);
 
   const hasActiveFilters = useMemo(
-    () => Boolean(filters.query || filters.category || filters.tags.length > 0 || filters.minRating > 0),
+    () =>
+      Boolean(
+        filters.query ||
+        filters.category ||
+        filters.tags.length > 0 ||
+        filters.minRating > 0 ||
+        filters.sortBy !== "default"
+      ),
     [filters]
   );
 

@@ -35,6 +35,7 @@ const baseLink: ManagedShareLink = {
   linkCode: "abc123",
   url: "https://jeffreysprompts.com/s/abc123",
   password: null,
+  isPasswordProtected: false,
   expiresAt: null,
   viewCount: 42,
   createdAt: "2026-01-15T00:00:00Z",
@@ -47,7 +48,7 @@ const protectedLink: ManagedShareLink = {
   ...baseLink,
   linkCode: "def456",
   url: "https://jeffreysprompts.com/s/def456",
-  password: "secret",
+  isPasswordProtected: true,
   contentTitle: "Protected Prompt",
 };
 

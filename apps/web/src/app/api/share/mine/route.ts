@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         contentType: link.contentType,
         contentId: link.contentId,
         viewCount: link.viewCount,
+        isPasswordProtected: Boolean(link.passwordHash),
         expiresAt: link.expiresAt,
         isExpired: isExpired(link.expiresAt),
         isActive: link.isActive,

@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import {
   getReviewById,
   deleteReview,
+  getReviewSummary,
   REVIEW_MAX_LENGTH,
 } from "@/lib/reviews/review-store";
 import { getUserIdFromRequest } from "@/lib/user-id";
@@ -65,7 +66,13 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     return NextResponse.json({ error: "Failed to delete review." }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    summary: getReviewSummary({
+      contentType: review.contentType,
+      contentId: review.contentId,
+    }),
+  });
 }
 
 /**

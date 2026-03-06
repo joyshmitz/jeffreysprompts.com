@@ -76,14 +76,11 @@ const MAX_RESPONSE_LENGTH = 1000;
 const MAX_REVIEWS_IN_MEMORY = 50000;
 
 /**
- * Sanitize user input to prevent XSS attacks.
- * This is more comprehensive than just stripping < and >.
+ * Sanitize user input while keeping stored text human-readable.
  *
- * Security approach:
- * 1. Remove all HTML tags and their contents for script/style
- * 2. Escape HTML entities to prevent injection
- * 3. Remove javascript: and data: URLs
- * 4. Remove event handlers (onclick, onerror, etc.)
+ * React already escapes plain strings at render time, so encoding HTML
+ * entities here would leak `&amp;` / `&#x27;` into the UI and edit forms.
+ * The store strips executable markup patterns and returns plain text.
  */
 function sanitizeUserInput(input: string): string {
   let text = input;
@@ -97,23 +94,6 @@ function sanitizeUserInput(input: string): string {
   text = text.replace(/javascript:/gi, "");
   // Remove common event handlers patterns
   text = text.replace(/on\w+\s*=/gi, "");
-
-  // Decode any existing entities first to prevent double-encoding on re-edits,
-  // then re-encode. This makes sanitization idempotent.
-  text = text
-    .replace(/&#x27;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&gt;/g, ">")
-    .replace(/&lt;/g, "<")
-    .replace(/&amp;/g, "&");
-
-  // Encode special characters
-  text = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
 
   return text;
 }

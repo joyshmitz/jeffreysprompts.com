@@ -43,6 +43,7 @@ vi.mock("@/hooks/use-reviews", () => ({
   useReviewVote: () => ({
     userVote: null,
     vote: vi.fn(),
+    review: null,
     loading: false,
   }),
 }));

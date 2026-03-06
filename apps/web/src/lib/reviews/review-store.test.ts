@@ -75,6 +75,20 @@ describe("review-store", () => {
       expect(result.review.content).toContain("Safe content");
     });
 
+    it("preserves normal punctuation instead of HTML-encoding it", () => {
+      const result = submitReview({
+        contentType: "prompt",
+        contentId: "test-prompt-1",
+        userId: "user-1",
+        rating: "up",
+        content: "Tom & Jerry's <b>favorite</b> prompt",
+      });
+
+      expect(result.review.content).toBe("Tom & Jerry's favorite prompt");
+      expect(result.review.content).not.toContain("&amp;");
+      expect(result.review.content).not.toContain("&#x27;");
+    });
+
     it("allows display name", () => {
       const result = submitReview({
         contentType: "prompt",

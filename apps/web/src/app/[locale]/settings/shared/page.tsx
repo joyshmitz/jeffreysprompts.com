@@ -46,6 +46,7 @@ interface ApiShareLink {
   contentType: "prompt" | "bundle" | "workflow" | "collection";
   contentId: string;
   viewCount: number;
+  isPasswordProtected: boolean;
   expiresAt: string | null;
   isExpired: boolean;
   isActive: boolean;
@@ -74,25 +75,17 @@ export default function SharedLinksPage() {
       }
 
       const data = await response.json();
-      // Map API content types to shareable content types
-      const mapContentType = (apiType: string): ManagedShareLink["contentType"] => {
-        if (apiType === "bundle") return "pack";
-        if (apiType === "workflow") return "collection"; // workflows mapped to collection for UI purposes
-        if (apiType === "prompt" || apiType === "pack" || apiType === "skill" || apiType === "collection") {
-          return apiType;
-        }
-        return "prompt"; // fallback
-      };
 
       const links: ManagedShareLink[] = (data.links as ApiShareLink[]).map(
         (link) => ({
           linkCode: link.code,
           url: link.url,
           password: null,
+          isPasswordProtected: link.isPasswordProtected,
           expiresAt: link.expiresAt,
           viewCount: link.viewCount,
           createdAt: link.createdAt,
-          contentType: mapContentType(link.contentType),
+          contentType: link.contentType,
           contentTitle: resolveContentTitle(link.contentType, link.contentId),
           contentId: link.contentId,
         })
@@ -155,8 +148,8 @@ export default function SharedLinksPage() {
             My Shared Links
           </h1>
           <p className="mt-2 text-neutral-600 dark:text-neutral-400 max-w-2xl">
-            Manage share links you&apos;ve created for prompts, packs, and
-            skills. Revoke links anytime to stop sharing.
+            Manage share links you&apos;ve created for prompts, bundles, and
+            workflows. Revoke links anytime to stop sharing.
           </p>
         </div>
       </div>
@@ -199,10 +192,10 @@ export default function SharedLinksPage() {
               <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                 No shared links yet
               </h3>
-              <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-                Share a prompt to create your first link. Anyone with the link
-                can view the content, and you can revoke access anytime.
-              </p>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+              Share a prompt to create your first link. Anyone with the link
+              can view the content, and you can revoke access anytime.
+            </p>
               <Button className="mt-6" asChild>
                 <Link href="/">Browse Prompts</Link>
               </Button>
@@ -217,8 +210,8 @@ export default function SharedLinksPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-3">
             <p>
-              Share links allow you to share prompts, packs, and skills with
-              others without making them public in the Swap Meet.
+              Share links allow you to share prompts, bundles, and workflows
+              with others without making them public in the Swap Meet.
             </p>
             <ul className="list-disc list-inside space-y-1.5 ml-1">
               <li>

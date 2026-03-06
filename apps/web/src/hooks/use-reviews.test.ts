@@ -189,6 +189,56 @@ describe("useReviews", () => {
     expect(result.current.reviews).toHaveLength(2);
     expect(result.current.pagination.hasMore).toBe(false);
   });
+
+  it("updates summary after deleting the current user's review", async () => {
+    const initialResponse = {
+      ...reviewsGetResponse,
+      reviews: [mockReview],
+      userReview: mockReview,
+      summary: mockSummary,
+      pagination: { total: 1, limit: 10, offset: 0, hasMore: false },
+    };
+    const deleteResponse = {
+      success: true,
+      summary: {
+        ...mockSummary,
+        totalReviews: 0,
+        averageHelpfulness: 0,
+        recentReviews: 0,
+      },
+    };
+
+    let callCount = 0;
+    setFetchMock(vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(initialResponse),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(deleteResponse),
+      });
+    }));
+
+    const { result } = renderHook(() =>
+      useReviews({ contentType: "prompt", contentId: "idea-wizard" })
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let deleteResult: boolean | undefined;
+    await act(async () => {
+      deleteResult = await result.current.deleteReview();
+    });
+
+    expect(deleteResult).toBe(true);
+    expect(result.current.userReview).toBeNull();
+    expect(result.current.reviews).toHaveLength(0);
+    expect(result.current.summary?.totalReviews).toBe(0);
+  });
 });
 
 describe("useReviewVote", () => {
@@ -245,6 +295,7 @@ describe("useReviewVote", () => {
 
     expect(voteResult).toBe(true);
     expect(result.current.userVote?.isHelpful).toBe(false);
+    expect(result.current.review?.notHelpfulCount).toBe(1);
   });
 
   it("handles vote error", async () => {

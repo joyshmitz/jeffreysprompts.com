@@ -195,9 +195,11 @@ export function createShareLink(input: {
     linkCode = createLinkCode();
     attempts += 1;
     if (attempts > MAX_CODE_ATTEMPTS) {
-      // Use cryptographically secure random for collision fallback
-      const extraByte = randomBytes(1)[0] % 10;
-      linkCode = `${createLinkCode()}${extraByte}`.slice(0, CODE_LENGTH);
+      // Perturb the candidate code so the fallback path actually changes it.
+      const prefix = createLinkCode();
+      const suffix = createLinkCode();
+      const lastChar = suffix.at(-1) ?? prefix.at(-1) ?? "A";
+      linkCode = `${prefix.slice(0, CODE_LENGTH - 1)}${lastChar}`;
     }
   }
 

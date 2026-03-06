@@ -3,7 +3,7 @@
 /**
  * Public Share Page
  *
- * Shows shared content (prompt, pack, skill) with public access.
+ * Shows shared content (prompt, bundle, workflow) with public access.
  * Features:
  * - Password protection support
  * - View tracking
@@ -40,6 +40,11 @@ import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { Prompt } from "@jeffreysprompts/core/prompts";
+import { generateBundleMarkdown, generateWorkflowMarkdown } from "@jeffreysprompts/core/export/markdown";
+import { getBundlePrompts, type Bundle } from "@jeffreysprompts/core/prompts/bundles";
+import type { Workflow } from "@jeffreysprompts/core/prompts/workflows";
+
+type ShareContent = Prompt | Bundle | Workflow;
 
 // API response types
 interface ShareLinkInfo {
@@ -53,7 +58,7 @@ interface ShareLinkInfo {
 
 interface ShareApiResponse {
   link: ShareLinkInfo;
-  content: Prompt;
+  content: ShareContent;
 }
 
 // Internal state types
@@ -64,8 +69,96 @@ interface ShareData {
   requiresPassword: boolean;
   isExpired: boolean;
   expiresAt: string | null;
-  content: Prompt | null;
+  content: ShareContent | null;
   viewCount: number;
+}
+
+interface SharePresentation {
+  kindLabel: string;
+  bodyHeading: string;
+  copyLabel: string;
+  copyText: string;
+  author: string | null;
+  date: string | null;
+  badges: string[];
+}
+
+function isPromptContent(content: ShareContent): content is Prompt {
+  return "content" in content;
+}
+
+function isBundleContent(content: ShareContent): content is Bundle {
+  return "promptIds" in content;
+}
+
+function isWorkflowContent(content: ShareContent): content is Workflow {
+  return "steps" in content;
+}
+
+function getContentTypeLabel(contentType: ShareLinkInfo["contentType"]): string {
+  switch (contentType) {
+    case "prompt":
+      return "Prompt";
+    case "bundle":
+      return "Bundle";
+    case "workflow":
+      return "Workflow";
+    case "collection":
+      return "Collection";
+  }
+}
+
+function getSharePresentation(
+  contentType: ShareLinkInfo["contentType"],
+  content: ShareContent
+): SharePresentation {
+  const kindLabel = getContentTypeLabel(contentType);
+
+  if (isPromptContent(content)) {
+    return {
+      kindLabel,
+      bodyHeading: "Prompt Content",
+      copyLabel: "Copy Prompt",
+      copyText: content.content,
+      author: content.author,
+      date: content.created,
+      badges: [content.category, ...content.tags],
+    };
+  }
+
+  if (isBundleContent(content)) {
+    return {
+      kindLabel,
+      bodyHeading: "Bundle Contents",
+      copyLabel: "Copy Bundle",
+      copyText: generateBundleMarkdown(getBundlePrompts(content), content.title),
+      author: content.author,
+      date: content.updatedAt,
+      badges: [`${content.promptIds.length} prompts`, `v${content.version}`],
+    };
+  }
+
+  if (isWorkflowContent(content)) {
+    return {
+      kindLabel,
+      bodyHeading: "Workflow",
+      copyLabel: "Copy Workflow",
+      copyText: generateWorkflowMarkdown(content),
+      author: null,
+      date: null,
+      badges: [`${content.steps.length} steps`],
+    };
+  }
+
+  return {
+    kindLabel,
+    bodyHeading: `${kindLabel} Content`,
+    copyLabel: `Copy ${kindLabel}`,
+    copyText: "",
+    author: null,
+    date: null,
+    badges: [],
+  };
 }
 
 function formatDate(dateString: string): string {
@@ -171,11 +264,12 @@ export default function SharePage() {
   const handleCopy = useCallback(async () => {
     if (!shareData?.content) return;
 
-    const result = await copyToClipboard(shareData.content.content);
+    const presentation = getSharePresentation(shareData.contentType, shareData.content);
+    const result = await copyToClipboard(presentation.copyText);
     if (result.success) {
       setCopied(true);
       if ("vibrate" in navigator) navigator.vibrate(50);
-      success("Copied to clipboard", shareData.content.title, { duration: 3000 });
+      success("Copied to clipboard", `${presentation.kindLabel} copied`, { duration: 3000 });
       trackEvent("share_copy", { linkCode });
       setTimeout(() => setCopied(false), 2000);
       return;
@@ -236,24 +330,18 @@ export default function SharePage() {
   );
 
   const handleSaveToLibrary = useCallback(() => {
-    // This would trigger authentication if not logged in
-    success(
-      "Saved to library",
-      "This prompt has been added to your library",
-      { duration: 3000 }
+    toastError(
+      "Unavailable",
+      "Saving directly from public share links is not wired up yet."
     );
-    trackEvent("share_save", { linkCode });
-  }, [linkCode, success]);
+  }, [toastError]);
 
   const handleFork = useCallback(() => {
-    // This would trigger authentication if not logged in
-    success(
-      "Forked to your library",
-      "You can now edit this prompt",
-      { duration: 3000 }
+    toastError(
+      "Unavailable",
+      "Forking directly from public share links is not wired up yet."
     );
-    trackEvent("share_fork", { linkCode });
-  }, [linkCode, success]);
+  }, [toastError]);
 
   // Loading state
   if (isLoading) {
@@ -377,6 +465,7 @@ export default function SharePage() {
   // Content view
   const content = shareData.content;
   if (!content) return null;
+  const presentation = getSharePresentation(shareData.contentType, content);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900">
@@ -416,7 +505,7 @@ export default function SharePage() {
           <div className="mb-8">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
               <Sparkles className="h-3.5 w-3.5" />
-              Shared Prompt
+              Shared {presentation.kindLabel}
             </div>
 
             <h1 className="text-3xl font-bold text-neutral-900 dark:text-white sm:text-4xl">
@@ -428,33 +517,36 @@ export default function SharePage() {
 
             {/* Author & Meta */}
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-              {content.author && (
+              {presentation.author && (
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800">
                     <User className="h-4 w-4 text-neutral-500" />
                   </div>
-                  <span>{content.author}</span>
+                  <span>{presentation.author}</span>
                 </div>
               )}
-              {content.created && (
+              {presentation.date && (
                 <div className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  {formatDate(content.created)}
+                  {formatDate(presentation.date)}
                 </div>
               )}
             </div>
 
             {/* Tags */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="capitalize">
-                {content.category}
-              </Badge>
-              {content.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
+            {presentation.badges.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {presentation.badges.map((badge, index) => (
+                  <Badge
+                    key={`${badge}-${index}`}
+                    variant={index === 0 ? "outline" : "secondary"}
+                    className={index === 0 ? "capitalize" : undefined}
+                  >
+                    {badge}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Prompt Content */}
@@ -462,7 +554,7 @@ export default function SharePage() {
             <CardContent className="p-0">
               <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-700">
                 <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                  Prompt Content
+                  {presentation.bodyHeading}
                 </h2>
                 <Button
                   variant="outline"
@@ -488,7 +580,7 @@ export default function SharePage() {
               </div>
               <div className="p-6">
                 <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-                  {content.content}
+                  {presentation.copyText}
                 </pre>
               </div>
             </CardContent>
@@ -505,7 +597,7 @@ export default function SharePage() {
               ) : (
                 <>
                   <Copy className="mr-2 h-5 w-5" />
-                  Copy Prompt
+                  {presentation.copyLabel}
                 </>
               )}
             </Button>

@@ -122,6 +122,8 @@ describe("/api/reviews/[id]", () => {
 
       expect(res.status).toBe(200);
       expect(data.success).toBe(true);
+      expect(data.summary.totalReviews).toBe(0);
+      expect(data.summary.contentId).toBe("p1");
 
       // Verify it's actually gone
       const getRes = await GET(

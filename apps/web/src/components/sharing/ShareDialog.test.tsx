@@ -41,6 +41,7 @@ const existingShare: ShareLink = {
   linkCode: "abc123",
   url: "https://jeffreysprompts.com/s/abc123",
   password: null,
+  isPasswordProtected: false,
   expiresAt: null,
   viewCount: 42,
   createdAt: "2026-01-01T00:00:00Z",
@@ -182,7 +183,11 @@ describe("ShareDialog", () => {
   // --- Password protection ---
 
   it("shows password protected indicator when share has password", () => {
-    const shareWithPassword: ShareLink = { ...existingShare, password: "secret" };
+    const shareWithPassword: ShareLink = {
+      ...existingShare,
+      password: null,
+      isPasswordProtected: true,
+    };
     render(<ShareDialog {...defaultProps} existingShare={shareWithPassword} />);
     expect(screen.getByText("Password protected")).toBeInTheDocument();
   });

@@ -71,9 +71,10 @@ export function ReviewCard({
   const [showResponse, setShowResponse] = useState(true);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportFailed, setReportFailed] = useState(false);
-  const { userVote, vote, loading: voteLoading } = useReviewVote({
+  const { userVote, review: liveReview, vote, loading: voteLoading } = useReviewVote({
     reviewId: review.id,
   });
+  const displayedReview = liveReview ?? review;
 
   const handleVote = useCallback(
     async (isHelpful: boolean) => {
@@ -102,9 +103,9 @@ export function ReviewCard({
     }
   }, [review.id]);
 
-  const displayName = review.displayName || "Anonymous";
-  const isRecommended = review.rating === "up";
-  const hasResponse = Boolean(review.authorResponse);
+  const displayName = displayedReview.displayName || "Anonymous";
+  const isRecommended = displayedReview.rating === "up";
+  const hasResponse = Boolean(displayedReview.authorResponse);
 
   return (
     <div
@@ -150,8 +151,8 @@ export function ReviewCard({
               )}
             </div>
             <div className="text-sm text-neutral-500">
-              {formatDate(review.createdAt)}
-              {review.updatedAt !== review.createdAt && (
+              {formatDate(displayedReview.createdAt)}
+              {displayedReview.updatedAt !== displayedReview.createdAt && (
                 <span className="text-neutral-400"> (edited)</span>
               )}
             </div>
@@ -202,7 +203,7 @@ export function ReviewCard({
 
       {/* Review Content */}
       <p className="text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap mb-4">
-        {review.content}
+        {displayedReview.content}
       </p>
 
       {/* Helpful Voting */}
@@ -221,7 +222,7 @@ export function ReviewCard({
               onClick={() => handleVote(true)}
               disabled={voteLoading}
               aria-pressed={userVote?.isHelpful === true}
-              aria-label={`Helpful${review.helpfulCount > 0 ? ` (${review.helpfulCount})` : ""}`}
+              aria-label={`Helpful${displayedReview.helpfulCount > 0 ? ` (${displayedReview.helpfulCount})` : ""}`}
             >
               <ThumbsUp
                 className={cn(
@@ -229,8 +230,8 @@ export function ReviewCard({
                   userVote?.isHelpful === true && "fill-current"
                 )}
               />
-              {review.helpfulCount > 0 && (
-                <span className="tabular-nums">{review.helpfulCount}</span>
+              {displayedReview.helpfulCount > 0 && (
+                <span className="tabular-nums">{displayedReview.helpfulCount}</span>
               )}
             </Button>
             <Button
@@ -244,7 +245,7 @@ export function ReviewCard({
               onClick={() => handleVote(false)}
               disabled={voteLoading}
               aria-pressed={userVote?.isHelpful === false}
-              aria-label={`Not helpful${review.notHelpfulCount > 0 ? ` (${review.notHelpfulCount})` : ""}`}
+              aria-label={`Not helpful${displayedReview.notHelpfulCount > 0 ? ` (${displayedReview.notHelpfulCount})` : ""}`}
             >
               <ThumbsDown
                 className={cn(
@@ -252,8 +253,8 @@ export function ReviewCard({
                   userVote?.isHelpful === false && "fill-current"
                 )}
               />
-              {review.notHelpfulCount > 0 && (
-                <span className="tabular-nums">{review.notHelpfulCount}</span>
+              {displayedReview.notHelpfulCount > 0 && (
+                <span className="tabular-nums">{displayedReview.notHelpfulCount}</span>
               )}
             </Button>
           </div>
@@ -283,13 +284,13 @@ export function ReviewCard({
               )}
             </button>
 
-            {showResponse && review.authorResponse && (
+            {showResponse && displayedReview.authorResponse && (
               <div className="ml-4 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 whitespace-pre-wrap">
-                  {review.authorResponse.content}
+                  {displayedReview.authorResponse.content}
                 </p>
                 <p className="text-xs text-neutral-400 mt-1">
-                  {formatDate(review.authorResponse.createdAt)}
+                  {formatDate(displayedReview.authorResponse.createdAt)}
                 </p>
               </div>
             )}

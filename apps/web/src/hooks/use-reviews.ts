@@ -173,17 +173,26 @@ export function useReviews({
         throw new Error(errorMessage);
       }
 
-      setState((prev) => ({
-        ...prev,
-        reviews: prev.reviews.filter((r) => r.id !== prev.userReview?.id),
-        userReview: null,
-        pagination: {
-          ...prev.pagination,
-          total: Math.max(0, prev.pagination.total - 1),
-        },
-        loading: false,
-        error: null,
-      }));
+      const data = await res.json();
+      setState((prev) => {
+        const nextTotal = Math.max(0, prev.pagination.total - 1);
+        const nextOffset = Math.min(prev.pagination.offset, Math.max(0, nextTotal - 1));
+
+        return {
+          ...prev,
+          reviews: prev.reviews.filter((r) => r.id !== prev.userReview?.id),
+          summary: data.summary ?? prev.summary,
+          userReview: null,
+          pagination: {
+            ...prev.pagination,
+            total: nextTotal,
+            offset: nextOffset,
+            hasMore: nextTotal > nextOffset + prev.pagination.limit,
+          },
+          loading: false,
+          error: null,
+        };
+      });
       return true;
     } catch (err) {
       setState((prev) => ({
@@ -227,6 +236,7 @@ interface UseReviewVoteOptions {
 
 interface UseReviewVoteReturn {
   userVote: { isHelpful: boolean } | null;
+  review: Review | null;
   loading: boolean;
   error: string | null;
   vote: (isHelpful: boolean) => Promise<boolean>;
@@ -235,10 +245,12 @@ interface UseReviewVoteReturn {
 export function useReviewVote({ reviewId }: UseReviewVoteOptions): UseReviewVoteReturn {
   const [state, setState] = useState<{
     userVote: { isHelpful: boolean } | null;
+    review: Review | null;
     loading: boolean;
     error: string | null;
   }>({
     userVote: null,
+    review: null,
     loading: true,
     error: null,
   });
@@ -256,6 +268,7 @@ export function useReviewVote({ reviewId }: UseReviewVoteOptions): UseReviewVote
       if (mountedRef.current) {
         setState({
           userVote: data.vote,
+          review: null,
           loading: false,
           error: null,
         });
@@ -298,6 +311,7 @@ export function useReviewVote({ reviewId }: UseReviewVoteOptions): UseReviewVote
         const data = await res.json();
         setState({
           userVote: { isHelpful: data.vote.isHelpful },
+          review: data.review ?? null,
           loading: false,
           error: null,
         });

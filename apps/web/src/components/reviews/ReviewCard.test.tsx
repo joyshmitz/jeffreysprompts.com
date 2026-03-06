@@ -21,10 +21,12 @@ vi.mock("framer-motion", () => ({
 
 // Mock the useReviewVote hook
 const mockVote = vi.fn();
+let liveVoteReview: Review | null = null;
 vi.mock("@/hooks/use-reviews", () => ({
   useReviewVote: () => ({
     userVote: null,
     vote: mockVote,
+    review: liveVoteReview,
     loading: false,
   }),
 }));
@@ -67,6 +69,7 @@ describe("ReviewCard", () => {
 
   beforeEach(() => {
     mockVote.mockClear();
+    liveVoteReview = null;
     setFetchMock(vi.fn());
   });
 
@@ -136,6 +139,13 @@ describe("ReviewCard", () => {
     render(<ReviewCard review={makeReview({ helpfulCount: 7, notHelpfulCount: 2 })} />);
     expect(screen.getByText("7")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("renders updated vote counts from the hook state", () => {
+    liveVoteReview = makeReview({ helpfulCount: 3, notHelpfulCount: 5 });
+    render(<ReviewCard review={makeReview({ helpfulCount: 1, notHelpfulCount: 1 })} />);
+    expect(screen.getByLabelText("Helpful (3)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Not helpful (5)")).toBeInTheDocument();
   });
 
   it("shows helpful voting section for non-own reviews", () => {

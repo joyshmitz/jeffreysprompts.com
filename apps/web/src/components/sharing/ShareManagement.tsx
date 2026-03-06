@@ -118,7 +118,7 @@ function ShareLinkRow({
             <Eye className="h-3.5 w-3.5" />
             {link.viewCount} views
           </span>
-          {link.password && (
+          {(link.isPasswordProtected || Boolean(link.password)) && (
             <span className="flex items-center gap-1">
               <Lock className="h-3.5 w-3.5" />
               Protected
@@ -292,7 +292,7 @@ export function ShareManagement({
               No share links yet
             </h3>
             <p className="mt-1 text-sm text-neutral-500">
-              Share a prompt, pack, or skill to create your first link.
+              Share a prompt, bundle, or workflow to create your first link.
             </p>
           </div>
         ) : (

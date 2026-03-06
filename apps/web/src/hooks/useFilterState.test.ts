@@ -446,6 +446,13 @@ describe("useFilterState", () => {
 
       expect(result.current.hasActiveFilters).toBe(true);
     });
+
+    it("returns true when sort order is set away from default", () => {
+      mockSearchParams.set("sort", "rating");
+      const { result } = renderHook(() => useFilterState());
+
+      expect(result.current.hasActiveFilters).toBe(true);
+    });
   });
 
   describe("URL pathname handling", () => {
