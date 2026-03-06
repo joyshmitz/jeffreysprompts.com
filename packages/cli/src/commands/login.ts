@@ -11,7 +11,13 @@ import { URL } from "url";
 import open from "open";
 import chalk from "chalk";
 import boxen from "boxen";
-import { saveCredentials, loadCredentials, isExpired, type Credentials } from "../lib/credentials";
+import {
+  CredentialsSchema,
+  saveCredentials,
+  loadCredentials,
+  isExpired,
+  type Credentials,
+} from "../lib/credentials";
 import { shouldOutputJson } from "../lib/utils";
 
 const DEFAULT_TIMEOUT = 120_000; // 2 minutes
@@ -349,15 +355,6 @@ interface DeviceCodeResponse {
   interval: number; // Recommended poll interval
 }
 
-interface DeviceTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_at: string;
-  email: string;
-  tier: "free" | "premium";
-  user_id: string;
-}
-
 interface DeviceTokenError {
   error: string;
   error_description?: string;
@@ -466,9 +463,10 @@ async function loginRemote(options: LoginOptions): Promise<void> {
     await sleep(pollInterval);
     attempts++;
 
+    let tokenResponse: Response;
     try {
       const premiumUrl = getPremiumUrl();
-      const tokenResponse = await fetch(`${premiumUrl}/api/cli/device-token`, {
+      tokenResponse = await fetch(`${premiumUrl}/api/cli/device-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -476,101 +474,122 @@ async function loginRemote(options: LoginOptions): Promise<void> {
           client_id: "jfp-cli",
         }),
       });
-
-      if (tokenResponse.ok) {
-        const credentials = (await tokenResponse.json()) as DeviceTokenResponse;
-
-        // Save credentials
-        await saveCredentials({
-          access_token: credentials.access_token,
-          refresh_token: credentials.refresh_token,
-          expires_at: credentials.expires_at,
-          email: credentials.email,
-          tier: credentials.tier,
-          user_id: credentials.user_id,
-        });
-
-        if (jsonOutput) {
-          writeJson({
-            authenticated: true,
-            email: credentials.email,
-            tier: credentials.tier,
-          });
-        } else {
-          console.log(
-            boxen(
-              `${chalk.green("✓")} Logged in as ${chalk.bold(credentials.email)}\n` +
-                `Tier: ${chalk.cyan(credentials.tier)}`,
-              { padding: 1, margin: 1, borderStyle: "round", borderColor: "green" }
-            )
-          );
-        }
-
-        return;
-      }
-
-      // Check for specific errors
-      let errorBody: DeviceTokenError;
-      try {
-        errorBody = (await tokenResponse.json()) as DeviceTokenError;
-      } catch {
-        // Response body is not valid JSON, treat as generic error
-        if (jsonOutput) {
-          writeJsonError("invalid_response", `Server returned non-JSON error (status ${tokenResponse.status})`);
-        } else {
-          process.stderr.write(
-            `${chalk.red(`\n\nServer returned invalid response (status ${tokenResponse.status})`)}\n`
-          );
-        }
-        process.exit(1);
-      }
-
-      if (errorBody.error === "authorization_pending") {
-        // User hasn't completed auth yet, keep polling
-        if (!jsonOutput) {
-          process.stdout.write(".");
-        }
-        continue;
-      }
-
-      if (errorBody.error === "slow_down") {
-        // API wants us to slow down
-        await sleep(5000);
-        continue;
-      }
-
-      if (errorBody.error === "expired_token") {
-        if (jsonOutput) {
-          writeJsonError("expired_token", "Device code expired. Please try again.");
-        } else {
-          console.log(chalk.red("\n\nDevice code expired. Please try again."));
-        }
-        process.exit(1);
-      }
-
-      if (errorBody.error === "access_denied") {
-        if (jsonOutput) {
-          writeJsonError("access_denied", "Authentication was denied.");
-        } else {
-          console.log(chalk.red("\n\nAuthentication was denied."));
-        }
-        process.exit(1);
-      }
-
-      // Unknown error
-      const errorMessage = errorBody.error_description || errorBody.error;
-      if (jsonOutput) {
-        writeJsonError(errorBody.error, errorMessage);
-      } else {
-        console.log(chalk.red("\n\nAuthentication failed:"), errorMessage);
-      }
-      process.exit(1);
     } catch {
       // Network error, keep trying
       if (!jsonOutput) {
         process.stdout.write("x");
       }
+      continue;
     }
+
+    if (tokenResponse.ok) {
+      let tokenPayload: unknown;
+      try {
+        tokenPayload = await tokenResponse.json();
+      } catch {
+        if (jsonOutput) {
+          writeJsonError("invalid_response", "Authentication server returned invalid JSON");
+        } else {
+          console.log(chalk.red("\n\nAuthentication server returned invalid JSON."));
+        }
+        process.exit(1);
+      }
+
+      const parsedCredentials = CredentialsSchema.safeParse(tokenPayload);
+      if (!parsedCredentials.success) {
+        if (jsonOutput) {
+          writeJsonError(
+            "invalid_response",
+            "Authentication server returned invalid credentials"
+          );
+        } else {
+          console.log(
+            chalk.red("\n\nAuthentication server returned invalid credentials.")
+          );
+        }
+        process.exit(1);
+      }
+
+      const credentials = parsedCredentials.data;
+
+      // Save credentials
+      await saveCredentials(credentials);
+
+      if (jsonOutput) {
+        writeJson({
+          authenticated: true,
+          email: credentials.email,
+          tier: credentials.tier,
+        });
+      } else {
+        console.log(
+          boxen(
+            `${chalk.green("✓")} Logged in as ${chalk.bold(credentials.email)}\n` +
+              `Tier: ${chalk.cyan(credentials.tier)}`,
+            { padding: 1, margin: 1, borderStyle: "round", borderColor: "green" }
+          )
+        );
+      }
+
+      return;
+    }
+
+    // Check for specific errors
+    let errorBody: DeviceTokenError;
+    try {
+      errorBody = (await tokenResponse.json()) as DeviceTokenError;
+    } catch {
+      // Response body is not valid JSON, treat as generic error
+      if (jsonOutput) {
+        writeJsonError("invalid_response", `Server returned non-JSON error (status ${tokenResponse.status})`);
+      } else {
+        process.stderr.write(
+          `${chalk.red(`\n\nServer returned invalid response (status ${tokenResponse.status})`)}\n`
+        );
+      }
+      process.exit(1);
+    }
+
+    if (errorBody.error === "authorization_pending") {
+      // User hasn't completed auth yet, keep polling
+      if (!jsonOutput) {
+        process.stdout.write(".");
+      }
+      continue;
+    }
+
+    if (errorBody.error === "slow_down") {
+      // API wants us to slow down
+      await sleep(5000);
+      continue;
+    }
+
+    if (errorBody.error === "expired_token") {
+      if (jsonOutput) {
+        writeJsonError("expired_token", "Device code expired. Please try again.");
+      } else {
+        console.log(chalk.red("\n\nDevice code expired. Please try again."));
+      }
+      process.exit(1);
+    }
+
+    if (errorBody.error === "access_denied") {
+      if (jsonOutput) {
+        writeJsonError("access_denied", "Authentication was denied.");
+      } else {
+        console.log(chalk.red("\n\nAuthentication was denied."));
+      }
+      process.exit(1);
+    }
+
+    // Unknown error
+    const errorMessage = errorBody.error_description || errorBody.error;
+    if (jsonOutput) {
+      writeJsonError(errorBody.error, errorMessage);
+    } else {
+      console.log(chalk.red("\n\nAuthentication failed:"), errorMessage);
+    }
+    process.exit(1);
   }
 
   // Timeout

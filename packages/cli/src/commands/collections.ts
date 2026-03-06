@@ -574,7 +574,7 @@ export async function exportCollectionCommand(
 
   const exported: CollectionExportResult[] = [];
   const failed: Array<{ id: string; error: string }> = [];
-  const registry = await loadRegistry();
+  const registry = await loadRegistry(env);
 
   for (const [index, promptId] of promptIds.entries()) {
     const resolved = await resolvePromptForExport(promptId, options, env, registry);

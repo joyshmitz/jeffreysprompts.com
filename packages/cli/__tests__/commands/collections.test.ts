@@ -87,6 +87,34 @@ function createCredentialsFile(configDir: string, options: {
   return creds;
 }
 
+function createOfflineLibraryPrompt(
+  configDir: string,
+  prompt: {
+    id: string;
+    title: string;
+    content: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+  }
+) {
+  const libraryDir = join(configDir, "jfp", "library");
+  mkdirSync(libraryDir, { recursive: true });
+  writeFileSync(
+    join(libraryDir, "prompts.json"),
+    JSON.stringify(
+      [
+        {
+          ...prompt,
+          saved_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      null,
+      2
+    )
+  );
+}
+
 // Mock console
 let consoleOutput: string[] = [];
 let exitCode: number | undefined;
@@ -771,6 +799,94 @@ describe("exportCollectionCommand", () => {
         value: originalIsTTY,
         configurable: true,
       });
+      cleanup();
+    }
+  });
+
+  it("uses the provided env when loading offline prompts for export", async () => {
+    const { fakeConfig, mockEnv, cleanup } = setupTestEnv({ JFP_TOKEN: "env-token-xyz" });
+    try {
+      createOfflineLibraryPrompt(fakeConfig, {
+        id: "env-local-template",
+        title: "Env Local Template",
+        description: "Loaded from env-scoped offline library",
+        content: "Offline prompt body",
+        category: "workflow",
+        tags: ["offline"],
+      });
+
+      globalThis.fetch = mock((input: RequestInfo | URL) => {
+        const url = input.toString();
+
+        if (url.includes("/cli/collections/Env%20Favorites")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "col-3",
+                name: "Env Favorites",
+                promptCount: 1,
+                createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: "2026-01-10T00:00:00Z",
+                prompts: [
+                  {
+                    id: "env-local-template",
+                    title: "Env Local Template",
+                    description: "Loaded from env-scoped offline library",
+                    category: "workflow",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/api/prompts")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                prompts: [],
+                bundles: [],
+                workflows: [],
+                version: "1.0.0",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/cli/prompts/env-local-template")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ error: "Not found" }), {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      });
+
+      await exportCollectionCommand(
+        "Env Favorites",
+        { json: true, stdout: true, format: "md" },
+        mockEnv
+      );
+
+      const parsed = parseJson(consoleOutput.join("\n"));
+      expect(parsed.success).toBe(true);
+      expect(parsed.exported).toHaveLength(1);
+      expect(parsed.exported[0].id).toBe("env-local-template");
+      expect(parsed.exported[0].content).toContain("# Env Local Template");
+      expect(parsed.exported[0].content).toContain("Offline prompt body");
+      expect(exitCode).toBeUndefined();
+    } finally {
       cleanup();
     }
   });

@@ -22,6 +22,19 @@ const originalError = console.error;
 const originalExit = process.exit;
 const originalFetch = globalThis.fetch;
 
+function parseJsonOutput<T = any>(): T {
+  const payload = output.join("");
+  try {
+    return JSON.parse(payload) as T;
+  } catch (error) {
+    throw new Error(
+      `Expected JSON output but received: ${payload || "<empty>"}; ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
 beforeAll(() => {
   testDir = mkdtempSync(join(tmpdir(), "jfp-export-test-"));
   originalCwd = process.cwd();
@@ -73,7 +86,7 @@ describe("exportCommand", () => {
 
   it("outputs JSON summary when --json is set", async () => {
     await exportCommand(["idea-wizard"], { json: true });
-    const payload = JSON.parse(output.join(""));
+    const payload = parseJsonOutput();
     expect(payload.success).toBe(true);
     expect(payload.exported.length).toBe(1);
     expect(payload.exported[0].id).toBe("idea-wizard");
@@ -82,7 +95,7 @@ describe("exportCommand", () => {
 
   it("exports multiple prompts", async () => {
     await exportCommand(["idea-wizard", "readme-reviser"], { json: true });
-    const payload = JSON.parse(output.join(""));
+    const payload = parseJsonOutput();
     expect(payload.exported.length).toBe(2);
     
     expect(existsSync(join(testDir, "idea-wizard.md"))).toBe(true);
@@ -91,7 +104,7 @@ describe("exportCommand", () => {
 
   it("exports as markdown format", async () => {
     await exportCommand(["idea-wizard"], { json: true, format: "md" });
-    const payload = JSON.parse(output.join(""));
+    const payload = parseJsonOutput();
     expect(payload.exported[0].file.endsWith("idea-wizard.md")).toBe(true);
   });
 
@@ -148,7 +161,7 @@ describe("exportCommand", () => {
         process.env.JFP_TOKEN = originalToken;
       }
     }
-    const payload = JSON.parse(output.join(""));
+    const payload = parseJsonOutput();
 
     expect(payload.success).toBe(true);
     expect(payload.exported).toHaveLength(1);
@@ -157,5 +170,80 @@ describe("exportCommand", () => {
     const exportedContent = readFileSync(join(testDir, "personal-only.md"), "utf-8");
     expect(exportedContent).toContain("# Personal Prompt");
     expect(exportedContent).toContain("Personal prompt body");
+  });
+
+  it("rejects unsafe prompt ids returned by the API", async () => {
+    const originalToken = process.env.JFP_TOKEN;
+    const outputDir = join(testDir, "nested-output");
+    process.env.JFP_TOKEN = "env-token-xyz";
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = input.toString();
+
+      if (url.includes("/api/prompts")) {
+        return new Response(
+          JSON.stringify({
+            prompts: [],
+            bundles: [],
+            workflows: [],
+            version: "1.0.0",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (url.includes("/cli/prompts/..%2Fescaped")) {
+        return new Response(
+          JSON.stringify({
+            id: "../escaped",
+            title: "Escaped Prompt",
+            description: "Should not write outside the export directory",
+            content: "unsafe body",
+            category: "workflow",
+            tags: ["premium"],
+            author: "Jeffrey Emanuel",
+            version: "1.0.0",
+            created: "2026-01-01",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      return new Response("Not found", { status: 404 });
+    };
+
+    try {
+      try {
+        await exportCommand(["../escaped"], {
+          json: true,
+          format: "md",
+          outputDir,
+        });
+      } catch {
+        // Expected exit
+      }
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.JFP_TOKEN;
+      } else {
+        process.env.JFP_TOKEN = originalToken;
+      }
+    }
+
+    const payload = parseJsonOutput();
+    expect(payload.success).toBe(false);
+    expect(payload.failed).toEqual([
+      {
+        id: "../escaped",
+        error: "Unsafe prompt id for filename",
+      },
+    ]);
+    expect(exitCode).toBe(1);
+    expect(existsSync(join(testDir, "escaped.md"))).toBe(false);
   });
 });

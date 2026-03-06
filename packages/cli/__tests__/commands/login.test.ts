@@ -277,4 +277,55 @@ describe("Device Code Flow", () => {
     expect(output).toContain("verification_url");
     expect(output).toContain("TEST-1234");
   });
+
+  it("rejects invalid credentials returned by the device token endpoint", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              device_code: "device-abc123",
+              user_code: "TEST1234",
+              verification_url: "https://test-premium.example.com/cli/verify",
+              expires_in: 900,
+              interval: 1,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: "token",
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            email: "not-an-email",
+            tier: "enterprise",
+            user_id: "user-123",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    });
+
+    let exitCode: number | undefined;
+    process.exit = ((code?: number) => {
+      exitCode = code;
+      throw new Error("EXIT_" + code);
+    }) as never;
+
+    try {
+      await loginCommand({ remote: true, json: true, timeout: 30000 });
+    } catch {
+      // Expected
+    }
+
+    const parsed = JSON.parse(consoleOutput.at(-1) ?? "{}") as Record<string, unknown>;
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("invalid_response");
+    expect(exitCode).toBe(1);
+  });
 });

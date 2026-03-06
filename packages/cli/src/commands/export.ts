@@ -1,8 +1,13 @@
 import { mkdirSync } from "fs";
-import { join } from "path";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
 import chalk from "chalk";
-import { exitWithDeprecatedSkillCommand, shouldOutputJson, atomicWriteFileSync } from "../lib/utils";
+import {
+  exitWithDeprecatedSkillCommand,
+  shouldOutputJson,
+  atomicWriteFileSync,
+  isSafeSkillId,
+  resolveSafeChildPath,
+} from "../lib/utils";
 import { loadRegistry } from "../lib/registry-loader";
 import { resolvePromptById } from "../lib/prompt-resolution";
 
@@ -106,7 +111,15 @@ export async function exportCommand(ids: string[], options: ExportOptions) {
         }
       }
     } else {
-      const filename = join(outputDir, `${prompt.id}.md`);
+      if (!isSafeSkillId(prompt.id)) {
+        failed.push({ id: prompt.id, error: "Unsafe prompt id for filename" });
+        if (!jsonOutput) {
+          console.error(chalk.red(`Failed to export ${prompt.id}: unsafe prompt id for filename`));
+        }
+        continue;
+      }
+
+      const filename = resolveSafeChildPath(outputDir, `${prompt.id}.md`);
       try {
         atomicWriteFileSync(filename, content);
         results.push({ id: prompt.id, file: filename });
