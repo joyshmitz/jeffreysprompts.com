@@ -192,6 +192,23 @@ describe("ShareDialog", () => {
     expect(screen.getByText("Password protected")).toBeInTheDocument();
   });
 
+  it("resets create-form state when an existing protected share is cleared", () => {
+    const shareWithPassword: ShareLink = {
+      ...existingShare,
+      password: null,
+      isPasswordProtected: true,
+    };
+
+    const { rerender } = render(
+      <ShareDialog {...defaultProps} existingShare={shareWithPassword} />
+    );
+
+    rerender(<ShareDialog {...defaultProps} existingShare={null} />);
+
+    expect(screen.getByText("Create Share Link")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Enter a password")).not.toBeInTheDocument();
+  });
+
   // --- Close button ---
 
   it("calls onOpenChange when close clicked", () => {

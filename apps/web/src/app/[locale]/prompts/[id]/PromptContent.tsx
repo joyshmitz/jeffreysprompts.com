@@ -58,6 +58,20 @@ interface PromptContentProps {
 
 type VariableValues = Record<string, string>;
 
+interface ExistingShareResponse {
+  links?: Array<{
+    code: string;
+    contentType: "prompt" | "bundle" | "workflow" | "collection";
+    contentId: string;
+    viewCount: number;
+    isPasswordProtected: boolean;
+    isActive: boolean;
+    expiresAt: string | null;
+    createdAt: string;
+    url: string;
+  }>;
+}
+
 export function PromptContent({ prompt }: PromptContentProps) {
   const locale = useLocale();
   const { success, error } = useToast();
@@ -108,23 +122,103 @@ export function PromptContent({ prompt }: PromptContentProps) {
   }, [prompt.id]);
 
   useEffect(() => {
+    setRatingSummary(null);
+    setUserRating(null);
+
     const params = new URLSearchParams({
       contentType: "prompt",
       contentId: prompt.id,
     });
-    fetch(`/api/ratings?${params.toString()}`, { cache: "no-store" })
-      .then((response) => response.json())
+    const controller = new AbortController();
+    let active = true;
+
+    fetch(`/api/ratings?${params.toString()}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch rating");
+        }
+        return response.json();
+      })
       .then((payload) => {
+        if (!active) return;
         if (payload?.summary) {
           setRatingSummary(payload.summary);
         }
         setUserRating(payload?.userRating ?? null);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        if (!active) return;
         setRatingSummary(null);
         setUserRating(null);
       });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [prompt.id]);
+
+  useEffect(() => {
+    setExistingShare(null);
+  }, [prompt.id]);
+
+  useEffect(() => {
+    if (!shareDialogOpen) return;
+
+    const controller = new AbortController();
+
+    const loadExistingShare = async () => {
+      try {
+        const response = await fetch("/api/share/mine", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as ExistingShareResponse;
+        const matchingLink = data.links?.find(
+          (link) =>
+            link.isActive &&
+            link.contentType === "prompt" &&
+            link.contentId === prompt.id
+        );
+
+        setExistingShare(
+          matchingLink
+            ? {
+                linkCode: matchingLink.code,
+                url: matchingLink.url,
+                password: null,
+                isPasswordProtected: matchingLink.isPasswordProtected,
+                isActive: matchingLink.isActive,
+                expiresAt: matchingLink.expiresAt,
+                viewCount: matchingLink.viewCount,
+                createdAt: matchingLink.createdAt,
+              }
+            : null
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+      }
+    };
+
+    void loadExistingShare();
+
+    return () => {
+      controller.abort();
+    };
+  }, [prompt.id, shareDialogOpen]);
 
   useEffect(() => {
     return () => {

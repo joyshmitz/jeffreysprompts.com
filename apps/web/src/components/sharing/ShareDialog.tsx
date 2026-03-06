@@ -11,7 +11,7 @@
  * - Copy to clipboard functionality
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Copy,
   Check,
@@ -96,6 +96,14 @@ const EXPIRATION_OPTIONS = [
   { value: "90", label: "90 days" },
 ];
 
+function hasPassword(existingShare?: ShareLink | null): boolean {
+  return Boolean(existingShare?.isPasswordProtected || existingShare?.password);
+}
+
+function getExpirationValue(existingShare?: ShareLink | null): string {
+  return existingShare?.expiresAt ? "custom" : "never";
+}
+
 function getContentTypeLabel(contentType: ShareableContentType): string {
   switch (contentType) {
     case "prompt":
@@ -131,13 +139,9 @@ export function ShareDialog({
   const [isRevoking, setIsRevoking] = useState(false);
 
   // Form state
-  const [passwordEnabled, setPasswordEnabled] = useState(
-    Boolean(existingShare?.isPasswordProtected || existingShare?.password)
-  );
+  const [passwordEnabled, setPasswordEnabled] = useState(hasPassword(existingShare));
   const [password, setPassword] = useState("");
-  const [expiration, setExpiration] = useState<string>(
-    existingShare?.expiresAt ? "custom" : "never"
-  );
+  const [expiration, setExpiration] = useState<string>(getExpirationValue(existingShare));
 
   // Derived state
   const shareUrl = existingShare?.url || null;
@@ -146,6 +150,14 @@ export function ShareDialog({
     existingShare?.isPasswordProtected || existingShare?.password
   );
   const contentTypeLabel = getContentTypeLabel(contentType);
+
+  useEffect(() => {
+    if (!open) return;
+
+    setPasswordEnabled(hasPassword(existingShare));
+    setPassword("");
+    setExpiration(getExpirationValue(existingShare));
+  }, [open, existingShare]);
 
   const handleCopyLink = useCallback(async () => {
     if (!shareUrl) return;

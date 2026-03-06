@@ -63,7 +63,7 @@ export default function SharedLinksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchShareLinks = useCallback(async () => {
+  const fetchShareLinks = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(
         "/api/share/mine"
@@ -72,7 +72,7 @@ export default function SharedLinksPage() {
       if (!response.ok) {
         if (response.status === 400) {
           setShareLinks([]);
-          return;
+          return true;
         }
         throw new Error("Failed to fetch share links");
       }
@@ -96,8 +96,10 @@ export default function SharedLinksPage() {
         }));
 
       setShareLinks(links);
+      return true;
     } catch {
       error("Failed to load share links", "Please try again later");
+      return false;
     }
   }, [error]);
 
@@ -112,9 +114,11 @@ export default function SharedLinksPage() {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await fetchShareLinks();
+    const refreshed = await fetchShareLinks();
     setIsRefreshing(false);
-    success("Share links refreshed");
+    if (refreshed) {
+      success("Share links refreshed");
+    }
   }, [fetchShareLinks, success]);
 
   const handleRevoke = useCallback(async (linkCode: string) => {
