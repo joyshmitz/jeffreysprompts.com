@@ -24,11 +24,14 @@ const originalLog = console.log;
 const originalError = console.error;
 const originalExit = process.exit;
 const originalArgv = process.argv;
+const originalFetch = globalThis.fetch;
+let originalEnv: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   output = [];
   errors = [];
   exitCode = undefined;
+  originalEnv = { ...process.env };
   console.log = (...args: unknown[]) => {
     output.push(args.join(" "));
   };
@@ -47,6 +50,8 @@ afterEach(() => {
   console.error = originalError;
   process.exit = originalExit;
   process.argv = originalArgv;
+  globalThis.fetch = originalFetch;
+  process.env = originalEnv;
 });
 
 describe("copyCommand", () => {
@@ -107,6 +112,71 @@ describe("copyCommand", () => {
     } else {
       expect(parsed.error).toBe("clipboard_failed");
     }
+  });
+
+  it("resolves personal prompts from the API and preserves required variables", async () => {
+    process.env.JFP_TOKEN = "env-token-xyz";
+    process.argv = ["node", "jfp", "copy", "personal-template"];
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = input.toString();
+
+      if (url.includes("/api/prompts")) {
+        return new Response(
+          JSON.stringify({
+            prompts: [],
+            bundles: [],
+            workflows: [],
+            version: "1.0.0",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (url.includes("/cli/prompts/personal-template")) {
+        return new Response(
+          JSON.stringify({
+            id: "personal-template",
+            title: "Personal Template",
+            description: "Only available from the premium API",
+            content: "Subject: {{TARGET_NAME}}",
+            category: "workflow",
+            tags: ["premium"],
+            author: "Jeffrey Emanuel",
+            version: "1.0.0",
+            created: "2026-01-01",
+            variables: [
+              {
+                name: "TARGET_NAME",
+                label: "Target Name",
+                type: "text",
+                required: true,
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      return new Response("Not found", { status: 404 });
+    };
+
+    try {
+      await copyCommand("personal-template", { json: true });
+    } catch (e) {
+      if ((e as Error).message !== "process.exit") throw e;
+    }
+
+    const parsed = JSON.parse(output.join(""));
+    expect(parsed.error).toBe(true);
+    expect(parsed.code).toBe("missing_variables");
+    expect(parsed.missing).toEqual(["TARGET_NAME"]);
+    expect(exitCode).toBe(1);
   });
 });
 
@@ -257,9 +327,11 @@ describe("copyCommand - Real Clipboard Tests", () => {
     if (parsed.success) {
       const clipboardContent = await readClipboard();
       expect(clipboardContent).not.toBeNull();
+      if (clipboardContent === null) {
+        throw new Error("Expected clipboard content after successful copy");
+      }
       // Content length should match (trim to handle trailing newlines)
-      expect(clipboardContent).toBeDefined();
-      expect(clipboardContent!.trim().length).toBe(parsed.characters);
+      expect(clipboardContent.trim().length).toBe(parsed.characters);
     }
   });
 });

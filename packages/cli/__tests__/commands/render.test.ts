@@ -20,6 +20,8 @@ const originalLog = console.log;
 const originalError = console.error;
 const originalExit = process.exit;
 const originalArgv = process.argv;
+const originalFetch = globalThis.fetch;
+let originalEnv: NodeJS.ProcessEnv;
 
 // Create temp directory for context files
 beforeAll(() => {
@@ -38,6 +40,7 @@ beforeEach(() => {
   output = [];
   errors = [];
   exitCode = undefined;
+  originalEnv = { ...process.env };
   console.log = (...args: unknown[]) => {
     output.push(args.join(" "));
   };
@@ -56,6 +59,8 @@ afterEach(() => {
   console.error = originalError;
   process.exit = originalExit;
   process.argv = originalArgv;
+  globalThis.fetch = originalFetch;
+  process.env = originalEnv;
 });
 
 describe("renderCommand", () => {
@@ -228,6 +233,69 @@ describe("renderCommand", () => {
       const payload = JSON.parse(output.join(""));
       expect(payload.error).toBe("file_not_found");
       expect(payload.message).toContain("no-such-file.md");
+    });
+
+    it("renders personal prompts resolved from the API with variables intact", async () => {
+      process.env.JFP_TOKEN = "env-token-xyz";
+      process.argv = ["node", "jfp", "render", "personal-template", "--TARGET_NAME=Saturn"];
+      globalThis.fetch = async (input: RequestInfo | URL) => {
+        const url = input.toString();
+
+        if (url.includes("/api/prompts")) {
+          return new Response(
+            JSON.stringify({
+              prompts: [],
+              bundles: [],
+              workflows: [],
+              version: "1.0.0",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        if (url.includes("/cli/prompts/personal-template")) {
+          return new Response(
+            JSON.stringify({
+              id: "personal-template",
+              title: "Personal Template",
+              description: "Only available from the premium API",
+              content: "Project: {{TARGET_NAME}}",
+              category: "workflow",
+              tags: ["premium"],
+              author: "Jeffrey Emanuel",
+              version: "1.0.0",
+              created: "2026-01-01",
+              updated_at: "2026-02-02T00:00:00.000Z",
+              difficulty: "advanced",
+              estimated_tokens: 321,
+              variables: [
+                {
+                  name: "TARGET_NAME",
+                  label: "Target Name",
+                  type: "text",
+                  required: true,
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        }
+
+        return new Response("Not found", { status: 404 });
+      };
+
+      await renderCommand("personal-template", { json: true });
+
+      const payload = JSON.parse(output.join(""));
+      expect(payload.id).toBe("personal-template");
+      expect(payload.rendered).toBe("Project: Saturn");
+      expect(payload.variables).toMatchObject({ TARGET_NAME: "Saturn" });
     });
   });
 

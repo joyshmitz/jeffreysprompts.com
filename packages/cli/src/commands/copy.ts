@@ -1,4 +1,3 @@
-import { type Prompt } from "@jeffreysprompts/core/prompts";
 import {
   renderPrompt,
   getMissingVariables,
@@ -12,8 +11,8 @@ import {
   promptForVariable,
   processVariableValue,
 } from "../lib/variables";
-import { loadRegistry } from "../lib/registry-loader";
 import { copyToClipboard } from "../lib/clipboard";
+import { resolvePromptById } from "../lib/prompt-resolution";
 
 interface CopyOptions {
   fill?: boolean;
@@ -29,18 +28,18 @@ function writeJsonError(code: string, message: string, extra: Record<string, unk
 }
 
 export async function copyCommand(id: string, options: CopyOptions) {
-  // Load registry dynamically (SWR pattern)
-  const registry = await loadRegistry();
-  const prompt = registry.prompts.find((p) => p.id === id);
-
-  if (!prompt) {
+  const resolved = await resolvePromptById(id);
+  if (!resolved.prompt) {
     if (shouldOutputJson(options)) {
-      writeJsonError("not_found", `Prompt not found: ${id}`);
+      writeJsonError(resolved.error ?? "not_found", resolved.message ?? `Prompt not found: ${id}`);
     } else {
-      console.error(chalk.red(`Prompt not found: ${id}`));
+      console.error(chalk.red(resolved.message ?? `Prompt not found: ${id}`));
     }
     process.exit(1);
+    return;
   }
+
+  const prompt = resolved.prompt;
 
   // Parse CLI variables
   let variables = parseVariables(process.argv);

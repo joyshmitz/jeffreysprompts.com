@@ -1,5 +1,4 @@
 import { existsSync, openSync, readSync, closeSync, statSync } from "fs";
-import { type Prompt } from "@jeffreysprompts/core/prompts";
 import {
   renderPrompt,
   getMissingVariables,
@@ -13,7 +12,7 @@ import {
   promptForVariable,
   processVariableValue,
 } from "../lib/variables";
-import { loadRegistry } from "../lib/registry-loader";
+import { resolvePromptById } from "../lib/prompt-resolution";
 
 interface RenderOptions {
   context?: string;
@@ -27,15 +26,19 @@ interface RenderOptions {
 const DEFAULT_MAX_CONTEXT = 204800;
 
 export async function renderCommand(id: string, options: RenderOptions) {
-  // Load registry dynamically (SWR pattern)
-  const registry = await loadRegistry();
-  const prompt = registry.prompts.find((p) => p.id === id);
+  const resolved = await resolvePromptById(id);
+  const prompt = resolved.prompt;
 
   if (!prompt) {
     if (shouldOutputJson(options)) {
-      console.log(JSON.stringify({ error: "not_found", message: `Prompt not found: ${id}` }));
+      console.log(
+        JSON.stringify({
+          error: resolved.error ?? "not_found",
+          message: resolved.message ?? `Prompt not found: ${id}`,
+        })
+      );
     } else {
-      console.error(chalk.red(`Prompt not found: ${id}`));
+      console.error(chalk.red(resolved.message ?? `Prompt not found: ${id}`));
     }
     process.exit(1);
     return;

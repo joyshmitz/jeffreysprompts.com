@@ -1,4 +1,11 @@
-import { type Prompt } from "@jeffreysprompts/core/prompts";
+import {
+  PromptChangeSchema,
+  PromptDifficultySchema,
+  PromptVariableSchema,
+  type Prompt,
+  type PromptChange,
+  type PromptVariable,
+} from "@jeffreysprompts/core/prompts";
 import type { LoadedRegistry } from "./registry-loader";
 import { ApiClient, isAuthError, isNotFoundError } from "./api-client";
 import { loadCredentials } from "./credentials";
@@ -34,15 +41,66 @@ interface PromptPayload {
   category?: string;
   tags?: string[];
   author?: string;
+  twitter?: string;
   version?: string;
+  featured?: boolean;
+  difficulty?: string;
+  estimatedTokens?: number;
+  estimated_tokens?: number;
   created?: string;
   created_at?: string;
   saved_at?: string;
+  updatedAt?: string;
   updated_at?: string;
+  variables?: unknown;
   whenToUse?: string[];
   when_to_use?: string[];
   tips?: string[];
   examples?: string[];
+  changelog?: unknown;
+}
+
+function readStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((item): item is string => typeof item === "string");
+  return strings.length > 0 ? strings : [];
+}
+
+function readVariables(value: unknown): PromptVariable[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const variables: PromptVariable[] = [];
+  for (const item of value) {
+    const result = PromptVariableSchema.safeParse(item);
+    if (result.success) {
+      variables.push(result.data);
+    }
+  }
+
+  return variables.length > 0 ? variables : undefined;
+}
+
+function readChangelog(value: unknown): PromptChange[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const changelog: PromptChange[] = [];
+  for (const item of value) {
+    const result = PromptChangeSchema.safeParse(item);
+    if (result.success) {
+      changelog.push(result.data);
+    }
+  }
+
+  return changelog.length > 0 ? changelog : undefined;
+}
+
+function readDifficulty(value: unknown): Prompt["difficulty"] | undefined {
+  const result = PromptDifficultySchema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
+
+function toIsoDate(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value.split("T")[0] : undefined;
 }
 
 function extractPromptPayload(payload: unknown): PromptPayload | null {
@@ -73,13 +131,25 @@ function buildPromptFromPayload(payload: PromptPayload): Prompt | null {
     description: payload.description ?? "",
     content: payload.content,
     category: normalizePromptCategory(payload.category),
-    tags: Array.isArray(payload.tags) ? payload.tags : [],
+    tags: readStringArray(payload.tags) ?? [],
     author: payload.author ?? "",
+    twitter: payload.twitter,
     version: payload.version ?? "1.0.0",
     created: rawCreated.split("T")[0],
-    whenToUse: payload.whenToUse ?? payload.when_to_use,
-    tips: payload.tips,
-    examples: payload.examples,
+    updatedAt: toIsoDate(payload.updatedAt ?? payload.updated_at),
+    featured: typeof payload.featured === "boolean" ? payload.featured : undefined,
+    difficulty: readDifficulty(payload.difficulty),
+    estimatedTokens:
+      typeof payload.estimatedTokens === "number"
+        ? payload.estimatedTokens
+        : typeof payload.estimated_tokens === "number"
+          ? payload.estimated_tokens
+          : undefined,
+    variables: readVariables(payload.variables),
+    whenToUse: readStringArray(payload.whenToUse) ?? readStringArray(payload.when_to_use),
+    tips: readStringArray(payload.tips),
+    examples: readStringArray(payload.examples),
+    changelog: readChangelog(payload.changelog),
   };
 }
 

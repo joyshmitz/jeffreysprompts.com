@@ -257,6 +257,58 @@ describe("searchCommand", () => {
       expect(json.results[0].id).toBe("personal-only");
       expect(json.results[0].source).toBe("mine");
     });
+
+    it("fails cleanly when explicit personal search is denied with 403", async () => {
+      process.env.JFP_TOKEN = "env-token-xyz";
+      let exitCode: number | undefined;
+      process.exit = ((code?: number) => {
+        exitCode = code;
+        throw new Error("EXIT_" + code);
+      }) as never;
+
+      globalThis.fetch = async (input: RequestInfo | URL) => {
+        const url = input.toString();
+
+        if (url.includes("/api/prompts")) {
+          return new Response(
+            JSON.stringify({
+              prompts: [],
+              bundles: [],
+              workflows: [],
+              version: "1.0.0",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+        }
+
+        if (url.includes("/cli/search/mine")) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        }
+
+        return new Response("Not found", { status: 404 });
+      };
+
+      try {
+        await searchCommand("personal", { json: true, mine: true });
+      } catch {
+        // Expected
+      }
+
+      const parsed = JSON.parse(output.join(""));
+      expect(parsed.error).toBe(true);
+      expect(parsed.code).toBe("premium_required");
+      expect(exitCode).toBe(1);
+    });
   });
 
   describe("limit option", () => {

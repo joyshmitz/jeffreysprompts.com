@@ -14,7 +14,7 @@ import { searchPrompts, buildScorerIndex, type ScorerIndex } from "@jeffreysprom
 import { type Prompt } from "@jeffreysprompts/core/prompts";
 import chalk from "chalk";
 import { shouldOutputJson } from "../lib/utils";
-import { apiClient, isAuthError } from "../lib/api-client";
+import { apiClient, isAuthError, isPermissionError } from "../lib/api-client";
 import { isLoggedIn, loadCredentials } from "../lib/credentials";
 import {
   hasOfflineLibrary,
@@ -179,6 +179,10 @@ async function searchPersonal(
       return { results: [], error: "auth_expired" };
     }
 
+    if (isPermissionError(response)) {
+      return { results: [], error: "premium_required" };
+    }
+
     if (allowOffline && isNetworkError(response.error, response.status) && hasOfflineLibrary()) {
       return {
         results: searchOffline(query, limit),
@@ -327,11 +331,24 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
   }
 
   const authExpired = personalError === "auth_expired";
+  const premiumDenied = personalError === "premium_required";
   if (authExpired && (searchMine || searchSaved || searchAllExplicit)) {
     if (shouldOutputJson(options)) {
       writeJsonError("not_authenticated", "Session expired. Please run 'jfp login' again.");
     } else {
       console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
+    }
+    process.exit(1);
+  }
+
+  if (premiumDenied && (searchMine || searchSaved || searchAllExplicit)) {
+    if (shouldOutputJson(options)) {
+      writeJsonError("premium_required", "Personal prompt search requires a premium subscription", {
+        hint: "Visit https://pro.jeffreysprompts.com/pricing to upgrade",
+      });
+    } else {
+      console.log(chalk.yellow("Personal prompt search requires a premium subscription"));
+      console.log(chalk.dim("Visit https://pro.jeffreysprompts.com/pricing to upgrade"));
     }
     process.exit(1);
   }
@@ -356,11 +373,14 @@ export async function searchCommand(query: string, options: SearchOptions): Prom
     if (isOfflineMode) {
       output.offline = true;
       output.warning = personalError;
-    } else if (personalError && !authExpired) {
+    } else if (personalError && !authExpired && !premiumDenied) {
       output.warning = `Personal search failed: ${personalError}`;
     }
     if (authExpired) {
       output.warning = "Personal search unavailable (session expired). Showing local results only.";
+    }
+    if (premiumDenied) {
+      output.warning = "Personal search unavailable (premium required). Showing local results only.";
     }
 
     console.log(JSON.stringify(output, null, 2));

@@ -117,6 +117,17 @@ describe("showCommand", () => {
             author: "Jeffrey Emanuel",
             version: "1.0.0",
             created: "2026-01-01",
+            updated_at: "2026-02-02T00:00:00.000Z",
+            difficulty: "advanced",
+            estimated_tokens: 321,
+            variables: [
+              {
+                name: "TARGET_NAME",
+                label: "Target Name",
+                type: "text",
+                required: true,
+              },
+            ],
           }),
           {
             status: 200,
@@ -142,5 +153,16 @@ describe("showCommand", () => {
     expect(payload.id).toBe("personal-only");
     expect(payload.title).toBe("Personal Prompt");
     expect(payload.content).toBe("Personal prompt body");
+    expect(payload.updatedAt).toBe("2026-02-02");
+    expect(payload.difficulty).toBe("advanced");
+    expect(payload.estimatedTokens).toBe(321);
+    expect(payload.variables).toEqual([
+      {
+        name: "TARGET_NAME",
+        label: "Target Name",
+        type: "text",
+        required: true,
+      },
+    ]);
   });
 });
