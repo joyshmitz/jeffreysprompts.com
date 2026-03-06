@@ -10,18 +10,21 @@ import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { randomUUID } from "crypto";
 import {
   collectionsCommand,
   collectionShowCommand,
+  exportCollectionCommand,
 } from "../../src/commands/collections";
 
 // Helper to create a unique test environment
 function setupTestEnv(envOverrides: Record<string, string | undefined> = {}) {
-  const testDir = join(tmpdir(), "jfp-collections-test-" + Date.now() + "-" + Math.random().toString(36).slice(2));
+  const testDir = join(tmpdir(), `jfp-collections-test-${randomUUID()}`);
   const fakeHome = join(testDir, "home");
   const fakeConfig = join(fakeHome, ".config");
 
   mkdirSync(fakeHome, { recursive: true });
+  process.env.JFP_HOME = fakeHome;
 
   const mockEnv: NodeJS.ProcessEnv = {
     ...process.env,
@@ -40,9 +43,24 @@ function setupTestEnv(envOverrides: Record<string, string | undefined> = {}) {
     } catch (e) {
       // Ignore cleanup errors
     }
+
+    if (originalJfpHome === undefined) {
+      delete process.env.JFP_HOME;
+    } else {
+      process.env.JFP_HOME = originalJfpHome;
+    }
   };
 
   return { testDir, fakeHome, fakeConfig, mockEnv, cleanup };
+}
+
+function parseJson<T = Record<string, unknown>>(payload: string): T {
+  try {
+    return JSON.parse(payload) as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON output: ${message}`);
+  }
 }
 
 // Helper to create valid credentials
@@ -75,6 +93,7 @@ let exitCode: number | undefined;
 const originalLog = console.log;
 const originalError = console.error;
 const originalExit = process.exit;
+const originalJfpHome = process.env.JFP_HOME;
 
 // Mock fetch
 const originalFetch = globalThis.fetch;
@@ -112,7 +131,7 @@ describe("collectionsCommand - not logged in", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("not_authenticated");
@@ -154,7 +173,7 @@ describe("collectionsCommand - free tier", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("premium_required");
@@ -219,7 +238,7 @@ describe("collectionsCommand - premium tier", () => {
       await collectionsCommand({ json: true }, mockEnv);
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(Array.isArray(parsed.collections)).toBe(true);
       expect(parsed.collections.length).toBe(2);
@@ -248,7 +267,7 @@ describe("collectionsCommand - premium tier", () => {
       await collectionsCommand({ json: true }, mockEnv);
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(Array.isArray(parsed.collections)).toBe(true);
       expect(parsed.collections.length).toBe(0);
@@ -278,7 +297,7 @@ describe("collectionsCommand - premium tier", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("api_error");
@@ -309,11 +328,34 @@ describe("collectionsCommand - premium tier", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("auth_expired");
       expect(exitCode).toBe(1);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("allows collections access when authenticated via JFP_TOKEN", async () => {
+    const { mockEnv, cleanup } = setupTestEnv({ JFP_TOKEN: "env-token-xyz" });
+    try {
+      globalThis.fetch = mock(() =>
+        Promise.resolve(
+          new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+      await collectionsCommand({ json: true }, mockEnv);
+
+      const output = consoleOutput.join("\n");
+      const parsed = parseJson(output);
+      expect(parsed.collections).toEqual([]);
+      expect(exitCode).toBeUndefined();
     } finally {
       cleanup();
     }
@@ -361,7 +403,7 @@ describe("collectionShowCommand - show collection", () => {
       await collectionShowCommand("My Favorites", { json: true }, mockEnv);
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.collection.name).toBe("My Favorites");
       expect(parsed.items.length).toBe(2);
@@ -393,7 +435,7 @@ describe("collectionShowCommand - show collection", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("not_found");
@@ -422,7 +464,7 @@ describe("collectionShowCommand - add to collection", () => {
       await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true }, mockEnv);
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.added).toBe(true);
       expect(parsed.prompt_id).toBe("idea-wizard");
@@ -444,7 +486,7 @@ describe("collectionShowCommand - add to collection", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       // API client generic error handling wraps this
@@ -472,7 +514,7 @@ describe("collectionShowCommand - add to collection", () => {
       await collectionShowCommand("My Favorites", { add: "idea-wizard", json: true }, mockEnv);
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.added).toBe(false);
       expect(parsed.already_exists).toBe(true);
@@ -503,12 +545,232 @@ describe("collectionShowCommand - add to collection", () => {
       }
 
       const output = consoleOutput.join("\n");
-      const parsed = JSON.parse(output);
+      const parsed = parseJson(output);
 
       expect(parsed.error).toBe(true);
       expect(parsed.code).toBe("not_found");
+      expect(parsed.hint).toContain("jfp collections create");
       expect(exitCode).toBe(1);
     } finally {
+      cleanup();
+    }
+  });
+});
+
+describe("exportCollectionCommand", () => {
+  it("returns JSON content for --stdout --json without mixing raw markdown", async () => {
+    const { mockEnv, cleanup } = setupTestEnv({ JFP_TOKEN: "env-token-xyz" });
+    try {
+      globalThis.fetch = mock((input: RequestInfo | URL) => {
+        const url = input.toString();
+
+        if (url.includes("/cli/collections/My%20Favorites")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "col-1",
+                name: "My Favorites",
+                promptCount: 1,
+                createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: "2026-01-10T00:00:00Z",
+                prompts: [
+                  {
+                    id: "personal-template",
+                    title: "Personal Template",
+                    description: "Premium prompt",
+                    category: "workflow",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/api/prompts")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                prompts: [
+                  {
+                    id: "idea-wizard",
+                    title: "The Idea Wizard",
+                    description: "Generate and refine ideas",
+                    content: "Come up with your very best ideas for improving this project.",
+                    category: "ideation",
+                    tags: ["brainstorming"],
+                    author: "Jeffrey Emanuel",
+                    version: "1.0.0",
+                    created: "2026-01-01",
+                  },
+                ],
+                bundles: [],
+                workflows: [],
+                version: "1.0.0",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/cli/prompts/personal-template")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "personal-template",
+                title: "Personal Template",
+                description: "Premium prompt",
+                content: "Personal prompt body",
+                category: "workflow",
+                tags: ["premium"],
+                author: "Jeffrey Emanuel",
+                twitter: "@doodlestein",
+                version: "1.0.0",
+                created: "2026-01-01",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      });
+
+      await exportCollectionCommand(
+        "My Favorites",
+        { json: true, stdout: true, format: "md" },
+        mockEnv
+      );
+
+      const output = consoleOutput.join("\n");
+      const parsed = parseJson(output);
+
+      expect(parsed.success).toBe(true);
+      expect(parsed.collection).toBe("My Favorites");
+      expect(parsed.exported).toHaveLength(1);
+      expect(parsed.exported[0].id).toBe("personal-template");
+      expect(parsed.exported[0].content).toContain("# Personal Template");
+      expect(parsed.exported[0].content).toContain("**Author:** Jeffrey Emanuel (@doodlestein)");
+      expect(exitCode).toBeUndefined();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("exits non-zero when stdout export skips failed prompts", async () => {
+    const { mockEnv, cleanup } = setupTestEnv({ JFP_TOKEN: "env-token-xyz" });
+    const originalIsTTY = process.stdout.isTTY;
+    try {
+      Object.defineProperty(process.stdout, "isTTY", {
+        value: true,
+        configurable: true,
+      });
+
+      globalThis.fetch = mock((input: RequestInfo | URL) => {
+        const url = input.toString();
+
+        if (url.includes("/cli/collections/Broken%20Favorites")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: "col-2",
+                name: "Broken Favorites",
+                promptCount: 2,
+                createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: "2026-01-10T00:00:00Z",
+                prompts: [
+                  {
+                    id: "idea-wizard",
+                    title: "Idea Wizard",
+                    description: "Generate and refine ideas",
+                    category: "ideation",
+                  },
+                  {
+                    id: "missing-personal",
+                    title: "Missing Personal Prompt",
+                    description: "Should fail to load",
+                    category: "workflow",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/api/prompts")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                prompts: [
+                  {
+                    id: "idea-wizard",
+                    title: "The Idea Wizard",
+                    description: "Generate and refine ideas",
+                    content: "Come up with your very best ideas for improving this project.",
+                    category: "ideation",
+                    tags: ["brainstorming"],
+                    author: "Jeffrey Emanuel",
+                    version: "1.0.0",
+                    created: "2026-01-01",
+                  },
+                ],
+                bundles: [],
+                workflows: [],
+                version: "1.0.0",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          );
+        }
+
+        if (url.includes("/cli/prompts/missing-personal")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ error: "Not found" }), {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+
+        return Promise.resolve(new Response("Not found", { status: 404 }));
+      });
+
+      try {
+        await exportCollectionCommand(
+          "Broken Favorites",
+          { stdout: true, format: "md" },
+          mockEnv
+        );
+      } catch {
+        // Expected exit
+      }
+
+      const output = consoleOutput.join("\n");
+      expect(output).toContain("# The Idea Wizard");
+      expect(output).toContain('Failed to export 1 prompt(s) from "Broken Favorites".');
+      expect(output).toContain("- missing-personal: Prompt not found: missing-personal");
+      expect(exitCode).toBe(1);
+    } finally {
+      Object.defineProperty(process.stdout, "isTTY", {
+        value: originalIsTTY,
+        configurable: true,
+      });
       cleanup();
     }
   });

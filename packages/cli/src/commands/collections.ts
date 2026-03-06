@@ -13,10 +13,10 @@ import boxen from "boxen";
 import chalk from "chalk";
 import { ApiClient, isAuthError } from "../lib/api-client";
 import { isLoggedIn, loadCredentials } from "../lib/credentials";
-import { getOfflinePromptById, normalizePromptCategory } from "../lib/offline";
-import { type Prompt } from "@jeffreysprompts/core/prompts";
 import { generatePromptMarkdown } from "@jeffreysprompts/core/export/markdown";
-import { loadRegistry } from "../lib/registry-loader";
+import { type Prompt } from "@jeffreysprompts/core/prompts";
+import { resolvePromptById } from "../lib/prompt-resolution";
+import { loadRegistry, type LoadedRegistry } from "../lib/registry-loader";
 
 export interface CollectionItem {
   id: string;
@@ -59,6 +59,13 @@ interface CollectionExportOptions {
   stdout?: boolean;
 }
 
+interface CollectionExportResult {
+  id: string;
+  file?: string;
+  source?: string;
+  content?: string;
+}
+
 function writeJson(payload: Record<string, unknown>): void {
   console.log(JSON.stringify(payload));
 }
@@ -69,79 +76,6 @@ function writeJsonError(
   extra: Record<string, unknown> = {}
 ): void {
   writeJson({ error: true, code, message, ...extra });
-}
-
-interface PromptPayload {
-  id: string;
-  title?: string;
-  description?: string;
-  content?: string;
-  category?: string;
-  tags?: string[];
-  author?: string;
-  version?: string;
-  created?: string;
-  created_at?: string;
-  saved_at?: string;
-  updated_at?: string;
-  whenToUse?: string[];
-  when_to_use?: string[];
-  tips?: string[];
-  examples?: string[];
-}
-
-function extractPromptPayload(payload: unknown): PromptPayload | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload as Record<string, unknown>;
-  if (typeof data.prompt === "object" && data.prompt !== null) {
-    return data.prompt as PromptPayload;
-  }
-  if (typeof data.id === "string") {
-    return data as unknown as PromptPayload;
-  }
-  return null;
-}
-
-function buildPromptForExport(payload: PromptPayload): Prompt | null {
-  if (!payload.content || typeof payload.content !== "string") return null;
-  const rawCreated =
-    payload.created ||
-    payload.created_at ||
-    payload.saved_at ||
-    payload.updated_at ||
-    new Date().toISOString();
-  const created = rawCreated.split("T")[0];
-
-  return {
-    id: payload.id,
-    title: payload.title ?? payload.id,
-    description: payload.description ?? "",
-    content: payload.content,
-    category: normalizePromptCategory(payload.category),
-    tags: Array.isArray(payload.tags) ? payload.tags : [],
-    author: payload.author ?? "",
-    version: payload.version ?? "1.0.0",
-    created,
-    whenToUse: payload.whenToUse ?? payload.when_to_use,
-    tips: payload.tips,
-    examples: payload.examples,
-  };
-}
-
-function buildPromptFromOffline(id: string): Prompt | null {
-  const offlinePrompt = getOfflinePromptById(id);
-  if (!offlinePrompt) return null;
-  return {
-    id: offlinePrompt.id,
-    title: offlinePrompt.title ?? offlinePrompt.id,
-    description: offlinePrompt.description ?? "",
-    content: offlinePrompt.content,
-    category: normalizePromptCategory(offlinePrompt.category),
-    tags: offlinePrompt.tags ?? [],
-    author: "",
-    version: "1.0.0",
-    created: (offlinePrompt.saved_at || new Date().toISOString()).split("T")[0],
-  };
 }
 
 /**
@@ -177,21 +111,27 @@ async function requirePremium(
   options: { json?: boolean },
   env = process.env
 ): Promise<boolean> {
-  const creds = await loadCredentials(env);
-
-  if (creds?.tier !== "premium") {
-    if (shouldOutputJson(options)) {
-      writeJsonError("premium_required", "Collections require a premium subscription", {
-        hint: "Visit https://pro.jeffreysprompts.com/pricing to upgrade",
-      });
-    } else {
-      console.log(chalk.yellow("Collections require a premium subscription"));
-      console.log(chalk.dim("Visit https://pro.jeffreysprompts.com/pricing to upgrade"));
-    }
-    process.exit(1);
+  if (env.JFP_TOKEN) {
+    return true;
   }
 
-  return true;
+  const creds = await loadCredentials(env);
+
+  if (creds?.tier === "premium") {
+    return true;
+  }
+
+  if (shouldOutputJson(options)) {
+    writeJsonError("premium_required", "Collections require a premium subscription", {
+      hint: "Visit https://pro.jeffreysprompts.com/pricing to upgrade",
+    });
+  } else {
+    console.log(chalk.yellow("Collections require a premium subscription"));
+    console.log(chalk.dim("Visit https://pro.jeffreysprompts.com/pricing to upgrade"));
+  }
+  process.exit(1);
+
+  return false;
 }
 
 /**
@@ -207,67 +147,42 @@ function isPremiumError(response: { status: number; error?: string }): boolean {
 async function resolvePromptForExport(
   promptId: string,
   options: CollectionExportOptions,
-  env = process.env
+  env = process.env,
+  registry?: LoadedRegistry
 ): Promise<{ prompt?: Prompt; source?: string; error?: string }> {
-  // Try local dynamic registry first
-  const registry = await loadRegistry();
-  const localPrompt = registry.prompts.find((p) => p.id === promptId);
+  const resolved = await resolvePromptById(promptId, { env, registry });
 
-  if (localPrompt) {
-    return { prompt: localPrompt, source: "local" };
+  if (resolved.prompt) {
+    return { prompt: resolved.prompt, source: resolved.source };
   }
 
-  const offlinePrompt = buildPromptFromOffline(promptId);
-  if (offlinePrompt) {
-    return { prompt: offlinePrompt, source: "offline" };
-  }
-
-  const apiClient = new ApiClient({ env });
-  const response = await apiClient.get<unknown>(
-    `/cli/prompts/${encodeURIComponent(promptId)}`
-  );
-
-  if (!response.ok) {
-    if (isAuthError(response)) {
-      if (shouldOutputJson(options)) {
-        writeJsonError(
-          "auth_expired",
-          "Session expired. Please run 'jfp login' again."
-        );
-      } else {
-        console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
-      }
-      process.exit(1);
+  if (resolved.error === "auth_expired") {
+    if (shouldOutputJson(options)) {
+      writeJsonError(
+        "auth_expired",
+        "Session expired. Please run 'jfp login' again."
+      );
+    } else {
+      console.log(chalk.yellow("Session expired. Please run 'jfp login' again."));
     }
+    process.exit(1);
+  }
 
-    if (isPremiumError(response)) {
-      if (shouldOutputJson(options)) {
-        writeJsonError(
-          "premium_required",
-          "Exporting collections requires a premium subscription"
-        );
-      } else {
-        console.log(
-          chalk.yellow("Exporting collections requires a premium subscription")
-        );
-      }
-      process.exit(1);
+  if (resolved.error === "premium_required") {
+    if (shouldOutputJson(options)) {
+      writeJsonError(
+        "premium_required",
+        "Exporting collections requires a premium subscription"
+      );
+    } else {
+      console.log(
+        chalk.yellow("Exporting collections requires a premium subscription")
+      );
     }
-
-    return { error: response.error || "Failed to load prompt content" };
+    process.exit(1);
   }
 
-  const payload = extractPromptPayload(response.data);
-  if (!payload) {
-    return { error: "Invalid prompt response" };
-  }
-
-  const prompt = buildPromptForExport(payload);
-  if (!prompt) {
-    return { error: "Prompt content missing" };
-  }
-
-  return { prompt, source: "api" };
+  return { error: resolved.message || "Failed to load prompt content" };
 }
 
 /**
@@ -592,6 +507,7 @@ export async function exportCollectionCommand(
 ): Promise<void> {
   await requireAuth(options, env);
   await requirePremium(options, env);
+  const jsonOutput = shouldOutputJson(options);
 
   const apiClient = new ApiClient({ env });
   const response = await apiClient.get<CollectionDetail>(
@@ -656,11 +572,12 @@ export async function exportCollectionCommand(
     );
   }
 
-  const exported: Array<{ id: string; file?: string; source?: string }> = [];
+  const exported: CollectionExportResult[] = [];
   const failed: Array<{ id: string; error: string }> = [];
+  const registry = await loadRegistry();
 
-  for (const promptId of promptIds) {
-    const resolved = await resolvePromptForExport(promptId, options, env);
+  for (const [index, promptId] of promptIds.entries()) {
+    const resolved = await resolvePromptForExport(promptId, options, env, registry);
     if (!resolved.prompt) {
       failed.push({
         id: promptId,
@@ -672,11 +589,19 @@ export async function exportCollectionCommand(
     const content = generatePromptMarkdown(resolved.prompt);
 
     if (options.stdout) {
-      console.log(content);
-      if (promptIds.length > 1) {
-        console.log("\n---\n");
+      if (jsonOutput) {
+        exported.push({
+          id: resolved.prompt.id,
+          source: resolved.source,
+          content,
+        });
+      } else {
+        console.log(content);
+        if (index < promptIds.length - 1) {
+          console.log("\n---\n");
+        }
+        exported.push({ id: resolved.prompt.id, source: resolved.source });
       }
-      exported.push({ id: resolved.prompt.id, source: resolved.source });
       continue;
     }
 
@@ -700,13 +625,13 @@ export async function exportCollectionCommand(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       failed.push({ id: resolved.prompt.id, error: message });
-      if (!shouldOutputJson(options)) {
+      if (!jsonOutput) {
         console.error(chalk.red(`Failed to write ${filename}: ${message}`));
       }
     }
   }
 
-  if (shouldOutputJson(options)) {
+  if (jsonOutput) {
     console.log(
       JSON.stringify(
         {
@@ -725,18 +650,28 @@ export async function exportCollectionCommand(
     return;
   }
 
-  if (!options.stdout) {
-    if (exported.length > 0) {
-      console.log(
-        chalk.green(
-          `Exported ${exported.length} prompt(s) from "${collection.name}".`
+  if (exported.length > 0 && !options.stdout) {
+    console.log(
+      chalk.green(
+        `Exported ${exported.length} prompt(s) from "${collection.name}".`
+      )
+    );
+  }
+
+  if (failed.length > 0) {
+    if (options.stdout) {
+      console.error(
+        chalk.red(
+          `Failed to export ${failed.length} prompt(s) from "${collection.name}".`
         )
       );
-    }
-    if (failed.length > 0) {
+      for (const item of failed) {
+        console.error(chalk.dim(`- ${item.id}: ${item.error}`));
+      }
+    } else {
       console.log(chalk.red(`Failed to export ${failed.length} prompt(s).`));
-      process.exit(1);
     }
+    process.exit(1);
   }
 }
 
@@ -749,9 +684,7 @@ async function addToCollection(
   options: CollectionShowOptions,
   env = process.env
 ): Promise<void> {
-  // Try to resolve prompt details from local registry (may not include premium prompts)
-  const registry = await loadRegistry();
-  const prompt = registry.prompts.find((p) => p.id === promptId);
+  const prompt = (await resolvePromptById(promptId, { env })).prompt;
   const promptTitle = prompt?.title ?? promptId;
 
   const apiClient = new ApiClient({ env });
@@ -767,10 +700,13 @@ async function addToCollection(
     if (response.status === 404) {
       if (shouldOutputJson(options)) {
         writeJsonError("not_found", `Collection not found: ${collectionName}`, {
-          hint: "The collection will be created if it doesn't exist",
+          hint: `Create it first with: jfp collections create "${collectionName}"`,
         });
       } else {
         console.log(chalk.red(`Collection not found: ${collectionName}`));
+        console.log(
+          chalk.dim(`Create it first with: jfp collections create "${collectionName}"`)
+        );
       }
       process.exit(1);
     }

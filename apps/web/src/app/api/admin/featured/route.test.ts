@@ -15,7 +15,7 @@ function authedRequest(url: string, init?: RequestInit): NextRequest {
 
 function clearStore() {
   const g = globalThis as unknown as Record<string, unknown>;
-  delete g["__jfp_featured_store__"];
+  delete g["__jfp_featured_content_store__"];
 }
 
 describe("/api/admin/featured", () => {
