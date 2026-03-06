@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import { withSentryConfig } from "@sentry/nextjs";
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import createNextIntlPlugin from "next-intl/plugin";
+
+const appDir = dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = resolve(appDir, "../..");
 
 // Bundle analyzer setup (run with ANALYZE=true)
 const analyzeBundles = withBundleAnalyzer({
@@ -94,9 +99,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Strict mode for better debugging
   reactStrictMode: true,
-  // Turbopack config for monorepo - use relative path from apps/web
+  // Keep Turbopack and tracing rooted at the same absolute monorepo directory.
+  // Next 16 production builds fail on Vercel when these diverge.
+  outputFileTracingRoot: workspaceRoot,
   turbopack: {
-    root: "../..",
+    root: workspaceRoot,
   },
   // Configure webpack to ignore optional dependencies if missing
   webpack: (config) => {
