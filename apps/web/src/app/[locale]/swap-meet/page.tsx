@@ -9,6 +9,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import {
   Search,
   SlidersHorizontal,
@@ -32,160 +33,8 @@ import {
 import { CommunityPromptCard } from "@/components/swap-meet/CommunityPromptCard";
 import type { CommunityPrompt } from "@/lib/swap-meet/types";
 import { sortByTrending } from "@/lib/discovery/trending";
-
-// Mock data for community prompts (will be replaced with API calls)
-const mockCommunityPrompts: CommunityPrompt[] = [
-  {
-    id: "comm-1",
-    title: "Ultimate Code Review Assistant",
-    description: "Comprehensive code review prompt that catches bugs, suggests improvements, and ensures best practices.",
-    content: "Review this code thoroughly. Check for: 1) Potential bugs and edge cases, 2) Performance issues, 3) Security vulnerabilities, 4) Code style and readability, 5) Missing error handling. Provide specific line-by-line feedback with suggested fixes.",
-    category: "automation",
-    tags: ["code-review", "best-practices", "debugging"],
-    author: {
-      id: "user-1",
-      username: "codewizard",
-      displayName: "Code Wizard",
-      avatarUrl: null,
-      reputation: 1250,
-    },
-    stats: {
-      views: 3420,
-      copies: 892,
-      saves: 234,
-      rating: 4.8,
-      ratingCount: 156,
-    },
-    featured: true,
-    createdAt: "2026-01-10T12:00:00Z",
-    updatedAt: "2026-01-11T08:30:00Z",
-  },
-  {
-    id: "comm-2",
-    title: "Creative Story Generator",
-    description: "Generate engaging short stories with compelling characters and plot twists.",
-    content: "Write a creative short story with the following elements: [GENRE], [SETTING], [MAIN CHARACTER]. Include: an engaging hook, rising tension, a surprising twist, and a satisfying conclusion. Use vivid imagery and dialogue.",
-    category: "ideation",
-    tags: ["creative-writing", "storytelling", "fiction"],
-    author: {
-      id: "user-2",
-      username: "storysmith",
-      displayName: "Story Smith",
-      avatarUrl: null,
-      reputation: 890,
-    },
-    stats: {
-      views: 2150,
-      copies: 567,
-      saves: 189,
-      rating: 4.6,
-      ratingCount: 98,
-    },
-    featured: false,
-    createdAt: "2026-01-09T15:30:00Z",
-    updatedAt: "2026-01-09T15:30:00Z",
-  },
-  {
-    id: "comm-3",
-    title: "API Documentation Writer",
-    description: "Generate comprehensive API documentation from code or specifications.",
-    content: "Create detailed API documentation for the following endpoint/function. Include: endpoint URL, HTTP method, request parameters (with types and validation), response format, error codes, authentication requirements, rate limits, and 2-3 example requests with responses.",
-    category: "documentation",
-    tags: ["api", "docs", "technical-writing"],
-    author: {
-      id: "user-3",
-      username: "docmaster",
-      displayName: "Doc Master",
-      avatarUrl: null,
-      reputation: 1567,
-    },
-    stats: {
-      views: 4890,
-      copies: 1234,
-      saves: 456,
-      rating: 4.9,
-      ratingCount: 234,
-    },
-    featured: true,
-    createdAt: "2026-01-08T09:00:00Z",
-    updatedAt: "2026-01-10T14:20:00Z",
-  },
-  {
-    id: "comm-4",
-    title: "Bug Hunter Pro",
-    description: "Systematic bug detection prompt that finds hidden issues in your code.",
-    content: "Analyze this code for bugs using a systematic approach: 1) Trace all execution paths, 2) Check boundary conditions, 3) Verify null/undefined handling, 4) Look for race conditions, 5) Check resource leaks, 6) Verify error propagation. For each bug found, explain the issue and provide a fix.",
-    category: "debugging",
-    tags: ["debugging", "bug-fixing", "code-analysis"],
-    author: {
-      id: "user-4",
-      username: "bughunter",
-      displayName: "Bug Hunter",
-      avatarUrl: null,
-      reputation: 2100,
-    },
-    stats: {
-      views: 5670,
-      copies: 1890,
-      saves: 678,
-      rating: 4.7,
-      ratingCount: 312,
-    },
-    featured: false,
-    createdAt: "2026-01-07T11:45:00Z",
-    updatedAt: "2026-01-11T16:00:00Z",
-  },
-  {
-    id: "comm-5",
-    title: "Test Case Generator",
-    description: "Generate comprehensive test cases for any function or feature.",
-    content: "Generate test cases for the following code/feature. Include: 1) Happy path tests, 2) Edge cases, 3) Error scenarios, 4) Boundary conditions, 5) Integration points. For each test, provide: test name, input, expected output, and assertion logic.",
-    category: "testing",
-    tags: ["testing", "unit-tests", "qa"],
-    author: {
-      id: "user-5",
-      username: "testguru",
-      displayName: "Test Guru",
-      avatarUrl: null,
-      reputation: 1890,
-    },
-    stats: {
-      views: 3210,
-      copies: 987,
-      saves: 345,
-      rating: 4.5,
-      ratingCount: 187,
-    },
-    featured: false,
-    createdAt: "2026-01-06T14:20:00Z",
-    updatedAt: "2026-01-06T14:20:00Z",
-  },
-  {
-    id: "comm-6",
-    title: "Refactoring Advisor",
-    description: "Get expert advice on how to refactor messy code into clean, maintainable patterns.",
-    content: "Analyze this code and suggest refactoring improvements. Focus on: 1) Reducing complexity, 2) Improving naming, 3) Extracting reusable functions, 4) Applying design patterns where appropriate, 5) Reducing duplication. Provide before/after examples for each suggestion.",
-    category: "refactoring",
-    tags: ["refactoring", "clean-code", "design-patterns"],
-    author: {
-      id: "user-6",
-      username: "cleancode",
-      displayName: "Clean Coder",
-      avatarUrl: null,
-      reputation: 1456,
-    },
-    stats: {
-      views: 2890,
-      copies: 756,
-      saves: 267,
-      rating: 4.8,
-      ratingCount: 145,
-    },
-    featured: true,
-    createdAt: "2026-01-05T10:15:00Z",
-    updatedAt: "2026-01-09T11:30:00Z",
-  },
-];
+import { localizeHref } from "@/i18n/config";
+import { communityPrompts } from "@/lib/swap-meet/data";
 
 const categories = [
   { value: "all", label: "All Categories" },
@@ -208,6 +57,7 @@ const sortOptions = [
 
 export default function SwapMeetPage() {
   const router = useRouter();
+  const locale = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("trending");
@@ -215,7 +65,7 @@ export default function SwapMeetPage() {
 
   // Filter and sort prompts
   const filteredPrompts = useMemo(() => {
-    let results = [...mockCommunityPrompts];
+    let results = [...communityPrompts];
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -254,15 +104,15 @@ export default function SwapMeetPage() {
   }, [searchQuery, selectedCategory, sortBy]);
 
   const featuredPrompts = useMemo(
-    () => mockCommunityPrompts.filter((p) => p.featured),
+    () => communityPrompts.filter((p) => p.featured),
     []
   );
 
   const handlePromptClick = useCallback(
     (prompt: CommunityPrompt) => {
-      router.push(`/swap-meet/${prompt.id}`);
+      router.push(localizeHref(locale, `/swap-meet/${prompt.id}`));
     },
-    [router]
+    [locale, router]
   );
 
   return (

@@ -1,5 +1,6 @@
 export type HistoryResourceType =
   | "prompt"
+  | "community-prompt"
   | "collection"
   | "skill"
   | "bundle"
@@ -8,6 +9,7 @@ export type HistoryResourceType =
 
 export const HISTORY_RESOURCE_TYPES: HistoryResourceType[] = [
   "prompt",
+  "community-prompt",
   "collection",
   "skill",
   "bundle",

@@ -13,6 +13,7 @@ import { localizeHref } from "@/i18n/config";
 import { getPrompt } from "@jeffreysprompts/core/prompts/registry";
 import { clearHistoryForUser, getOrCreateLocalUserId, listHistory } from "@/lib/history/client";
 import type { ViewHistoryEntry } from "@/lib/history/types";
+import { getCommunityPrompt } from "@/lib/swap-meet/data";
 
 const LIMIT = 100;
 
@@ -74,6 +75,17 @@ export default function HistoryPage() {
           category: prompt?.category ?? null,
           href: prompt ? localizeHref(locale, `/prompts/${prompt.id}`) : null,
           kindLabel: "Prompt",
+        };
+      }
+
+      if (entry.resourceType === "community-prompt" && entry.resourceId) {
+        const prompt = getCommunityPrompt(entry.resourceId);
+        return {
+          ...entry,
+          title: prompt?.title ?? entry.resourceId,
+          category: prompt?.category ?? null,
+          href: prompt ? localizeHref(locale, `/swap-meet/${prompt.id}`) : null,
+          kindLabel: "Community Prompt",
         };
       }
 

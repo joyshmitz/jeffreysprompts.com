@@ -32,10 +32,15 @@ vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
 
+const mockSuccess = vi.fn();
+const mockError = vi.fn();
+const mockInfo = vi.fn();
+
 vi.mock("@/components/ui/toast", () => ({
   useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
+    success: mockSuccess,
+    error: mockError,
+    info: mockInfo,
   }),
 }));
 
@@ -65,6 +70,7 @@ const mockPrompt = {
 
 describe("CommunityPromptCard", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(copyToClipboard).mockResolvedValue({ success: true });
     Object.defineProperty(navigator, "vibrate", {
       value: vi.fn(),
@@ -132,6 +138,18 @@ describe("CommunityPromptCard", () => {
     });
     expect(copyToClipboard).toHaveBeenCalledWith(
       "You are an expert developer..."
+    );
+  });
+
+  it("shows an unavailable message instead of fake save success", async () => {
+    render(<CommunityPromptCard prompt={mockPrompt as never} />);
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Save to library"));
+    });
+    expect(mockInfo).toHaveBeenCalledWith(
+      "Save to library not available",
+      "Saving community prompts to your library is not wired up yet.",
+      { duration: 3500 }
     );
   });
 

@@ -36,6 +36,19 @@ vi.mock("@jeffreysprompts/core/prompts/registry", () => ({
   },
 }));
 
+vi.mock("@/lib/swap-meet/data", () => ({
+  getCommunityPrompt: (id: string) => {
+    if (id === "comm-1") {
+      return {
+        id: "comm-1",
+        title: "Community Prompt Title",
+        category: "automation",
+      };
+    }
+    return null;
+  },
+}));
+
 const mockSuccess = vi.fn();
 const mockError = vi.fn();
 vi.mock("@/components/ui/toast", () => ({
@@ -88,6 +101,17 @@ const searchEntry: ViewHistoryEntry = {
   duration: null,
 };
 
+const communityPromptEntry: ViewHistoryEntry = {
+  id: "entry-3",
+  userId: "user-1",
+  resourceType: "community-prompt",
+  resourceId: "comm-1",
+  searchQuery: null,
+  source: null,
+  viewedAt: "2026-01-15T02:00:00Z",
+  duration: null,
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -103,6 +127,9 @@ describe("RecentlyViewedSidebar", () => {
   it("shows title", async () => {
     render(<RecentlyViewedSidebar />);
     expect(screen.getByText("Recently Viewed")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockListHistory).toHaveBeenCalledWith("user-1", { limit: 8 });
+    });
   });
 
   it("shows loading state initially", () => {
@@ -142,6 +169,15 @@ describe("RecentlyViewedSidebar", () => {
     render(<RecentlyViewedSidebar />);
     await waitFor(() => {
       expect(screen.getByText("Search: coding tips")).toBeInTheDocument();
+    });
+  });
+
+  it("renders community prompt entries with localized swap-meet links", async () => {
+    mockListHistory.mockResolvedValue([communityPromptEntry]);
+    render(<RecentlyViewedSidebar />);
+    await waitFor(() => {
+      const link = screen.getByText("Community Prompt Title").closest("a");
+      expect(link).toHaveAttribute("href", "/es/swap-meet/comm-1");
     });
   });
 

@@ -39,129 +39,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { localizeHref } from "@/i18n/config";
 import { CommunityPromptCard } from "@/components/swap-meet/CommunityPromptCard";
 import type { CommunityPrompt } from "@/lib/swap-meet/types";
-
-// Mock data - will be replaced with API fetch
-const mockPrompts: Record<string, CommunityPrompt> = {
-  "comm-1": {
-    id: "comm-1",
-    title: "Ultimate Code Review Assistant",
-    description: "Comprehensive code review prompt that catches bugs, suggests improvements, and ensures best practices. Perfect for thorough PR reviews.",
-    content: `Review this code thoroughly and provide comprehensive feedback.
-
-## Analysis Framework
-
-1. **Bug Detection**
-   - Check for potential null/undefined errors
-   - Look for off-by-one errors
-   - Identify race conditions
-   - Find memory leaks
-
-2. **Security Review**
-   - SQL injection vulnerabilities
-   - XSS attack vectors
-   - Authentication/authorization issues
-   - Sensitive data exposure
-
-3. **Performance Analysis**
-   - Identify N+1 queries
-   - Check for unnecessary re-renders
-   - Look for memory-intensive operations
-   - Suggest caching opportunities
-
-4. **Code Quality**
-   - Naming conventions
-   - Function complexity
-   - DRY principle violations
-   - SOLID principle adherence
-
-5. **Best Practices**
-   - Error handling patterns
-   - Logging practices
-   - Testing coverage
-   - Documentation quality
-
-For each issue found, provide:
-- Line number/location
-- Severity (critical/warning/suggestion)
-- Clear explanation of the problem
-- Specific code fix recommendation`,
-    category: "automation",
-    tags: ["code-review", "best-practices", "debugging", "security", "performance"],
-    author: {
-      id: "user-1",
-      username: "codewizard",
-      displayName: "Code Wizard",
-      avatarUrl: null,
-      reputation: 1250,
-    },
-    stats: {
-      views: 3420,
-      copies: 892,
-      saves: 234,
-      rating: 4.8,
-      ratingCount: 156,
-    },
-    featured: true,
-    createdAt: "2026-01-10T12:00:00Z",
-    updatedAt: "2026-01-11T08:30:00Z",
-  },
-  "comm-2": {
-    id: "comm-2",
-    title: "Creative Story Generator",
-    description: "Generate engaging short stories with compelling characters and plot twists.",
-    content: "Write a creative short story with the following elements: [GENRE], [SETTING], [MAIN CHARACTER]. Include: an engaging hook, rising tension, a surprising twist, and a satisfying conclusion. Use vivid imagery and dialogue.",
-    category: "ideation",
-    tags: ["creative-writing", "storytelling", "fiction"],
-    author: {
-      id: "user-2",
-      username: "storysmith",
-      displayName: "Story Smith",
-      avatarUrl: null,
-      reputation: 890,
-    },
-    stats: {
-      views: 2150,
-      copies: 567,
-      saves: 189,
-      rating: 4.6,
-      ratingCount: 98,
-    },
-    featured: false,
-    createdAt: "2026-01-09T15:30:00Z",
-    updatedAt: "2026-01-09T15:30:00Z",
-  },
-  "comm-3": {
-    id: "comm-3",
-    title: "API Documentation Writer",
-    description: "Generate comprehensive API documentation from code or specifications.",
-    content: "Create detailed API documentation for the following endpoint/function. Include: endpoint URL, HTTP method, request parameters (with types and validation), response format, error codes, authentication requirements, rate limits, and 2-3 example requests with responses.",
-    category: "documentation",
-    tags: ["api", "docs", "technical-writing"],
-    author: {
-      id: "user-3",
-      username: "docmaster",
-      displayName: "Doc Master",
-      avatarUrl: null,
-      reputation: 1567,
-    },
-    stats: {
-      views: 4890,
-      copies: 1234,
-      saves: 456,
-      rating: 4.9,
-      ratingCount: 234,
-    },
-    featured: true,
-    createdAt: "2026-01-08T09:00:00Z",
-    updatedAt: "2026-01-10T14:20:00Z",
-  },
-};
-
-// Related prompts (mock)
-const relatedPrompts: CommunityPrompt[] = [
-  mockPrompts["comm-2"]!,
-  mockPrompts["comm-3"]!,
-];
+import { getCommunityPrompt, getRelatedCommunityPrompts } from "@/lib/swap-meet/data";
 
 function formatNumber(num: number): string {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -181,16 +59,21 @@ export default function CommunityPromptDetailPage() {
   const params = useParams();
   const router = useRouter();
   const locale = useLocale();
-  const { success, error: toastError } = useToast();
+  const { success, error: toastError, info, warning } = useToast();
   const [copied, setCopied] = useState(false);
   const [userRating, setUserRating] = useState<"up" | "down" | null>(null);
 
   const promptId = params.id as string;
-  const prompt = mockPrompts[promptId];
+  const prompt = getCommunityPrompt(promptId);
+  const relatedPrompts: CommunityPrompt[] = getRelatedCommunityPrompts(promptId);
 
   useEffect(() => {
     if (!prompt) return;
-    trackHistoryView({ resourceType: "prompt", resourceId: prompt.id, source: "swap_meet" });
+    trackHistoryView({
+      resourceType: "community-prompt",
+      resourceId: prompt.id,
+      source: "swap_meet",
+    });
   }, [prompt]);
 
   const handleCopy = useCallback(async () => {
@@ -215,6 +98,47 @@ export default function CommunityPromptDetailPage() {
       { duration: 3000 }
     );
   }, [success]);
+
+  const handleSaveUnavailable = useCallback(() => {
+    info(
+      "Save to library not available",
+      "Saving community prompts to your library is not wired up yet.",
+      { duration: 3500 }
+    );
+  }, [info]);
+
+  const handleForkUnavailable = useCallback(() => {
+    info(
+      "Fork & Edit not available",
+      "Forking community prompts from Swap Meet is not wired up yet.",
+      { duration: 3500 }
+    );
+  }, [info]);
+
+  const handleShare = useCallback(async () => {
+    const shareUrl = typeof window === "undefined" ? "" : window.location.href;
+    if (!shareUrl) {
+      toastError("Unable to share", "This page URL is not available yet.");
+      return;
+    }
+
+    const result = await copyToClipboard(shareUrl);
+    if (result.success) {
+      success("Link copied", "Share link copied to clipboard", { duration: 3000 });
+      trackEvent("share_copy", { id: promptId, source: "swap-meet-detail" });
+      return;
+    }
+
+    toastError("Unable to share", "Please try again.");
+  }, [promptId, success, toastError]);
+
+  const handleReportUnavailable = useCallback(() => {
+    warning(
+      "Reporting not available",
+      "Reporting community prompts from Swap Meet is not wired up yet.",
+      { duration: 3500 }
+    );
+  }, [warning]);
 
   if (!prompt) {
     return (
@@ -406,15 +330,15 @@ export default function CommunityPromptDetailPage() {
                 </>
               )}
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={handleSaveUnavailable}>
               <BookmarkPlus className="mr-2 h-5 w-5" />
               Save to Library
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={handleForkUnavailable}>
               <GitFork className="mr-2 h-5 w-5" />
               Fork & Edit
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" onClick={handleShare}>
               <Share2 className="mr-2 h-5 w-5" />
               Share
             </Button>
@@ -450,7 +374,12 @@ export default function CommunityPromptDetailPage() {
                   Not helpful
                 </Button>
                 <div className="ml-auto">
-                  <Button variant="ghost" size="sm" className="text-neutral-500">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-neutral-500"
+                    onClick={handleReportUnavailable}
+                  >
                     <Flag className="mr-2 h-4 w-4" />
                     Report
                   </Button>
@@ -471,7 +400,7 @@ export default function CommunityPromptDetailPage() {
                     key={relatedPrompt.id}
                     prompt={relatedPrompt}
                     index={index}
-                    onClick={(p) => router.push(`/swap-meet/${p.id}`)}
+                    onClick={(p) => router.push(localizeHref(locale, `/swap-meet/${p.id}`))}
                   />
                 ))}
               </div>

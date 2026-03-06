@@ -93,6 +93,18 @@ describe("history client", () => {
       expect(items[0].searchQuery).toBe("test query");
     });
 
+    it("tracks a community prompt view distinctly from first-party prompts", async () => {
+      await trackHistoryView({
+        resourceType: "community-prompt",
+        resourceId: "comm-1",
+      });
+
+      const items = await listHistory("user");
+      expect(items).toHaveLength(1);
+      expect(items[0].resourceType).toBe("community-prompt");
+      expect(items[0].resourceId).toBe("comm-1");
+    });
+
     it("deduplicates same resource in time window", async () => {
       await trackHistoryView({
         resourceType: "prompt",
@@ -137,7 +149,7 @@ describe("history client", () => {
       });
 
       const items = await listHistory("user");
-      expect(items[0].searchQuery!.length).toBe(500);
+      expect(items[0].searchQuery).toHaveLength(500);
     });
 
     it("dispatches history-update event", async () => {
@@ -182,6 +194,7 @@ describe("history client", () => {
 
     it("filters by resource type", async () => {
       await trackHistoryView({ resourceType: "prompt", resourceId: "p1" });
+      await trackHistoryView({ resourceType: "community-prompt", resourceId: "comm-1" });
       await trackHistoryView({ resourceType: "search", searchQuery: "q" });
 
       const prompts = await listHistory("user", { resourceType: "prompt" });

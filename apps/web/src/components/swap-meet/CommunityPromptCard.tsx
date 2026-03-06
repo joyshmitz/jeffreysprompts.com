@@ -85,7 +85,7 @@ export function CommunityPromptCard({
   const prefersReducedMotion = useReducedMotion();
   const copiedResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { success, error } = useToast();
+  const { success, error, info } = useToast();
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHasMounted(true); }, []);
@@ -279,8 +279,11 @@ export function CommunityPromptCard({
                   className="h-8 w-8 p-0 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Save/bookmark functionality
-                    success("Saved to library", prompt.title, { duration: 3000 });
+                    info(
+                      "Save to library not available",
+                      "Saving community prompts to your library is not wired up yet.",
+                      { duration: 3500 }
+                    );
                   }}
                   aria-label="Save to library"
                 >
