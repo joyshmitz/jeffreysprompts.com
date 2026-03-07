@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { locales, localeNames, localeFlags, type Locale } from "@/i18n/config";
+import { locales, localeNames, localeFlags, localizeHref, stripLocalePrefix, type Locale } from "@/i18n/config";
 
 export function LanguageSwitcher() {
   const locale = useLocale();
@@ -25,12 +25,8 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
 
   const handleLocaleChange = (newLocale: string) => {
-    // Remove current locale prefix if present
-    const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/";
-
-    // Navigate to new locale path
-    const newPath = newLocale === "en" ? pathWithoutLocale : `/${newLocale}${pathWithoutLocale}`;
-    router.push(newPath);
+    const pathWithoutLocale = stripLocalePrefix(pathname);
+    router.push(localizeHref(newLocale, pathWithoutLocale));
   };
 
   return (

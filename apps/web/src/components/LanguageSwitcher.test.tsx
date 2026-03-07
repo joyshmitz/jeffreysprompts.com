@@ -113,6 +113,13 @@ describe("LanguageSwitcher", () => {
     mockPathname = "/";
     render(<LanguageSwitcher />);
     capturedOnValueChange?.("fr");
-    expect(mockPush).toHaveBeenCalledWith("/fr/");
+    expect(mockPush).toHaveBeenCalledWith("/fr");
+  });
+
+  it("does not strip unsupported two-letter path segments", () => {
+    mockPathname = "/it/help";
+    render(<LanguageSwitcher />);
+    capturedOnValueChange?.("de");
+    expect(mockPush).toHaveBeenCalledWith("/de/it/help");
   });
 });

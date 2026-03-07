@@ -61,6 +61,14 @@ const moreMenuItems: MoreMenuItem[] = [
   { label: "How It's Made", icon: Info, href: "/how_it_was_made" },
 ];
 
+function isActiveTab(pathname: string, href: string): boolean {
+  if (href === "/") {
+    return pathname === "/";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 interface BottomTabBarProps {
   /** Callback to open spotlight search */
   onOpenSearch?: () => void;
@@ -102,8 +110,7 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
   const isActive = useCallback(
     (tab: TabItem) => {
       if (!tab.href) return false;
-      if (tab.href === "/") return normalizedPathname === "/";
-      return normalizedPathname.startsWith(tab.href);
+      return isActiveTab(normalizedPathname, tab.href);
     },
     [normalizedPathname]
   );
@@ -271,6 +278,7 @@ export function BottomTabBar({ onOpenSearch, className }: BottomTabBarProps) {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => handleTabClick(tab)}
                 className="flex-1 min-w-0"
               >

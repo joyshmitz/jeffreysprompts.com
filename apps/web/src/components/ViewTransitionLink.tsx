@@ -98,18 +98,7 @@ function localizeLinkHref(href: LinkProps["href"], locale: string): LinkProps["h
       return href;
     }
 
-    const hashIndex = href.indexOf("#");
-    const searchIndex = href.indexOf("?");
-    const suffixIndex =
-      hashIndex === -1
-        ? searchIndex
-        : searchIndex === -1
-          ? hashIndex
-          : Math.min(hashIndex, searchIndex);
-    const pathname = suffixIndex === -1 ? href : href.slice(0, suffixIndex);
-    const suffix = suffixIndex === -1 ? "" : href.slice(suffixIndex);
-
-    return `${localizeHref(locale, pathname || "/")}${suffix}`;
+    return localizeHref(locale, href);
   }
 
   if (

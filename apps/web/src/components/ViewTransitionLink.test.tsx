@@ -130,4 +130,16 @@ describe("ViewTransitionLink", () => {
     fireEvent.click(link);
     expect(mockNavigateWithTransition).toHaveBeenCalledWith("/es/about");
   });
+
+  it("replaces an existing locale prefix instead of double-prefixing", () => {
+    mockLocale = "fr";
+
+    render(<ViewTransitionLink href="/es/about?tab=details#usage">About</ViewTransitionLink>);
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "/fr/about?tab=details#usage");
+
+    fireEvent.click(link);
+    expect(mockNavigateWithTransition).toHaveBeenCalledWith("/fr/about?tab=details#usage");
+  });
 });

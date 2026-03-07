@@ -83,7 +83,7 @@ function useScrollHeader() {
 
 // Pro site URL - use env var if available, otherwise default
 const PRO_URL = process.env.NEXT_PUBLIC_PRO_URL ?? "https://pro.jeffreysprompts.com";
-const openProSite = () => window.open(PRO_URL, "_blank");
+const openProSite = () => window.open(PRO_URL, "_blank", "noopener,noreferrer");
 
 // Simplified nav - only essential links. Workflows + How It Was Made moved to footer.
 const navLinks = [

@@ -12,21 +12,19 @@ export const defaultLocale: Locale = "en";
 
 export function localizeHref(locale: string, href: string): string {
   const normalizedHref = href.startsWith("/") ? href : `/${href}`;
+  const { pathname, suffix } = splitHrefSuffix(normalizedHref);
+  const normalizedPathname = stripLocalePrefix(pathname || "/");
 
   if (locale === defaultLocale) {
-    return normalizedHref;
+    return `${normalizedPathname}${suffix}`;
   }
 
   const localePrefix = `/${locale}`;
-  if (normalizedHref === "/" || normalizedHref === "") {
-    return localePrefix;
+  if (normalizedPathname === "/" || normalizedPathname === "") {
+    return `${localePrefix}${suffix}`;
   }
 
-  if (normalizedHref === localePrefix || normalizedHref.startsWith(`${localePrefix}/`)) {
-    return normalizedHref;
-  }
-
-  return `${localePrefix}${normalizedHref}`;
+  return `${localePrefix}${normalizedPathname}${suffix}`;
 }
 
 export function stripLocalePrefix(pathname: string): string {
@@ -47,6 +45,22 @@ export function stripLocalePrefix(pathname: string): string {
   }
 
   return normalizedPathname;
+}
+
+function splitHrefSuffix(href: string) {
+  const hashIndex = href.indexOf("#");
+  const searchIndex = href.indexOf("?");
+  const suffixIndex =
+    hashIndex === -1
+      ? searchIndex
+      : searchIndex === -1
+        ? hashIndex
+        : Math.min(hashIndex, searchIndex);
+
+  return {
+    pathname: suffixIndex === -1 ? href : href.slice(0, suffixIndex),
+    suffix: suffixIndex === -1 ? "" : href.slice(suffixIndex),
+  };
 }
 
 /**
