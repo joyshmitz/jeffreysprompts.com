@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   voteForFeature,
@@ -5,13 +6,24 @@ import {
   getFeature,
 } from "@/lib/roadmap/roadmap-store";
 import { getOrCreateUserId } from "@/lib/user-id";
-import { createRateLimiter } from "@/lib/rate-limit";
+import { checkMultipleLimits, createRateLimiter, getTrustedClientIp } from "@/lib/rate-limit";
 
 const roadmapVoteRateLimiter = createRateLimiter({
   name: "roadmap-vote",
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 20,
 });
+
+function getRoadmapVoteFingerprint(request: NextRequest): string {
+  const clientIp = getTrustedClientIp(request);
+  const userAgent = request.headers.get("user-agent")?.slice(0, 256) ?? "unknown";
+
+  // Clearing the anonymous cookie should not mint a fresh vote identity for
+  // the same client, so we keep a coarse per-client fingerprint for this flow.
+  return createHash("sha256")
+    .update(`${clientIp}\n${userAgent}`)
+    .digest("hex");
+}
 
 /**
  * POST /api/roadmap/[id]/vote
@@ -27,7 +39,11 @@ export async function POST(
   const { id } = await context.params;
 
   const { userId, cookie } = getOrCreateUserId(request);
-  const voteRateLimit = await roadmapVoteRateLimiter.check(`user:${userId}`);
+  const clientFingerprint = getRoadmapVoteFingerprint(request);
+  const voteRateLimit = await checkMultipleLimits([
+    { limiter: roadmapVoteRateLimiter, key: `user:${userId}` },
+    { limiter: roadmapVoteRateLimiter, key: `client:${clientFingerprint}` },
+  ]);
   if (!voteRateLimit.allowed) {
     const response = NextResponse.json(
       { error: "Too many vote requests. Please try again later." },
@@ -50,7 +66,7 @@ export async function POST(
     );
   }
 
-  const result = voteForFeature(id, userId);
+  const result = voteForFeature(id, userId, { clientFingerprint });
 
   if (!result.success) {
     return NextResponse.json(
@@ -85,7 +101,11 @@ export async function DELETE(
   const { id } = await context.params;
 
   const { userId, cookie } = getOrCreateUserId(request);
-  const voteRateLimit = await roadmapVoteRateLimiter.check(`user:${userId}`);
+  const clientFingerprint = getRoadmapVoteFingerprint(request);
+  const voteRateLimit = await checkMultipleLimits([
+    { limiter: roadmapVoteRateLimiter, key: `user:${userId}` },
+    { limiter: roadmapVoteRateLimiter, key: `client:${clientFingerprint}` },
+  ]);
   if (!voteRateLimit.allowed) {
     const response = NextResponse.json(
       { error: "Too many vote requests. Please try again later." },
@@ -108,7 +128,7 @@ export async function DELETE(
     );
   }
 
-  const result = unvoteFeature(id, userId);
+  const result = unvoteFeature(id, userId, { clientFingerprint });
 
   if (!result.success) {
     const status = result.error === "Feature not found" ? 404 : 400;

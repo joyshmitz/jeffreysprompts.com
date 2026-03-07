@@ -225,6 +225,14 @@ describe("roadmap-store", () => {
       expect(result.error).toContain("Already voted");
     });
 
+    it("prevents duplicate voting after a cookie reset when the client fingerprint matches", () => {
+      const feature = submitFeature({ title: "Fingerprint Vote", description: "Test" });
+      voteForFeature(feature.id, "voter-1", { clientFingerprint: "client-1" });
+      const result = voteForFeature(feature.id, "voter-2", { clientFingerprint: "client-1" });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Already voted");
+    });
+
     it("returns error for nonexistent feature", () => {
       const result = voteForFeature("nope", "voter-1");
       expect(result.success).toBe(false);
@@ -253,6 +261,17 @@ describe("roadmap-store", () => {
       const result = unvoteFeature(feature.id, "nobody");
       expect(result.success).toBe(false);
       expect(result.error).toContain("No vote");
+    });
+
+    it("allows removing a vote after a cookie reset when the client fingerprint matches", () => {
+      const feature = submitFeature({ title: "Fingerprint Unvote", description: "Test" });
+      voteForFeature(feature.id, "voter-1", { clientFingerprint: "client-1" });
+      const result = unvoteFeature(feature.id, "new-user-id", {
+        clientFingerprint: "client-1",
+      });
+      expect(result.success).toBe(true);
+      expect(result.voteCount).toBe(0);
+      expect(hasUserVoted(feature.id, "voter-1")).toBe(false);
     });
 
     it("does not go below 0", () => {

@@ -88,6 +88,7 @@ export const STATUS_CONFIG: Record<
 interface RoadmapStore {
   features: Map<string, FeatureRequest>;
   votes: Map<string, FeatureVote>;
+  clientVoteOwners: Map<string, string>;
   comments: Map<string, FeatureComment>;
 }
 
@@ -110,6 +111,7 @@ function getStore(): RoadmapStore {
     globalStore.__jfp_roadmap_store__ = {
       features: new Map(),
       votes: new Map(),
+      clientVoteOwners: new Map(),
       comments: new Map(),
     };
     initializeSeedData();
@@ -459,7 +461,8 @@ export function submitFeature(data: {
  */
 export function voteForFeature(
   featureId: string,
-  userId: string
+  userId: string,
+  options?: { clientFingerprint?: string }
 ): { success: boolean; error?: string; voteCount?: number } {
   const store = getStore();
   const feature = store.features.get(featureId);
@@ -469,8 +472,15 @@ export function voteForFeature(
   }
 
   const voteKey = `${featureId}:${userId}`;
+  const clientVoteKey = options?.clientFingerprint
+    ? `${featureId}:${options.clientFingerprint}`
+    : null;
 
   if (store.votes.has(voteKey)) {
+    return { success: false, error: "Already voted" };
+  }
+
+  if (clientVoteKey && store.clientVoteOwners.has(clientVoteKey)) {
     return { success: false, error: "Already voted" };
   }
 
@@ -479,6 +489,9 @@ export function voteForFeature(
     userId,
     createdAt: new Date().toISOString(),
   });
+  if (clientVoteKey) {
+    store.clientVoteOwners.set(clientVoteKey, userId);
+  }
 
   feature.voteCount += 1;
   feature.updatedAt = new Date().toISOString();
@@ -491,7 +504,8 @@ export function voteForFeature(
  */
 export function unvoteFeature(
   featureId: string,
-  userId: string
+  userId: string,
+  options?: { clientFingerprint?: string }
 ): { success: boolean; voteCount?: number; error?: string } {
   const store = getStore();
   const feature = store.features.get(featureId);
@@ -500,13 +514,26 @@ export function unvoteFeature(
     return { success: false, error: "Feature not found" };
   }
 
-  const voteKey = `${featureId}:${userId}`;
+  const clientVoteKey = options?.clientFingerprint
+    ? `${featureId}:${options.clientFingerprint}`
+    : null;
+  const guardedUserId = clientVoteKey
+    ? store.clientVoteOwners.get(clientVoteKey) ?? null
+    : null;
+  const effectiveUserId =
+    guardedUserId && !store.votes.has(`${featureId}:${userId}`)
+      ? guardedUserId
+      : userId;
+  const voteKey = `${featureId}:${effectiveUserId}`;
 
   if (!store.votes.has(voteKey)) {
     return { success: false, error: "No vote to remove" };
   }
 
   store.votes.delete(voteKey);
+  if (clientVoteKey && (!guardedUserId || guardedUserId === effectiveUserId)) {
+    store.clientVoteOwners.delete(clientVoteKey);
+  }
   feature.voteCount = Math.max(0, feature.voteCount - 1);
   feature.updatedAt = new Date().toISOString();
 
