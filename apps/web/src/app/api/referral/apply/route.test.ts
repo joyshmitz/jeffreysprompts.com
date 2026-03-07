@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 import {
@@ -8,6 +8,10 @@ import {
 import { USER_ID_COOKIE_NAME } from "@/lib/user-id";
 
 const REFERRAL_CLAIM_COOKIE_NAME = "jfp_referral_claim";
+const originalUserSecret = process.env.JFP_USER_ID_SECRET;
+const originalAnonSecret = process.env.JFP_ANON_ID_SECRET;
+const originalVercelDeploymentId = process.env.VERCEL_DEPLOYMENT_ID;
+const originalVercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 
 type NextRequestInit = NonNullable<ConstructorParameters<typeof NextRequest>[1]>;
 
@@ -108,6 +112,36 @@ async function bootstrapAnonymousUser(): Promise<{
     cookieValue,
   };
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+
+  if (originalUserSecret === undefined) {
+    delete process.env.JFP_USER_ID_SECRET;
+  } else {
+    process.env.JFP_USER_ID_SECRET = originalUserSecret;
+  }
+
+  if (originalAnonSecret === undefined) {
+    delete process.env.JFP_ANON_ID_SECRET;
+  } else {
+    process.env.JFP_ANON_ID_SECRET = originalAnonSecret;
+  }
+
+  if (originalVercelDeploymentId === undefined) {
+    delete process.env.VERCEL_DEPLOYMENT_ID;
+  } else {
+    process.env.VERCEL_DEPLOYMENT_ID = originalVercelDeploymentId;
+  }
+
+  if (originalVercelProductionUrl === undefined) {
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  } else {
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = originalVercelProductionUrl;
+  }
+
+});
 
 describe("/api/referral/apply GET", () => {
   beforeEach(() => {
@@ -260,6 +294,50 @@ describe("/api/referral/apply POST", () => {
 
     const secondCode = getOrCreateReferralCode("referrer-b");
     const secondResponse = await POST(
+      makePostRequest(
+        { code: secondCode.code },
+        buildCookieHeader({
+          [USER_ID_COOKIE_NAME]: userCookie,
+          [REFERRAL_CLAIM_COOKIE_NAME]: claimCookie,
+        })
+      )
+    );
+    const payload = await secondResponse.json();
+
+    expect(secondResponse.status).toBe(400);
+    expect(payload.success).toBe(false);
+    expect(payload.error).toBe("You have already used a referral code.");
+  });
+
+  it("rejects a second referral after a simulated deployment change when the claim cookie is present", async () => {
+    delete process.env.JFP_USER_ID_SECRET;
+    delete process.env.JFP_ANON_ID_SECRET;
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "jeffreysprompts.com";
+    process.env.VERCEL_DEPLOYMENT_ID = "dpl_before";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+
+    const firstDeploymentStore = await import("@/lib/referral/referral-store");
+    const firstDeploymentRoute = await import("./route");
+    const firstCode = firstDeploymentStore.getOrCreateReferralCode("referrer-a");
+    const firstResponse = await firstDeploymentRoute.POST(makePostRequest({ code: firstCode.code }));
+
+    expect(firstResponse.status).toBe(200);
+
+    const userCookie = firstResponse.cookies.get(USER_ID_COOKIE_NAME)?.value;
+    const claimCookie = firstResponse.cookies.get(REFERRAL_CLAIM_COOKIE_NAME)?.value;
+
+    expect(userCookie).toBeTruthy();
+    expect(claimCookie).toBeTruthy();
+
+    clearReferralStore();
+    process.env.VERCEL_DEPLOYMENT_ID = "dpl_after";
+    vi.resetModules();
+
+    const secondDeploymentStore = await import("@/lib/referral/referral-store");
+    const secondDeploymentRoute = await import("./route");
+    const secondCode = secondDeploymentStore.getOrCreateReferralCode("referrer-b");
+    const secondResponse = await secondDeploymentRoute.POST(
       makePostRequest(
         { code: secondCode.code },
         buildCookieHeader({

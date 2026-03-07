@@ -92,21 +92,17 @@ describe("user-id", () => {
   });
 
   describe("secret configuration", () => {
-    const originalNodeEnv = process.env.NODE_ENV;
     const originalUserSecret = process.env.JFP_USER_ID_SECRET;
     const originalAnonSecret = process.env.JFP_ANON_ID_SECRET;
     const originalVercelDeploymentId = process.env.VERCEL_DEPLOYMENT_ID;
     const originalVercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const originalVercelProjectId = process.env.VERCEL_PROJECT_ID;
+    const originalVercelOrgId = process.env.VERCEL_ORG_ID;
 
     afterEach(() => {
       vi.restoreAllMocks();
+      vi.unstubAllEnvs();
       vi.resetModules();
-
-      if (originalNodeEnv === undefined) {
-        // delete process.env.NODE_ENV;
-      } else {
-        // process.env.NODE_ENV = originalNodeEnv;
-      }
 
       if (originalUserSecret === undefined) {
         delete process.env.JFP_USER_ID_SECRET;
@@ -131,6 +127,19 @@ describe("user-id", () => {
       } else {
         process.env.VERCEL_PROJECT_PRODUCTION_URL = originalVercelProductionUrl;
       }
+
+      if (originalVercelProjectId === undefined) {
+        delete process.env.VERCEL_PROJECT_ID;
+      } else {
+        process.env.VERCEL_PROJECT_ID = originalVercelProjectId;
+      }
+
+      if (originalVercelOrgId === undefined) {
+        delete process.env.VERCEL_ORG_ID;
+      } else {
+        process.env.VERCEL_ORG_ID = originalVercelOrgId;
+      }
+
     });
 
     it("throws in production when no secret or deployment fallback is configured", async () => {
@@ -147,7 +156,7 @@ describe("user-id", () => {
       );
     });
 
-    it("uses a Vercel deployment fallback in production when explicit secrets are missing", async () => {
+    it("uses a Vercel project-scoped fallback in production when explicit secrets are missing", async () => {
       delete process.env.JFP_USER_ID_SECRET;
       delete process.env.JFP_ANON_ID_SECRET;
       process.env.VERCEL_DEPLOYMENT_ID = "dpl_test_123";
@@ -158,6 +167,24 @@ describe("user-id", () => {
       const userIdModule = await import("./user-id");
       const cookieValue = userIdModule.createUserIdCookieValue("test-user");
       expect(userIdModule.parseUserIdCookie(cookieValue)).toBe("test-user");
+    });
+
+    it("keeps cookies valid across deployment changes when the project scope stays the same", async () => {
+      delete process.env.JFP_USER_ID_SECRET;
+      delete process.env.JFP_ANON_ID_SECRET;
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "jeffreysprompts.com";
+      process.env.VERCEL_DEPLOYMENT_ID = "dpl_test_123";
+      vi.stubEnv("NODE_ENV", "production");
+      vi.resetModules();
+
+      const firstDeployment = await import("./user-id");
+      const cookieValue = firstDeployment.createUserIdCookieValue("test-user");
+
+      process.env.VERCEL_DEPLOYMENT_ID = "dpl_test_456";
+      vi.resetModules();
+
+      const secondDeployment = await import("./user-id");
+      expect(secondDeployment.parseUserIdCookie(cookieValue)).toBe("test-user");
     });
 
     it("allows JFP_ANON_ID_SECRET as production fallback", async () => {

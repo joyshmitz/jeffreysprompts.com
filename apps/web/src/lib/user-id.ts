@@ -14,6 +14,20 @@ function warnMissingSecret(message: string) {
   console.warn(message);
 }
 
+function getVercelProjectFallbackSecret(): Buffer | null {
+  const scopeParts = [
+    process.env.VERCEL_ORG_ID?.trim(),
+    process.env.VERCEL_PROJECT_ID?.trim(),
+    process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim(),
+  ].filter((value): value is string => Boolean(value));
+
+  if (scopeParts.length === 0) {
+    return null;
+  }
+
+  return Buffer.from(`vercel-project:${scopeParts.join(":")}`, "utf8");
+}
+
 function getVercelDeploymentFallbackSecret(): Buffer | null {
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID?.trim();
   if (!deploymentId) {
@@ -36,9 +50,18 @@ function getSecret(): Buffer {
   }
 
   if (process.env.NODE_ENV === "production") {
-    const vercelFallback = getVercelDeploymentFallbackSecret();
-    if (vercelFallback) {
-      cachedSecret = vercelFallback;
+    const vercelProjectFallback = getVercelProjectFallbackSecret();
+    if (vercelProjectFallback) {
+      cachedSecret = vercelProjectFallback;
+      warnMissingSecret(
+        "JFP_USER_ID_SECRET is not set in production. Falling back to a Vercel project-scoped secret so anonymous user IDs stay stable across deploys. Configure JFP_USER_ID_SECRET for stronger tamper resistance."
+      );
+      return cachedSecret;
+    }
+
+    const vercelDeploymentFallback = getVercelDeploymentFallbackSecret();
+    if (vercelDeploymentFallback) {
+      cachedSecret = vercelDeploymentFallback;
       warnMissingSecret(
         "JFP_USER_ID_SECRET is not set in production. Falling back to a Vercel deployment-scoped secret; anonymous user IDs may reset on deploy. Configure JFP_USER_ID_SECRET for stable cross-deploy identities."
       );

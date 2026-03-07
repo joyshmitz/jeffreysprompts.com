@@ -4,10 +4,10 @@
  * Manages referral codes and tracking for user growth.
  *
  * Referral codes use a deterministic deploy-stable format so they remain valid
- * across serverless instances and future deployments even when anonymous user
- * cookies still rely on a deployment-scoped fallback secret. Referral stats
- * remain in-memory and are therefore best-effort only until this subsystem
- * gets durable storage.
+ * across serverless instances and future deployments. Anonymous user cookies
+ * now prefer a Vercel project-scoped fallback secret for cross-deploy stability,
+ * but referral stats still remain in-memory and are therefore best-effort only
+ * until this subsystem gets durable storage.
  */
 
 export type ReferralStatus = "pending" | "converted" | "rewarded";
