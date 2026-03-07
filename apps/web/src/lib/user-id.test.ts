@@ -95,6 +95,8 @@ describe("user-id", () => {
     const originalNodeEnv = process.env.NODE_ENV;
     const originalUserSecret = process.env.JFP_USER_ID_SECRET;
     const originalAnonSecret = process.env.JFP_ANON_ID_SECRET;
+    const originalVercelDeploymentId = process.env.VERCEL_DEPLOYMENT_ID;
+    const originalVercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 
     afterEach(() => {
       vi.restoreAllMocks();
@@ -117,11 +119,25 @@ describe("user-id", () => {
       } else {
         process.env.JFP_ANON_ID_SECRET = originalAnonSecret;
       }
+
+      if (originalVercelDeploymentId === undefined) {
+        delete process.env.VERCEL_DEPLOYMENT_ID;
+      } else {
+        process.env.VERCEL_DEPLOYMENT_ID = originalVercelDeploymentId;
+      }
+
+      if (originalVercelProductionUrl === undefined) {
+        delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      } else {
+        process.env.VERCEL_PROJECT_PRODUCTION_URL = originalVercelProductionUrl;
+      }
     });
 
-    it("throws in production when no secret is configured", async () => {
+    it("throws in production when no secret or deployment fallback is configured", async () => {
       delete process.env.JFP_USER_ID_SECRET;
       delete process.env.JFP_ANON_ID_SECRET;
+      delete process.env.VERCEL_DEPLOYMENT_ID;
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
       vi.stubEnv("NODE_ENV", "production");
       vi.resetModules();
 
@@ -129,6 +145,19 @@ describe("user-id", () => {
       expect(() => userIdModule.createUserIdCookieValue("test-user")).toThrow(
         /Missing JFP_USER_ID_SECRET/
       );
+    });
+
+    it("uses a Vercel deployment fallback in production when explicit secrets are missing", async () => {
+      delete process.env.JFP_USER_ID_SECRET;
+      delete process.env.JFP_ANON_ID_SECRET;
+      process.env.VERCEL_DEPLOYMENT_ID = "dpl_test_123";
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "jeffreysprompts.com";
+      vi.stubEnv("NODE_ENV", "production");
+      vi.resetModules();
+
+      const userIdModule = await import("./user-id");
+      const cookieValue = userIdModule.createUserIdCookieValue("test-user");
+      expect(userIdModule.parseUserIdCookie(cookieValue)).toBe("test-user");
     });
 
     it("allows JFP_ANON_ID_SECRET as production fallback", async () => {

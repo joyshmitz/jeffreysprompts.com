@@ -8,6 +8,22 @@ const USER_ID_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 let cachedSecret: Buffer | null = null;
 let warnedMissingSecret = false;
 
+function warnMissingSecret(message: string) {
+  if (warnedMissingSecret) return;
+  warnedMissingSecret = true;
+  console.warn(message);
+}
+
+function getVercelDeploymentFallbackSecret(): Buffer | null {
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID?.trim();
+  if (!deploymentId) {
+    return null;
+  }
+
+  const scope = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || "jeffreysprompts";
+  return Buffer.from(`vercel-deployment:${scope}:${deploymentId}`, "utf8");
+}
+
 function getSecret(): Buffer {
   if (cachedSecret) return cachedSecret;
 
@@ -20,6 +36,15 @@ function getSecret(): Buffer {
   }
 
   if (process.env.NODE_ENV === "production") {
+    const vercelFallback = getVercelDeploymentFallbackSecret();
+    if (vercelFallback) {
+      cachedSecret = vercelFallback;
+      warnMissingSecret(
+        "JFP_USER_ID_SECRET is not set in production. Falling back to a Vercel deployment-scoped secret; anonymous user IDs may reset on deploy. Configure JFP_USER_ID_SECRET for stable cross-deploy identities."
+      );
+      return cachedSecret;
+    }
+
     throw new Error(
       "Missing JFP_USER_ID_SECRET (or JFP_ANON_ID_SECRET) in production. Configure a stable secret to avoid anonymous user identity churn."
     );
@@ -28,12 +53,9 @@ function getSecret(): Buffer {
   const fallback = `dev-${process.pid}-${Date.now()}-${randomUUID()}`;
   cachedSecret = Buffer.from(fallback, "utf8");
 
-  if (!warnedMissingSecret) {
-    warnedMissingSecret = true;
-    console.warn(
-      "JFP_USER_ID_SECRET is not set. Falling back to an ephemeral secret in non-production; anonymous user IDs will reset when the process restarts."
-    );
-  }
+  warnMissingSecret(
+    "JFP_USER_ID_SECRET is not set. Falling back to an ephemeral secret in non-production; anonymous user IDs will reset when the process restarts."
+  );
 
   return cachedSecret;
 }
