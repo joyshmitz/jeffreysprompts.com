@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { localizeHref } from "@/i18n/config";
 
 interface FormState {
   title: string;
@@ -15,7 +16,11 @@ interface FormState {
   useCase: string;
 }
 
-export function FeatureSubmitForm() {
+interface FeatureSubmitFormProps {
+  locale: string;
+}
+
+export function FeatureSubmitForm({ locale }: FeatureSubmitFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
     title: "",
@@ -28,6 +33,15 @@ export function FeatureSubmitForm() {
   // Ref-based guard to prevent double submission on fast double-click
   // (React state updates are async, so button can be clicked twice before disabled)
   const isSubmittingRef = useRef(false);
+  const redirectTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current !== null) {
+        window.clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,8 +74,8 @@ export function FeatureSubmitForm() {
       setIsSuccess(true);
 
       // Redirect to the new feature page after a short delay
-      setTimeout(() => {
-        router.push(`/roadmap/${data.feature.id}`);
+      redirectTimeoutRef.current = window.setTimeout(() => {
+        router.push(localizeHref(locale, `/roadmap/${data.feature.id}`));
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -158,7 +172,7 @@ export function FeatureSubmitForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.back()}
+            onClick={() => router.push(localizeHref(locale, "/roadmap"))}
             disabled={isSubmitting}
           >
             Cancel

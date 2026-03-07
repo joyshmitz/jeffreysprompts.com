@@ -162,7 +162,7 @@ describe("roadmap-store", () => {
       expect(feature.title).toBe("New Feature");
       expect(feature.description).toBe("Please add this.");
       expect(feature.status).toBe("under_review");
-      expect(feature.voteCount).toBe(1); // auto-vote
+      expect(feature.voteCount).toBe(0);
       expect(feature.commentCount).toBe(0);
     });
 
@@ -181,8 +181,7 @@ describe("roadmap-store", () => {
         title: "Anonymous Feature",
         description: "No user.",
       });
-      // Still starts with voteCount=1 but no vote record
-      expect(feature.voteCount).toBe(1);
+      expect(feature.voteCount).toBe(0);
     });
 
     it("stores optional fields", () => {
@@ -237,7 +236,12 @@ describe("roadmap-store", () => {
     it("decrements vote count", () => {
       const feature = submitFeature({ title: "Unvote Test", description: "Test" });
       voteForFeature(feature.id, "voter-1");
-      const afterVote = getFeature(feature.id)!.voteCount;
+      const storedFeature = getFeature(feature.id);
+      expect(storedFeature).not.toBeNull();
+      if (!storedFeature) {
+        throw new Error("Expected feature to exist after voting");
+      }
+      const afterVote = storedFeature.voteCount;
 
       const result = unvoteFeature(feature.id, "voter-1");
       expect(result.success).toBe(true);
@@ -254,7 +258,12 @@ describe("roadmap-store", () => {
     it("does not go below 0", () => {
       const feature = submitFeature({ title: "Zero", description: "Test", submittedBy: "u1" });
       unvoteFeature(feature.id, "u1");
-      expect(getFeature(feature.id)!.voteCount).toBeGreaterThanOrEqual(0);
+      const storedFeature = getFeature(feature.id);
+      expect(storedFeature).not.toBeNull();
+      if (!storedFeature) {
+        throw new Error("Expected feature to exist after unvoting");
+      }
+      expect(storedFeature.voteCount).toBeGreaterThanOrEqual(0);
     });
 
     it("returns error for nonexistent feature", () => {

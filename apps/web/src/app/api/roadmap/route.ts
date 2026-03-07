@@ -116,6 +116,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const { title, description, useCase, userName } = body;
+    const normalizedUseCase =
+      typeof useCase === "string" ? useCase.trim() || undefined : undefined;
+    const normalizedUserName =
+      typeof userName === "string" ? userName.trim() || undefined : undefined;
 
     if (!title || typeof title !== "string" || title.trim().length < 5) {
       return NextResponse.json(
@@ -155,13 +159,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (useCase !== undefined && useCase !== null) {
+      if (typeof useCase !== "string") {
+        return NextResponse.json(
+          { error: "invalid_use_case", message: "Use case must be a string" },
+          { status: 400 }
+        );
+      }
+
+      if (normalizedUseCase && normalizedUseCase.length > 1000) {
+        return NextResponse.json(
+          { error: "use_case_too_long", message: "Use case must be 1000 characters or less" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (userName !== undefined && userName !== null) {
+      if (typeof userName !== "string") {
+        return NextResponse.json(
+          { error: "invalid_user_name", message: "User name must be a string" },
+          { status: 400 }
+        );
+      }
+
+      if (normalizedUserName && normalizedUserName.length > 80) {
+        return NextResponse.json(
+          { error: "user_name_too_long", message: "User name must be 80 characters or less" },
+          { status: 400 }
+        );
+      }
+    }
+
     const { userId, cookie } = getOrCreateUserId(request);
     const feature = submitFeature({
       title: title.trim(),
       description: description.trim(),
-      useCase: useCase?.trim(),
+      useCase: normalizedUseCase,
       submittedBy: userId,
-      submittedByName: userName,
+      submittedByName: normalizedUserName,
     });
 
     const response = NextResponse.json({ feature }, { status: 201 });

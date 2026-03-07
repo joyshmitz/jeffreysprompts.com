@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { localizeHref } from "@/i18n/config";
 import {
   ChevronUp,
   MessageSquare,
@@ -26,28 +27,30 @@ export const metadata: Metadata = {
     "See what we're building next. Vote on features and help shape the future of Jeffrey's Prompts.",
 };
 
+const STATUS_ICONS: Record<FeatureStatus, typeof Clock> = {
+  under_review: Clock,
+  planned: Lightbulb,
+  in_progress: Rocket,
+  shipped: CheckCircle2,
+  declined: XCircle,
+};
+
 function StatusIcon({ status }: { status: FeatureStatus }) {
-  switch (status) {
-    case "under_review":
-      return <Clock className="h-4 w-4" />;
-    case "planned":
-      return <Lightbulb className="h-4 w-4" />;
-    case "in_progress":
-      return <Rocket className="h-4 w-4" />;
-    case "shipped":
-      return <CheckCircle2 className="h-4 w-4" />;
-    case "declined":
-      return <XCircle className="h-4 w-4" />;
-    default:
-      return null;
-  }
+  const Icon = STATUS_ICONS[status];
+  return <Icon className="h-4 w-4" />;
 }
 
-function FeatureCard({ feature }: { feature: FeatureRequest }) {
+function FeatureCard({
+  feature,
+  locale,
+}: {
+  feature: FeatureRequest;
+  locale: string;
+}) {
   const statusConfig = STATUS_CONFIG[feature.status];
 
   return (
-    <Link href={`/roadmap/${feature.id}`}>
+    <Link href={localizeHref(locale, `/roadmap/${feature.id}`)}>
       <Card className="p-4 hover:bg-accent/50 transition-colors cursor-pointer">
         <div className="flex gap-4">
           {/* Vote count */}
@@ -95,9 +98,11 @@ function FeatureCard({ feature }: { feature: FeatureRequest }) {
 function StatusColumn({
   status,
   features,
+  locale,
 }: {
   status: FeatureStatus;
   features: FeatureRequest[];
+  locale: string;
 }) {
   const statusConfig = STATUS_CONFIG[status];
 
@@ -120,7 +125,7 @@ function StatusColumn({
 
       <div className="flex flex-col gap-2">
         {features.map((feature) => (
-          <FeatureCard key={feature.id} feature={feature} />
+          <FeatureCard key={feature.id} feature={feature} locale={locale} />
         ))}
         {features.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
@@ -132,7 +137,12 @@ function StatusColumn({
   );
 }
 
-export default function RoadmapPage() {
+interface Props {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function RoadmapPage({ params }: Props) {
+  const { locale } = await params;
   const roadmap = getRoadmapByStatus();
   const stats = getRoadmapStats();
 
@@ -173,7 +183,7 @@ export default function RoadmapPage() {
 
       {/* Submit CTA */}
       <div className="flex justify-center mb-8">
-        <Link href="/roadmap/submit">
+        <Link href={localizeHref(locale, "/roadmap/submit")}>
           <Button size="lg" className="gap-2">
             <Lightbulb className="h-5 w-5" />
             Submit a Feature Request
@@ -184,13 +194,21 @@ export default function RoadmapPage() {
       {/* Roadmap columns */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* In Progress - most visible */}
-        <StatusColumn status="in_progress" features={roadmap.in_progress} />
+        <StatusColumn
+          status="in_progress"
+          features={roadmap.in_progress}
+          locale={locale}
+        />
 
         {/* Planned */}
-        <StatusColumn status="planned" features={roadmap.planned} />
+        <StatusColumn status="planned" features={roadmap.planned} locale={locale} />
 
         {/* Under Review */}
-        <StatusColumn status="under_review" features={roadmap.under_review} />
+        <StatusColumn
+          status="under_review"
+          features={roadmap.under_review}
+          locale={locale}
+        />
       </div>
 
       {/* Recently Shipped - Separate section */}
@@ -202,7 +220,7 @@ export default function RoadmapPage() {
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roadmap.shipped.slice(0, 6).map((feature) => (
-              <FeatureCard key={feature.id} feature={feature} />
+              <FeatureCard key={feature.id} feature={feature} locale={locale} />
             ))}
           </div>
         </div>
@@ -221,7 +239,7 @@ export default function RoadmapPage() {
             </summary>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
               {roadmap.declined.map((feature) => (
-                <FeatureCard key={feature.id} feature={feature} />
+                <FeatureCard key={feature.id} feature={feature} locale={locale} />
               ))}
             </div>
           </details>

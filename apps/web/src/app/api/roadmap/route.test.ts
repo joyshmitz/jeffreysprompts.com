@@ -270,6 +270,7 @@ describe("/api/roadmap POST", () => {
       title: "  Feature With Spaces  ",
       description: "  Description with leading and trailing spaces  ",
       useCase: "  Use case here  ",
+      userName: "  Anonymous   ",
     }));
 
     expect(mockSubmitFeature).toHaveBeenCalledWith(
@@ -277,6 +278,7 @@ describe("/api/roadmap POST", () => {
         title: "Feature With Spaces",
         description: "Description with leading and trailing spaces",
         useCase: "Use case here",
+        submittedByName: "Anonymous",
       })
     );
   });
@@ -292,5 +294,29 @@ describe("/api/roadmap POST", () => {
         submittedBy: "test-user-456",
       })
     );
+  });
+
+  it("returns 400 when useCase is not a string", async () => {
+    const res = await POST(makePostRequest({
+      title: "New Feature Request",
+      description: "This is a detailed description of the feature request that is long enough.",
+      useCase: { invalid: true },
+    }));
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("invalid_use_case");
+  });
+
+  it("returns 400 when userName is not a string", async () => {
+    const res = await POST(makePostRequest({
+      title: "New Feature Request",
+      description: "This is a detailed description of the feature request that is long enough.",
+      userName: { invalid: true },
+    }));
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("invalid_user_name");
   });
 });

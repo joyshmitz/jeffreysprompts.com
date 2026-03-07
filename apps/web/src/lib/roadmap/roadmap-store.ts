@@ -433,7 +433,7 @@ export function submitFeature(data: {
     status: "under_review",
     submittedBy: data.submittedBy,
     submittedByName: data.submittedByName,
-    voteCount: 1, // Auto-vote for your own submission
+    voteCount: data.submittedBy ? 1 : 0,
     commentCount: 0,
     createdAt: now,
     updatedAt: now,

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FeatureSubmitForm } from "./FeatureSubmitForm";
 import { ArrowLeft, Lightbulb, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { localizeHref } from "@/i18n/config";
 
 export const metadata: Metadata = {
   title: "Submit Feature Request",
@@ -10,12 +11,18 @@ export const metadata: Metadata = {
     "Have an idea? Submit a feature request and let the community vote on it.",
 };
 
-export default function SubmitFeaturePage() {
+interface Props {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function SubmitFeaturePage({ params }: Props) {
+  const { locale } = await params;
+
   return (
     <div className="container max-w-2xl py-8 px-4">
       {/* Back link */}
       <Link
-        href="/roadmap"
+        href={localizeHref(locale, "/roadmap")}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -58,7 +65,7 @@ export default function SubmitFeaturePage() {
       </Card>
 
       {/* Form */}
-      <FeatureSubmitForm />
+      <FeatureSubmitForm locale={locale} />
     </div>
   );
 }

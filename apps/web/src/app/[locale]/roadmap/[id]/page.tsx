@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getFeature,
   getFeatureComments,
+  hasUserVoted,
   STATUS_CONFIG,
 } from "@/lib/roadmap/roadmap-store";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  ChevronUp,
   MessageSquare,
   Clock,
   Calendar,
@@ -19,9 +19,12 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import { USER_ID_COOKIE_NAME, parseUserIdCookie } from "@/lib/user-id";
+import { localizeHref } from "@/i18n/config";
+import { FeatureVotePanel } from "./FeatureVotePanel";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -47,21 +50,24 @@ function formatDate(dateString: string): string {
 }
 
 export default async function FeatureDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { locale, id } = await params;
   const feature = getFeature(id);
 
   if (!feature) {
-    notFound();
+    return notFound();
   }
 
   const comments = getFeatureComments(id);
   const statusConfig = STATUS_CONFIG[feature.status];
+  const cookieStore = await cookies();
+  const userId = parseUserIdCookie(cookieStore.get(USER_ID_COOKIE_NAME)?.value);
+  const initialHasVoted = userId ? hasUserVoted(id, userId) : false;
 
   return (
     <div className="container max-w-3xl py-8 px-4">
       {/* Back link */}
       <Link
-        href="/roadmap"
+        href={localizeHref(locale, "/roadmap")}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -72,13 +78,11 @@ export default async function FeatureDetailPage({ params }: Props) {
       <Card className="p-6 mb-6">
         <div className="flex gap-6">
           {/* Vote section */}
-          <div className="flex flex-col items-center justify-center text-center border-r pr-6">
-            <Button variant="ghost" size="sm" className="flex flex-col h-auto py-2">
-              <ChevronUp className="h-6 w-6" />
-            </Button>
-            <span className="text-2xl font-bold">{feature.voteCount}</span>
-            <span className="text-xs text-muted-foreground">votes</span>
-          </div>
+          <FeatureVotePanel
+            featureId={feature.id}
+            initialVoteCount={feature.voteCount}
+            initialHasVoted={initialHasVoted}
+          />
 
           {/* Content */}
           <div className="flex-1">
